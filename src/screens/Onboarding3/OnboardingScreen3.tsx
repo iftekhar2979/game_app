@@ -45,12 +45,20 @@ const OnboardingScreen3 = ({ onBack }: Props) => {
             style={{ position: 'absolute', width: '120%', height: '120%', opacity: 0.8 }}
             resizeMode="cover"
           />
-          {/* Main Avatar */}
-          <Image
-            source={require('../../assets/images/onboarding3/onboard-third-main.png')}
-            style={{ width: '80%', height: '100%', zIndex: 10 }}
-            resizeMode="contain"
-          />
+          {/* Main Avatar & Shadow Container */}
+          <View style={{ width: '80%', height: '100%', zIndex: 10 }}>
+            <Image
+              source={require('../../assets/images/onboarding3/onboard-third-main.png')}
+              style={{ width: '100%', height: '100%' }}
+              resizeMode="contain"
+            />
+            {/* Bottom Shadow Overlay Image */}
+            <Image
+              source={require('../../assets/images/onboarding3/Rectangle.png')}
+              style={{ position: 'absolute', bottom: 0, left: 0, right: 0, width: '100%', height: '40%', zIndex: 11 }}
+              resizeMode="stretch"
+            />
+          </View>
         </View>
 
         {/* Huge faded text in background */}
@@ -58,6 +66,7 @@ const OnboardingScreen3 = ({ onBack }: Props) => {
           className="absolute text-white/5 font-black uppercase text-center"
           style={{ fontSize: 90, top: '45%', width: '200%', left: '-50%' }}
           numberOfLines={1}
+
         >
           CREATE AVATAR
         </Text>
