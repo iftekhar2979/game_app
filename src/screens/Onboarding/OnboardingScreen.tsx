@@ -8,10 +8,24 @@ import {
 } from 'react-native';
 import { colors } from '../../theme/colors';
 import CustomLoader from '../../components/Loader/CustomLoader';
+import { useNavigation } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { RootStackParamList } from '../../../App';
 
 const { width } = Dimensions.get('window');
 
+type NavigationProp = NativeStackNavigationProp<RootStackParamList, 'Onboarding1'>;
+
 const OnboardingScreen = () => {
+  const navigation = useNavigation<NavigationProp>();
+
+  React.useEffect(() => {
+    const timer = setTimeout(() => {
+      navigation.replace('Onboarding2');
+    }, 2500);
+    return () => clearTimeout(timer);
+  }, [navigation]);
+
   return (
     <View className="flex-1 bg-background">
       {/* Logo Section with its own Background */}
