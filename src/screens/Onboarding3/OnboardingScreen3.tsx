@@ -62,14 +62,14 @@ const OnboardingScreen3 = ({ onBack }: Props) => {
         </View>
 
         {/* Huge faded text in background */}
-        <Text
+        {/* <Text
           className="absolute text-white/5 font-black uppercase text-center"
           style={{ fontSize: 90, top: '45%', width: '200%', left: '-50%' }}
           numberOfLines={1}
 
         >
           CREATE AVATAR
-        </Text>
+        </Text> */}
 
         {/* Text Content */}
         <View className="px-10 items-center mt-6 z-20">
