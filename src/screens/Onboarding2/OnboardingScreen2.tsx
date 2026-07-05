@@ -1,13 +1,10 @@
 import React from 'react';
 import { View, Text, Image, TouchableOpacity, Dimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useNavigation } from '@react-navigation/native';
-
 const { width, height } = Dimensions.get('window');
 
 const OnboardingScreen2 = () => {
   const insets = useSafeAreaInsets();
-  const navigation = useNavigation();
 
   return (
     <View className="flex-1 bg-background">
@@ -41,7 +38,7 @@ const OnboardingScreen2 = () => {
       {/* Title Section */}
       <View className="w-full px-6 z-10 mt-16">
         <Text className="text-3xl text-textPrimary font-light">Start with</Text>
-        <Text className="text-4xl text-textPrimary font-extrabold mt-1 tracking-tight">CheerBattle</Text>
+        <Text className="text-6xl text-textPrimary font-extrabold mt-1 tracking-tight">CheerBattle</Text>
       </View>
 
       {/* Image Collage (Absolute Positioned on the right) */}
@@ -60,7 +57,7 @@ const OnboardingScreen2 = () => {
           source={require('../../assets/images/onboarding2/top.png')}
           style={{
             position: 'absolute',
-            top: 0,
+            top: "-7%",
             right: -width * 0.05,
             width: '100%',
             height: '40%',
@@ -73,7 +70,8 @@ const OnboardingScreen2 = () => {
           style={{
             position: 'absolute',
             top: '22%',
-            right: width * 0.1,
+            // left: '1%',
+            right: width * 0.01,
             width: '110%',
             height: '50%',
             zIndex: 10,

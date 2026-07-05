@@ -21,7 +21,7 @@ const OnboardingScreen = () => {
 
   React.useEffect(() => {
     const timer = setTimeout(() => {
-      navigation.replace('Onboarding2');
+      navigation.replace('OnboardingCarousel');
     }, 2500);
     return () => clearTimeout(timer);
   }, [navigation]);
