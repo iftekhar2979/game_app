@@ -4,10 +4,10 @@ import {
   Text,
   ImageBackground,
   Image,
-  ActivityIndicator,
   Dimensions,
 } from 'react-native';
 import { colors } from '../../theme/colors';
+import CustomLoader from '../../components/Loader/CustomLoader';
 
 const { width } = Dimensions.get('window');
 
@@ -18,7 +18,7 @@ const OnboardingScreen = () => {
       <View style={{ flex: 6 }} className="justify-center items-center w-full pt-12">
         <ImageBackground
           source={require('../../assets/images/onboardbg.png')}
-          className="w-full h-full justify-center items-center"
+          className="w-full h-full justify-end items-center"
           resizeMode="cover"
         >
           <Image
@@ -30,7 +30,7 @@ const OnboardingScreen = () => {
       </View>
 
       {/* Text Content Section */}
-      <View style={{ flex: 3 }} className="justify-end items-center px-10 pb-6">
+      <View style={{ flex: 3 }} className="justify-center items-center px-10 pb-6">
         <Text className="text-4xl font-bold text-textPrimary mb-4 text-center tracking-tight">CheerBattle</Text>
         <Text className="text-sm text-textSecondary text-center leading-6">
           Charizard is known for its dragon-like appearance, with a large wingspan
@@ -41,7 +41,7 @@ const OnboardingScreen = () => {
 
       {/* Loader Section */}
       <View style={{ flex: 2 }} className="justify-center items-center">
-        <ActivityIndicator size="large" color={colors.primary} />
+        <CustomLoader size={40} color={colors.primary} />
       </View>
     </View>
   );
