@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, Image, StyleSheet, ScrollView, Dimensions } from 'react-native';
-import Svg, { Defs, LinearGradient, Stop, Rect } from 'react-native-svg';
+import Svg, { Defs, LinearGradient, Stop, Rect, Filter, FeColorMatrix, Image as SvgImage } from 'react-native-svg';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { ChevronLeft } from 'lucide-react-native';
@@ -11,6 +11,18 @@ type NavigationProp = NativeStackNavigationProp<RootStackParamList, 'GenerateAva
 type GenerateAvatarRouteProp = RouteProp<RootStackParamList, 'GenerateAvatar'>;
 
 const { width } = Dimensions.get('window');
+
+// Helper to convert hex to SVG color matrix values (Multiply blend)
+const hexToRgbMatrix = (hex: string) => {
+  const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+  if (result) {
+    const r = parseInt(result[1], 16) / 255;
+    const g = parseInt(result[2], 16) / 255;
+    const b = parseInt(result[3], 16) / 255;
+    return `${r} 0 0 0 0  0 ${g} 0 0 0  0 0 ${b} 0 0  0 0 0 1 0`;
+  }
+  return '1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 1 0';
+};
 
 const HAIR_STYLES = [
   { id: 1, source: require('../../assets/images/avatar/hair/Hair.png') },
@@ -82,19 +94,29 @@ const GenerateAvatarScreen = () => {
               {/* Layered Hair */}
               {selectedHair !== null && (
                 <View className="absolute w-full h-full scale-[1.03] top-[-1%]">
-                  {/* 1. Base Hair (Provides Texture & Details) */}
-                  <Image
-                    source={HAIR_STYLES[selectedHair].source}
-                    className="absolute w-full h-full"
-                    resizeMode="contain"
-                  />
-                  {/* 2. Color Tint Overlay (Blends with base) */}
-                  {selectedHairColor && (
+                  {selectedHairColor ? (
+                    <Svg width="100%" height="100%">
+                      <Defs>
+                        <Filter id="hairColorFilter">
+                          <FeColorMatrix
+                            type="matrix"
+                            values={hexToRgbMatrix(selectedHairColor)}
+                          />
+                        </Filter>
+                      </Defs>
+                      <SvgImage
+                        width="100%"
+                        height="100%"
+                        preserveAspectRatio="xMidYMid meet"
+                        href={HAIR_STYLES[selectedHair].source}
+                        filter="url(#hairColorFilter)"
+                      />
+                    </Svg>
+                  ) : (
                     <Image
                       source={HAIR_STYLES[selectedHair].source}
                       className="absolute w-full h-full"
                       resizeMode="contain"
-                      style={{ tintColor: selectedHairColor, opacity: 0.65 }}
                     />
                   )}
                 </View>
