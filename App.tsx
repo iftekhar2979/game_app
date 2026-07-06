@@ -16,6 +16,9 @@ import SignInScreen from './src/screens/Auth/SignInScreen';
 import EmailVerificationScreen from './src/screens/Auth/EmailVerificationScreen';
 import OTPVerificationScreen from './src/screens/Auth/OTPVerificationScreen';
 import ResetPasswordScreen from './src/screens/Auth/ResetPasswordScreen';
+import ExploreAvatarScreen from './src/screens/Avatar/ExploreAvatarScreen';
+import { Provider } from 'react-redux';
+import { store } from './src/store';
 
 export type RootStackParamList = {
   Onboarding1: undefined;
@@ -24,6 +27,7 @@ export type RootStackParamList = {
   EmailVerification: undefined;
   OTPVerification: undefined;
   ResetPassword: undefined;
+  ExploreAvatar: undefined;
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -32,19 +36,22 @@ function App() {
   const isDarkMode = useColorScheme() === 'dark';
 
   return (
-    <SafeAreaProvider>
-      <StatusBar barStyle={isDarkMode ? 'light-content' : 'dark-content'} translucent backgroundColor="transparent" />
-      <NavigationContainer>
-        <Stack.Navigator screenOptions={{ headerShown: false }}>
-          <Stack.Screen name="Onboarding1" component={OnboardingScreen} />
-          <Stack.Screen name="OnboardingCarousel" component={OnboardingCarousel} />
-          <Stack.Screen name="SignIn" component={SignInScreen} />
-          <Stack.Screen name="EmailVerification" component={EmailVerificationScreen} />
-          <Stack.Screen name="OTPVerification" component={OTPVerificationScreen} />
-          <Stack.Screen name="ResetPassword" component={ResetPasswordScreen} />
-        </Stack.Navigator>
-      </NavigationContainer>
-    </SafeAreaProvider>
+    <Provider store={store}>
+      <SafeAreaProvider>
+        <StatusBar barStyle={isDarkMode ? 'light-content' : 'dark-content'} translucent backgroundColor="transparent" />
+        <NavigationContainer>
+          <Stack.Navigator screenOptions={{ headerShown: false }}>
+            <Stack.Screen name="Onboarding1" component={OnboardingScreen} />
+            <Stack.Screen name="OnboardingCarousel" component={OnboardingCarousel} />
+            <Stack.Screen name="SignIn" component={SignInScreen} />
+            <Stack.Screen name="EmailVerification" component={EmailVerificationScreen} />
+            <Stack.Screen name="OTPVerification" component={OTPVerificationScreen} />
+            <Stack.Screen name="ResetPassword" component={ResetPasswordScreen} />
+            <Stack.Screen name="ExploreAvatar" component={ExploreAvatarScreen} />
+          </Stack.Navigator>
+        </NavigationContainer>
+      </SafeAreaProvider>
+    </Provider>
   );
 }
 

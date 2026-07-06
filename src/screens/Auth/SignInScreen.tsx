@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { View, Text, TouchableOpacity } from 'react-native';
+import React from 'react';
+import { View, Text, TouchableOpacity, Alert } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../../../App';
@@ -7,13 +7,36 @@ import { ChevronLeft, Mail, KeyRound } from 'lucide-react-native';
 import AuthLayout from '../../components/Layout/AuthLayout';
 import AuthInput from '../../components/Input/AuthInput';
 import PrimaryButton from '../../components/Button/PrimaryButton';
+import { useForm, Controller } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList, 'SignIn'>;
 
+const signInSchema = z.object({
+  email: z.string().email('Invalid email address'),
+  password: z.string().min(6, 'Password must be at least 6 characters'),
+});
+
+type SignInFormValues = z.infer<typeof signInSchema>;
+
 const SignInScreen = () => {
   const navigation = useNavigation<NavigationProp>();
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+
+  const { control, handleSubmit, formState: { errors } } = useForm<SignInFormValues>({
+    resolver: zodResolver(signInSchema),
+    mode: 'onChange',
+    defaultValues: {
+      email: '',
+      password: '',
+    },
+  });
+
+  const onSubmit = (data: SignInFormValues) => {
+    console.log('Sign in pressed', data);
+    navigation.navigate('ExploreAvatar')
+    // Dispatch RTK action here
+  };
 
   return (
     <AuthLayout>
@@ -37,23 +60,39 @@ const SignInScreen = () => {
 
       {/* Form Inputs */}
       <View className="px-6 mb-2">
-        <AuthInput
-          placeholder="Enter Email"
-          value={email}
-          onChangeText={setEmail}
-          leftIcon={<Mail color="#A3A3A3" size={20} />}
-          keyboardType="email-address"
+        <Controller
+          control={control}
+          name="email"
+          render={({ field: { onChange, onBlur, value } }) => (
+            <AuthInput
+              placeholder="Enter Email"
+              value={value}
+              onChangeText={onChange}
+              onBlur={onBlur}
+              leftIcon={<Mail color="#A3A3A3" size={20} />}
+              keyboardType="email-address"
+              error={errors.email?.message}
+            />
+          )}
         />
 
-        <AuthInput
-          placeholder="Enter Password"
-          value={password}
-          onChangeText={setPassword}
-          leftIcon={<KeyRound color="#A3A3A3" size={20} />}
-          isPassword
+        <Controller
+          control={control}
+          name="password"
+          render={({ field: { onChange, onBlur, value } }) => (
+            <AuthInput
+              placeholder="Enter Password"
+              value={value}
+              onChangeText={onChange}
+              onBlur={onBlur}
+              leftIcon={<KeyRound color="#A3A3A3" size={20} />}
+              isPassword
+              error={errors.password?.message}
+            />
+          )}
         />
 
-        <TouchableOpacity 
+        <TouchableOpacity
           className="items-end mt-2"
           onPress={() => navigation.navigate('EmailVerification')}
         >
@@ -68,7 +107,10 @@ const SignInScreen = () => {
       <View className="px-6 pb-6">
         <PrimaryButton
           title="Sign in"
-          onPress={() => console.log('Sign in pressed', { email, password })}
+          onPress={handleSubmit(onSubmit, (errors) => {
+            console.log('Validation errors:', errors);
+            Alert.alert('Validation Error', 'Please check the form inputs.');
+          })}
         />
 
         <View className="flex-row justify-center mt-6">
