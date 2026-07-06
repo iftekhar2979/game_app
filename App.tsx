@@ -15,6 +15,7 @@ import OnboardingCarousel from './src/screens/OnboardingCarousel';
 import SignInScreen from './src/screens/Auth/SignInScreen';
 import EmailVerificationScreen from './src/screens/Auth/EmailVerificationScreen';
 import OTPVerificationScreen from './src/screens/Auth/OTPVerificationScreen';
+import ResetPasswordScreen from './src/screens/Auth/ResetPasswordScreen';
 
 export type RootStackParamList = {
   Onboarding1: undefined;
@@ -22,6 +23,7 @@ export type RootStackParamList = {
   SignIn: undefined;
   EmailVerification: undefined;
   OTPVerification: undefined;
+  ResetPassword: undefined;
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -39,6 +41,7 @@ function App() {
           <Stack.Screen name="SignIn" component={SignInScreen} />
           <Stack.Screen name="EmailVerification" component={EmailVerificationScreen} />
           <Stack.Screen name="OTPVerification" component={OTPVerificationScreen} />
+          <Stack.Screen name="ResetPassword" component={ResetPasswordScreen} />
         </Stack.Navigator>
       </NavigationContainer>
     </SafeAreaProvider>

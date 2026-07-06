@@ -1,13 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { RootStackParamList } from '../../../App';
 import { ChevronLeft } from 'lucide-react-native';
 import AuthLayout from '../../components/Layout/AuthLayout';
 import OTPInput from '../../components/Input/OTPInput';
 import PrimaryButton from '../../components/Button/PrimaryButton';
 
+type NavigationProp = NativeStackNavigationProp<RootStackParamList, 'OTPVerification'>;
+
 const OTPVerificationScreen = () => {
-  const navigation = useNavigation();
+  const navigation = useNavigation<NavigationProp>();
   const [otp, setOtp] = useState('');
   const [timeLeft, setTimeLeft] = useState(83); // 01:23 = 83 seconds
 
@@ -81,7 +85,10 @@ const OTPVerificationScreen = () => {
       <View className="px-6 pb-6">
         <PrimaryButton 
           title="Verify" 
-          onPress={() => console.log('Verify pressed with OTP:', otp)}
+          onPress={() => {
+            console.log('Verify pressed with OTP:', otp);
+            navigation.navigate('ResetPassword');
+          }}
         />
       </View>
     </AuthLayout>
