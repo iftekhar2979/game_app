@@ -12,14 +12,16 @@ type GenerateAvatarRouteProp = RouteProp<RootStackParamList, 'GenerateAvatar'>;
 
 const { width } = Dimensions.get('window');
 
-// Helper to convert hex to SVG color matrix values (Multiply blend)
-const hexToRgbMatrix = (hex: string) => {
+// Helper to convert hex to an optimized SVG color matrix
+// This avoids native crashes from FeBlend while providing a nice color tint
+const hexToTintMatrix = (hex: string) => {
   const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
   if (result) {
     const r = parseInt(result[1], 16) / 255;
     const g = parseInt(result[2], 16) / 255;
     const b = parseInt(result[3], 16) / 255;
-    return `${r} 0 0 0 0  0 ${g} 0 0 0  0 0 ${b} 0 0  0 0 0 1 0`;
+    // We scale the color channel but keep 25% of the original contrast to prevent mudiness
+    return `${0.25 + 0.75 * r} 0 0 0 0  0 ${0.25 + 0.75 * g} 0 0 0  0 0 ${0.25 + 0.75 * b} 0 0  0 0 0 1 0`;
   }
   return '1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 1 0';
 };
@@ -100,7 +102,7 @@ const GenerateAvatarScreen = () => {
                         <Filter id="hairColorFilter">
                           <FeColorMatrix
                             type="matrix"
-                            values={hexToRgbMatrix(selectedHairColor)}
+                            values={hexToTintMatrix(selectedHairColor)}
                           />
                         </Filter>
                       </Defs>
