@@ -8,8 +8,12 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList, 'ExploreAvatar'>;
 
-// Generate 12 mock items for the grid
-const AVATARS = Array.from({ length: 12 }).map((_, i) => ({ id: i.toString() }));
+const AVATARS = [
+  { id: '0', image: require('../../assets/images/avatar/base/base_female-Photoroom.png') },
+  { id: '1', image: require('../../assets/images/avatar/base/base_female_Photoroom2.png') },
+  { id: '2', image: require('../../assets/images/avatar/base/base_female_Photoroom3.png') },
+  { id: '2', image: require('../../assets/images/avatar/base/base_female_Photoroom4.png') },
+];
 const { width } = Dimensions.get('window');
 const CARD_WIDTH = (width - 48 - 24) / 3; // 48 for screen padding (px-6 is 24*2), 24 for gaps (12*2)
 
@@ -17,15 +21,15 @@ const ExploreAvatarScreen = () => {
   const navigation = useNavigation<NavigationProp>();
   const insets = useSafeAreaInsets();
 
-  const renderItem = ({ item }: { item: { id: string } }) => (
-    <TouchableOpacity 
+  const renderItem = ({ item }: { item: { id: string; image: any } }) => (
+    <TouchableOpacity
       activeOpacity={0.8}
       style={{ width: CARD_WIDTH, height: CARD_WIDTH * 1.3, marginBottom: 12 }}
-      onPress={() => navigation.navigate('GenerateAvatar')}
+      onPress={() => navigation.navigate('GenerateAvatar', { baseImage: item.image })}
     >
       <View className="flex-1 rounded-2xl border-2 border-[#5B1F7D] overflow-hidden bg-[#1A0B2E]">
-        <Image 
-          source={require('../../assets/images/avatar/base/base_female-Photoroom.png')}
+        <Image
+          source={item.image}
           className="w-full h-full"
           resizeMode="cover"
         />
@@ -55,7 +59,7 @@ const ExploreAvatarScreen = () => {
         <View className="px-6 mb-4">
           <Text className="text-white text-lg font-medium">Half body avatar</Text>
         </View>
-        
+
         {/* Grid List */}
         <FlatList
           data={AVATARS}
@@ -69,7 +73,7 @@ const ExploreAvatarScreen = () => {
       </View>
 
       {/* Floating Action Button */}
-      <TouchableOpacity 
+      <TouchableOpacity
         className="absolute bottom-8 right-6 w-14 h-14 rounded-full bg-black border border-[#5B1F7D] items-center justify-center shadow-lg"
         activeOpacity={0.8}
       >

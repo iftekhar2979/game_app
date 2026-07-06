@@ -1,27 +1,44 @@
 import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, Image, StyleSheet, ScrollView, Dimensions } from 'react-native';
 import Svg, { Defs, LinearGradient, Stop, Rect } from 'react-native-svg';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { ChevronLeft } from 'lucide-react-native';
 import { RootStackParamList } from '../../../App';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList, 'GenerateAvatar'>;
+type GenerateAvatarRouteProp = RouteProp<RootStackParamList, 'GenerateAvatar'>;
 
 const { width } = Dimensions.get('window');
 
-const HAIR_STYLES = [1, 2, 3, 4, 5];
+const HAIR_STYLES = [
+  { id: 1, source: require('../../assets/images/avatar/hair/Hair.png') },
+  { id: 2, source: require('../../assets/images/avatar/hair/Hair2.png') },
+  { id: 3, source: require('../../assets/images/avatar/hair/hair3.png') },
+  { id: 4, source: require('../../assets/images/avatar/hair/hair4.png') },
+  { id: 5, source: require('../../assets/images/avatar/hair/hair5.png') },
+];
 const HAIR_COLORS = [
   '#E6C27A', '#8D5B36', '#4A2F1D', '#1A1A1A', '#A33327', '#E6E6E6'
 ];
-const BOWS = [1, 2, 3, 4, 5];
+const BLAZERS = [
+  { id: 1, source: require('../../assets/images/avatar/body/court.png') },
+  { id: 2, source: require('../../assets/images/avatar/body/jacket.png') },
+  { id: 3, source: require('../../assets/images/avatar/body/tshirt.png') },
+  { id: 4, source: require('../../assets/images/avatar/body/shirt.png') },
+  { id: 5, source: require('../../assets/images/avatar/body/hoddie.png') },
+];
 
 const GenerateAvatarScreen = () => {
   const navigation = useNavigation<NavigationProp>();
+  const route = useRoute<GenerateAvatarRouteProp>();
   const insets = useSafeAreaInsets();
 
+  const baseImage = route.params?.baseImage || require('../../assets/images/avatar/base/base_female-Photoroom.png');
+
   const [selectedHair, setSelectedHair] = useState<number | null>(null);
+  const [selectedHairColor, setSelectedHairColor] = useState<string | null>(null);
   const [selectedBody, setSelectedBody] = useState<number | null>(null);
 
   return (
@@ -48,7 +65,7 @@ const GenerateAvatarScreen = () => {
             <View className="w-[90%] h-[95%] items-center justify-center">
               {/* Base Head */}
               <Image
-                source={require('../../assets/images/avatar/base/base_female-Photoroom.png')}
+                source={baseImage}
                 className="absolute w-full h-full"
                 resizeMode="contain"
               />
@@ -56,7 +73,7 @@ const GenerateAvatarScreen = () => {
               {/* Layered Clothing (Blazer) */}
               {selectedBody !== null && (
                 <Image
-                  source={require('../../assets/images/avatar/body/court.png')}
+                  source={BLAZERS[selectedBody].source}
                   className="absolute w-full h-full"
                   resizeMode="contain"
                 />
@@ -64,11 +81,23 @@ const GenerateAvatarScreen = () => {
 
               {/* Layered Hair */}
               {selectedHair !== null && (
-                <Image
-                  source={require('../../assets/images/avatar/hair/Hair.png')}
-                  className="absolute w-full h-full scale-[1.03] top-[-1%]"
-                  resizeMode="contain"
-                />
+                <View className="absolute w-full h-full scale-[1.03] top-[-1%]">
+                  {/* 1. Base Hair (Provides Texture & Details) */}
+                  <Image
+                    source={HAIR_STYLES[selectedHair].source}
+                    className="absolute w-full h-full"
+                    resizeMode="contain"
+                  />
+                  {/* 2. Color Tint Overlay (Blends with base) */}
+                  {selectedHairColor && (
+                    <Image
+                      source={HAIR_STYLES[selectedHair].source}
+                      className="absolute w-full h-full"
+                      resizeMode="contain"
+                      style={{ tintColor: selectedHairColor, opacity: 0.65 }}
+                    />
+                  )}
+                </View>
               )}
             </View>
 
@@ -93,7 +122,7 @@ const GenerateAvatarScreen = () => {
         <View className="mb-6">
           <Text className="text-white text-base font-medium px-6 mb-4">Hair style</Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 24 }}>
-            {HAIR_STYLES.map((_, index) => (
+            {HAIR_STYLES.map((hair, index) => (
               <TouchableOpacity
                 key={`hair-${index}`}
                 activeOpacity={0.8}
@@ -102,7 +131,7 @@ const GenerateAvatarScreen = () => {
               >
                 <View className="w-[72px] h-[90px] rounded-xl border border-[#5B1F7D] bg-[#1A0B2E] overflow-hidden justify-end pb-6">
                   <Image
-                    source={require('../../assets/images/avatar/hair/Hair.png')}
+                    source={hair.source}
                     className="w-[120%] h-[120%] absolute top-[-10%] left-[-10%]"
                     resizeMode="cover"
                   />
@@ -122,9 +151,14 @@ const GenerateAvatarScreen = () => {
           <Text className="text-white text-base font-medium px-6 mb-4">Hair color</Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 24 }}>
             {HAIR_COLORS.map((color, index) => (
-              <TouchableOpacity key={`color-${index}`} activeOpacity={0.8} className="mr-3 items-center">
+              <TouchableOpacity
+                key={`color-${index}`}
+                activeOpacity={0.8}
+                className="mr-3 items-center"
+                onPress={() => setSelectedHairColor(color)}
+              >
                 <View
-                  className="w-[60px] h-[60px] rounded-full border border-[#5B1F7D] mb-3"
+                  className={`w-[60px] h-[60px] rounded-full mb-3 border-2 ${selectedHairColor === color ? 'border-white' : 'border-[#5B1F7D]'}`}
                   style={{ backgroundColor: color }}
                 />
                 {/* Price tag */}
@@ -141,7 +175,7 @@ const GenerateAvatarScreen = () => {
         <View className="mb-6">
           <Text className="text-white text-base font-medium px-6 mb-4">Blazer</Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 24 }}>
-            {BOWS.map((_, index) => (
+            {BLAZERS.map((blazer, index) => (
               <TouchableOpacity
                 key={`blazer-${index}`}
                 activeOpacity={0.8}
@@ -149,13 +183,11 @@ const GenerateAvatarScreen = () => {
                 onPress={() => setSelectedBody(index)}
               >
                 <View className="w-[72px] h-[90px] rounded-xl border border-[#3A144E] bg-black/40 overflow-hidden justify-center items-center pb-4">
-                  {/* Just use court image loosely as a placeholder for a bow for now since we have no bow assets */}
                   <Image
-                    source={require('../../assets/images/avatar/body/court.png')}
+                    source={blazer.source}
                     className="w-[50%] h-[50%]"
                     resizeMode="contain"
                   />
-
                 </View>
                 {/* Price tag */}
                 <View className="absolute bottom-0 bg-[#3A144E] px-2 py-1 rounded-full flex-row items-center">
