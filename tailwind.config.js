@@ -8,6 +8,7 @@ module.exports = {
         background: '#000000',
         textPrimary: '#FFFFFF',
         textSecondary: '#A3A3A3',
+        backgroundSecondary: "#7A29AF"
       }
     },
   },

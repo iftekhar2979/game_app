@@ -1,5 +1,8 @@
 import React, { useRef, useState } from 'react';
 import { View, Text, Image, TouchableOpacity, Dimensions, Animated, ScrollView } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { RootStackParamList } from '../../../App';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ChevronLeft } from 'lucide-react-native';
 import Svg, { Defs, RadialGradient, Stop, Circle } from 'react-native-svg';
@@ -7,7 +10,10 @@ import OutlineButton from '../../components/Button/OutlineButton';
 
 const { width, height } = Dimensions.get('window');
 
+type NavigationProp = NativeStackNavigationProp<RootStackParamList, 'OnboardingCarousel'>;
+
 const OnboardingCarousel = () => {
+  const navigation = useNavigation<NavigationProp>();
   const insets = useSafeAreaInsets();
   const scrollViewRef = useRef<ScrollView>(null);
   const scrollX = useRef(new Animated.Value(0)).current;
@@ -215,7 +221,7 @@ const OnboardingCarousel = () => {
           <View className="w-full px-12 z-20" style={{ paddingBottom: Math.max(insets.bottom, 40) }}>
             <OutlineButton
               title="Let's get start"
-              onPress={() => console.log('Finish onboarding')}
+              onPress={() => navigation.replace('SignIn')}
             />
           </View>
         </View>

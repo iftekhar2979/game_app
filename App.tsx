@@ -12,10 +12,12 @@ import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import OnboardingScreen from './src/screens/Onboarding';
 import OnboardingCarousel from './src/screens/OnboardingCarousel';
+import SignInScreen from './src/screens/Auth/SignInScreen';
 
 export type RootStackParamList = {
   Onboarding1: undefined;
   OnboardingCarousel: undefined;
+  SignIn: undefined;
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -30,6 +32,7 @@ function App() {
         <Stack.Navigator screenOptions={{ headerShown: false }}>
           <Stack.Screen name="Onboarding1" component={OnboardingScreen} />
           <Stack.Screen name="OnboardingCarousel" component={OnboardingCarousel} />
+          <Stack.Screen name="SignIn" component={SignInScreen} />
         </Stack.Navigator>
       </NavigationContainer>
     </SafeAreaProvider>
