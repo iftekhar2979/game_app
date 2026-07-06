@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, ScrollView, Image, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, Image, StyleSheet, FlatList, Dimensions } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { ChevronLeft, Edit2 } from 'lucide-react-native';
@@ -8,13 +8,34 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList, 'ExploreAvatar'>;
 
-// Mock data leveraging the same asset over and over
-const HALF_BODY_AVATARS = [1, 2, 3];
-const FULL_BODY_AVATARS = [1, 2, 3];
+// Generate 12 mock items for the grid
+const AVATARS = Array.from({ length: 12 }).map((_, i) => ({ id: i.toString() }));
+const { width } = Dimensions.get('window');
+const CARD_WIDTH = (width - 48 - 24) / 3; // 48 for screen padding (px-6 is 24*2), 24 for gaps (12*2)
 
 const ExploreAvatarScreen = () => {
   const navigation = useNavigation<NavigationProp>();
   const insets = useSafeAreaInsets();
+
+  const renderItem = ({ item }: { item: { id: string } }) => (
+    <TouchableOpacity 
+      activeOpacity={0.8}
+      style={{ width: CARD_WIDTH, height: CARD_WIDTH * 1.3, marginBottom: 12 }}
+      onPress={() => navigation.navigate('GenerateAvatar')}
+    >
+      <View className="flex-1 rounded-2xl border-2 border-[#5B1F7D] overflow-hidden bg-[#1A0B2E]">
+        <Image 
+          source={require('../../assets/images/avatar/base/base_female-Photoroom.png')}
+          className="w-full h-full"
+          resizeMode="cover"
+        />
+        {/* Decorative team initials like in the mock */}
+        <View className="absolute bottom-2 w-full items-center">
+          <Text className="text-white font-bold italic opacity-80 text-xs shadow-lg">CB</Text>
+        </View>
+      </View>
+    </TouchableOpacity>
+  );
 
   return (
     <View style={[styles.container, { paddingTop: Math.max(insets.top, 16) }]}>
@@ -29,76 +50,23 @@ const ExploreAvatarScreen = () => {
         <Text className="text-xl text-[#B366FF] font-semibold tracking-wide">Explore avatar</Text>
       </View>
 
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 100 }}>
-        {/* Half Body Section */}
-        <View className="mb-8">
-          <View className="flex-row justify-between items-center px-6 mb-4">
-            <Text className="text-white text-lg font-medium">Half body avatar</Text>
-            <TouchableOpacity>
-              <Text className="text-[#FFB444] text-xs font-medium">See all</Text>
-            </TouchableOpacity>
-          </View>
-          
-          <ScrollView 
-            horizontal 
-            showsHorizontalScrollIndicator={false} 
-            contentContainerStyle={{ paddingHorizontal: 20 }}
-          >
-            {HALF_BODY_AVATARS.map((_, index) => (
-              <TouchableOpacity key={`half-${index}`} className="mr-4" activeOpacity={0.8}>
-                <View className="rounded-2xl border-2 border-[#5B1F7D] overflow-hidden bg-[#1A0B2E] w-[140px] h-[180px]">
-                  <Image 
-                    source={require('../../assets/images/avatar/base/base_female-Photoroom.png')}
-                    className="w-full h-full"
-                    resizeMode="cover"
-                  />
-                  {/* Decorative team initials like in the mock */}
-                  <View className="absolute bottom-3 w-full items-center">
-                    <Text className="text-white font-bold italic opacity-80 text-lg shadow-lg">CB</Text>
-                  </View>
-                </View>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
+      <View className="flex-1">
+        {/* Section Title */}
+        <View className="px-6 mb-4">
+          <Text className="text-white text-lg font-medium">Half body avatar</Text>
         </View>
-
-        {/* Full Body Section */}
-        <View>
-          <View className="flex-row justify-between items-center px-6 mb-4">
-            <Text className="text-white text-lg font-medium">Full body avatar</Text>
-            <TouchableOpacity>
-              <Text className="text-[#FFB444] text-xs font-medium">See all</Text>
-            </TouchableOpacity>
-          </View>
-          
-          <ScrollView 
-            horizontal 
-            showsHorizontalScrollIndicator={false} 
-            contentContainerStyle={{ paddingHorizontal: 20 }}
-          >
-            {FULL_BODY_AVATARS.map((_, index) => (
-              <TouchableOpacity key={`full-${index}`} className="mr-4" activeOpacity={0.8}>
-                <View className="rounded-2xl border-2 border-[#5B1F7D] overflow-hidden bg-[#1A0B2E] w-[160px] h-[340px]">
-                  <Image 
-                    source={require('../../assets/images/avatar/base/base_female-Photoroom.png')}
-                    className="w-full h-full"
-                    resizeMode="contain"
-                  />
-                  {/* Additional layers to simulate clothes if needed */}
-                  <View className="absolute top-0 left-0 w-full h-full justify-center items-center opacity-70">
-                     {/* Just putting the court image here loosely to mix things up slightly */}
-                     <Image 
-                        source={require('../../assets/images/avatar/body/court.png')}
-                        className="w-[80%] h-[80%]"
-                        resizeMode="contain"
-                     />
-                  </View>
-                </View>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
-        </View>
-      </ScrollView>
+        
+        {/* Grid List */}
+        <FlatList
+          data={AVATARS}
+          keyExtractor={(item) => item.id}
+          numColumns={3}
+          renderItem={renderItem}
+          contentContainerStyle={{ paddingHorizontal: 24, paddingBottom: 100 }}
+          columnWrapperStyle={{ justifyContent: 'space-between' }}
+          showsVerticalScrollIndicator={false}
+        />
+      </View>
 
       {/* Floating Action Button */}
       <TouchableOpacity 
