@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, Image, StyleSheet, ScrollView, Dimensions } from 'react-native';
+import Svg, { Defs, LinearGradient, Stop, Rect } from 'react-native-svg';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { ChevronLeft } from 'lucide-react-native';
@@ -37,24 +38,24 @@ const GenerateAvatarScreen = () => {
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 120 }}>
-        
+
         {/* Large Avatar Preview */}
         <View className="px-6 mb-8">
           <View className="w-full h-[320px] rounded-3xl border border-[#5B1F7D] overflow-hidden bg-[#1A0B2E] items-center justify-end pt-4">
             {/* The glow effect behind avatar */}
             <View className="absolute top-10 w-48 h-48 rounded-full bg-[#B366FF] opacity-20 blur-3xl" />
-            
+
             <View className="w-[90%] h-[95%] items-center justify-center">
               {/* Base Head */}
-              <Image 
+              <Image
                 source={require('../../assets/images/avatar/base/base_female-Photoroom.png')}
                 className="absolute w-full h-full"
                 resizeMode="contain"
               />
-              
+
               {/* Layered Clothing (Blazer) */}
               {selectedBody !== null && (
-                <Image 
+                <Image
                   source={require('../../assets/images/avatar/body/court.png')}
                   className="absolute w-full h-full"
                   resizeMode="contain"
@@ -63,35 +64,48 @@ const GenerateAvatarScreen = () => {
 
               {/* Layered Hair */}
               {selectedHair !== null && (
-                <Image 
+                <Image
                   source={require('../../assets/images/avatar/hair/Hair.png')}
-                  className="absolute w-full h-full"
+                  className="absolute w-full h-full scale-[1.03] top-[-1%]"
                   resizeMode="contain"
                 />
               )}
+            </View>
+
+            {/* Gradient Overlay to hide edge artifacts */}
+            <View className="absolute bottom-0 w-full h-24 pointer-events-none">
+              <Svg height="100%" width="100%">
+                <Defs>
+                  <LinearGradient id="grad" x1="0" y1="0" x2="0" y2="1">
+                    <Stop offset="0" stopColor="#1A0B2E" stopOpacity="0" />
+                    <Stop offset="1" stopColor="#1A0B2E" stopOpacity="1" />
+                  </LinearGradient>
+                </Defs>
+                <Rect width="100%" height="100%" fill="url(#grad)" />
+              </Svg>
             </View>
           </View>
         </View>
 
         {/* Customization Sections */}
-        
+
         {/* Hair Style */}
         <View className="mb-6">
           <Text className="text-white text-base font-medium px-6 mb-4">Hair style</Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 24 }}>
             {HAIR_STYLES.map((_, index) => (
-              <TouchableOpacity 
-                key={`hair-${index}`} 
-                activeOpacity={0.8} 
+              <TouchableOpacity
+                key={`hair-${index}`}
+                activeOpacity={0.8}
                 className="mr-3 items-center"
                 onPress={() => setSelectedHair(index)}
               >
                 <View className="w-[72px] h-[90px] rounded-xl border border-[#5B1F7D] bg-[#1A0B2E] overflow-hidden justify-end pb-6">
-                   <Image 
-                      source={require('../../assets/images/avatar/hair/Hair.png')}
-                      className="w-[120%] h-[120%] absolute top-[-10%] left-[-10%]"
-                      resizeMode="cover"
-                   />
+                  <Image
+                    source={require('../../assets/images/avatar/hair/Hair.png')}
+                    className="w-[120%] h-[120%] absolute top-[-10%] left-[-10%]"
+                    resizeMode="cover"
+                  />
                 </View>
                 {/* Price tag */}
                 <View className="absolute bottom-0 bg-[#B366FF] px-2 py-1 rounded-full flex-row items-center border border-[#3A144E]">
@@ -109,7 +123,7 @@ const GenerateAvatarScreen = () => {
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 24 }}>
             {HAIR_COLORS.map((color, index) => (
               <TouchableOpacity key={`color-${index}`} activeOpacity={0.8} className="mr-3 items-center">
-                <View 
+                <View
                   className="w-[60px] h-[60px] rounded-full border border-[#5B1F7D] mb-3"
                   style={{ backgroundColor: color }}
                 />
@@ -128,19 +142,20 @@ const GenerateAvatarScreen = () => {
           <Text className="text-white text-base font-medium px-6 mb-4">Blazer</Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 24 }}>
             {BOWS.map((_, index) => (
-              <TouchableOpacity 
-                key={`blazer-${index}`} 
-                activeOpacity={0.8} 
+              <TouchableOpacity
+                key={`blazer-${index}`}
+                activeOpacity={0.8}
                 className="mr-3 items-center opacity-80"
                 onPress={() => setSelectedBody(index)}
               >
                 <View className="w-[72px] h-[90px] rounded-xl border border-[#3A144E] bg-black/40 overflow-hidden justify-center items-center pb-4">
                   {/* Just use court image loosely as a placeholder for a bow for now since we have no bow assets */}
-                  <Image 
-                      source={require('../../assets/images/avatar/body/court.png')}
-                      className="w-[50%] h-[50%]"
-                      resizeMode="contain"
+                  <Image
+                    source={require('../../assets/images/avatar/body/court.png')}
+                    className="w-[50%] h-[50%]"
+                    resizeMode="contain"
                   />
+
                 </View>
                 {/* Price tag */}
                 <View className="absolute bottom-0 bg-[#3A144E] px-2 py-1 rounded-full flex-row items-center">
@@ -156,7 +171,7 @@ const GenerateAvatarScreen = () => {
 
       {/* Floating Create Avatar Button */}
       <View className="absolute bottom-8 w-full px-10">
-        <TouchableOpacity 
+        <TouchableOpacity
           className="w-full bg-black/60 border border-[#B366FF] py-4 rounded-full items-center justify-center backdrop-blur-md"
           activeOpacity={0.8}
         >
@@ -170,7 +185,7 @@ const GenerateAvatarScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0F0318', 
+    backgroundColor: '#0F0318',
   },
 });
 
