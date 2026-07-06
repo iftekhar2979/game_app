@@ -13,11 +13,15 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import OnboardingScreen from './src/screens/Onboarding';
 import OnboardingCarousel from './src/screens/OnboardingCarousel';
 import SignInScreen from './src/screens/Auth/SignInScreen';
+import EmailVerificationScreen from './src/screens/Auth/EmailVerificationScreen';
+import OTPVerificationScreen from './src/screens/Auth/OTPVerificationScreen';
 
 export type RootStackParamList = {
   Onboarding1: undefined;
   OnboardingCarousel: undefined;
   SignIn: undefined;
+  EmailVerification: undefined;
+  OTPVerification: undefined;
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -33,6 +37,8 @@ function App() {
           <Stack.Screen name="Onboarding1" component={OnboardingScreen} />
           <Stack.Screen name="OnboardingCarousel" component={OnboardingCarousel} />
           <Stack.Screen name="SignIn" component={SignInScreen} />
+          <Stack.Screen name="EmailVerification" component={EmailVerificationScreen} />
+          <Stack.Screen name="OTPVerification" component={OTPVerificationScreen} />
         </Stack.Navigator>
       </NavigationContainer>
     </SafeAreaProvider>
