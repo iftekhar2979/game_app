@@ -115,7 +115,7 @@ const SignInScreen = () => {
 
         <View className="flex-row justify-center mt-6">
           <Text className="text-textSecondary text-sm">Don't have an account ? </Text>
-          <TouchableOpacity>
+          <TouchableOpacity onPress={() => navigation.navigate('CreateAccount')}>
             <Text className="text-[#FFB444] text-sm underline font-medium">Create account</Text>
           </TouchableOpacity>
         </View>
