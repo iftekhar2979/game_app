@@ -26,6 +26,7 @@ const hexToTintMatrix = (hex: string) => {
   return '1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 1 0';
 };
 
+// --- HALF BODY ASSETS ---
 const HAIR_STYLES = [
   { id: 1, source: require('../../assets/images/avatar/hair/Hair.png') },
   { id: 2, source: require('../../assets/images/avatar/hair/Hair2.png') },
@@ -44,32 +45,57 @@ const BLAZERS = [
   { id: 5, source: require('../../assets/images/avatar/body/hoddie.png') },
 ];
 
+// --- FULL BODY ASSETS ---
+// These are currently using half body assets as placeholders.
+// Please update the require paths when you have the actual full body assets!
+const FULLBODY_HAIR = [
+  { id: 1, source: require('../../assets/images/avatar/hair/Hair.png') },
+  { id: 2, source: require('../../assets/images/avatar/hair/Hair2.png') },
+];
+const FULLBODY_OUTFITS = [
+  { id: 1, source: require('../../assets/images/avatar/body/court.png') },
+  { id: 2, source: require('../../assets/images/avatar/body/jacket.png') },
+];
+const SHOES = [
+  { id: 1, source: require('../../assets/images/avatar/body/tshirt.png') },
+];
+
 const GenerateAvatarScreen = () => {
   const navigation = useNavigation<NavigationProp>();
   const route = useRoute<GenerateAvatarRouteProp>();
   const insets = useSafeAreaInsets();
 
   const baseImage = route.params?.baseImage || require('../../assets/images/avatar/base/base_female-Photoroom.png');
+  const isFullbody = route.params?.isFullbody || false;
 
-  const [selectedHair, setSelectedHair] = useState<number | null>(null);
+  // Shared state
   const [selectedHairColor, setSelectedHairColor] = useState<string | null>(null);
+
+  // Half body state
+  const [selectedHair, setSelectedHair] = useState<number | null>(null);
   const [selectedBody, setSelectedBody] = useState<number | null>(null);
 
+  // Full body state
+  const [selectedFullbodyHair, setSelectedFullbodyHair] = useState<number | null>(null);
+  const [selectedFullbodyOutfit, setSelectedFullbodyOutfit] = useState<number | null>(null);
+  const [selectedShoes, setSelectedShoes] = useState<number | null>(null);
+
   return (
-    <View style={[styles.container, { paddingTop: Math.max(insets.top, 16) }]}>
+    <View style={[styles.container, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
       {/* Header */}
-      <View className="px-6 flex-row items-center mb-6">
+      <View className="flex-row items-center px-6 mb-8 mt-2">
         <TouchableOpacity
           onPress={() => navigation.goBack()}
-          className="w-10 h-10 border border-[#3A144E] rounded-xl items-center justify-center bg-black/40 mr-4"
+          className="w-10 h-10 rounded-full bg-[#1A0B2E] items-center justify-center border border-[#5B1F7D]"
+          activeOpacity={0.8}
         >
           <ChevronLeft color="white" size={24} />
         </TouchableOpacity>
-        <Text className="text-xl text-[#B366FF] font-semibold tracking-wide">Generate avatar</Text>
+        <Text className="text-white text-xl font-medium ml-4">Customize Avatar</Text>
       </View>
 
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 120 }}>
-
+      <ScrollView className="flex-1" showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 100 }}>
+        
         {/* Large Avatar Preview */}
         <View className="px-6 mb-8">
           <View className="w-full h-[320px] rounded-3xl border border-[#5B1F7D] overflow-hidden bg-[#1A0B2E] items-center justify-end pt-4">
@@ -77,15 +103,15 @@ const GenerateAvatarScreen = () => {
             <View className="absolute top-10 w-48 h-48 rounded-full bg-[#B366FF] opacity-20 blur-3xl" />
 
             <View className="w-[90%] h-[95%] items-center justify-center">
-              {/* Base Head */}
+              {/* Base Head / Base Body */}
               <Image
                 source={baseImage}
                 className="absolute w-full h-full"
                 resizeMode="contain"
               />
 
-              {/* Layered Clothing (Blazer) */}
-              {selectedBody !== null && (
+              {/* --- HALF BODY LAYERS --- */}
+              {!isFullbody && selectedBody !== null && (
                 <Image
                   source={BLAZERS[selectedBody].source}
                   className="absolute w-full h-full"
@@ -93,8 +119,7 @@ const GenerateAvatarScreen = () => {
                 />
               )}
 
-              {/* Layered Hair */}
-              {selectedHair !== null && (
+              {!isFullbody && selectedHair !== null && (
                 <View className="absolute w-full h-full scale-[1.03] top-[-1%]">
                   {selectedHairColor ? (
                     <Svg width="100%" height="100%">
@@ -123,6 +148,54 @@ const GenerateAvatarScreen = () => {
                   )}
                 </View>
               )}
+
+              {/* --- FULL BODY LAYERS --- */}
+              {isFullbody && selectedFullbodyOutfit !== null && (
+                <Image
+                  source={FULLBODY_OUTFITS[selectedFullbodyOutfit].source}
+                  className="absolute w-full h-full"
+                  resizeMode="contain"
+                />
+              )}
+
+              {isFullbody && selectedFullbodyHair !== null && (
+                <View className="absolute w-full h-full scale-[1.03] top-[-1%]">
+                  {selectedHairColor ? (
+                    <Svg width="100%" height="100%">
+                      <Defs>
+                        <Filter id="fullbodyHairColorFilter">
+                          <FeColorMatrix
+                            type="matrix"
+                            values={hexToTintMatrix(selectedHairColor)}
+                          />
+                        </Filter>
+                      </Defs>
+                      <SvgImage
+                        width="100%"
+                        height="100%"
+                        preserveAspectRatio="xMidYMid meet"
+                        href={FULLBODY_HAIR[selectedFullbodyHair].source}
+                        filter="url(#fullbodyHairColorFilter)"
+                      />
+                    </Svg>
+                  ) : (
+                    <Image
+                      source={FULLBODY_HAIR[selectedFullbodyHair].source}
+                      className="absolute w-full h-full"
+                      resizeMode="contain"
+                    />
+                  )}
+                </View>
+              )}
+
+              {isFullbody && selectedShoes !== null && (
+                <Image
+                  source={SHOES[selectedShoes].source}
+                  className="absolute w-full h-full"
+                  resizeMode="contain"
+                />
+              )}
+
             </View>
 
             {/* Gradient Overlay to hide edge artifacts */}
@@ -141,87 +214,201 @@ const GenerateAvatarScreen = () => {
         </View>
 
         {/* Customization Sections */}
+        {!isFullbody ? (
+          <>
+            {/* Hair Style */}
+            <View className="mb-6">
+              <Text className="text-white text-base font-medium px-6 mb-4">Hair style</Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 24 }}>
+                {HAIR_STYLES.map((hair, index) => (
+                  <TouchableOpacity
+                    key={`hair-${index}`}
+                    activeOpacity={0.8}
+                    className="mr-3 items-center"
+                    onPress={() => setSelectedHair(index)}
+                  >
+                    <View className="w-[72px] h-[90px] rounded-xl border border-[#5B1F7D] bg-[#1A0B2E] overflow-hidden justify-end pb-6">
+                      <Image
+                        source={hair.source}
+                        className="w-[120%] h-[120%] absolute top-[-10%] left-[-10%]"
+                        resizeMode="cover"
+                      />
+                    </View>
+                    {/* Price tag */}
+                    <View className="absolute bottom-0 bg-[#B366FF] px-2 py-1 rounded-full flex-row items-center border border-[#3A144E]">
+                      <Text className="text-xs">🪙</Text>
+                      <Text className="text-white text-[10px] font-bold ml-1">224</Text>
+                    </View>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            </View>
 
-        {/* Hair Style */}
-        <View className="mb-6">
-          <Text className="text-white text-base font-medium px-6 mb-4">Hair style</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 24 }}>
-            {HAIR_STYLES.map((hair, index) => (
-              <TouchableOpacity
-                key={`hair-${index}`}
-                activeOpacity={0.8}
-                className="mr-3 items-center"
-                onPress={() => setSelectedHair(index)}
-              >
-                <View className="w-[72px] h-[90px] rounded-xl border border-[#5B1F7D] bg-[#1A0B2E] overflow-hidden justify-end pb-6">
-                  <Image
-                    source={hair.source}
-                    className="w-[120%] h-[120%] absolute top-[-10%] left-[-10%]"
-                    resizeMode="cover"
-                  />
-                </View>
-                {/* Price tag */}
-                <View className="absolute bottom-0 bg-[#B366FF] px-2 py-1 rounded-full flex-row items-center border border-[#3A144E]">
-                  <Text className="text-xs">🪙</Text>
-                  <Text className="text-white text-[10px] font-bold ml-1">224</Text>
-                </View>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
-        </View>
+            {/* Hair Color */}
+            <View className="mb-6">
+              <Text className="text-white text-base font-medium px-6 mb-4">Hair color</Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 24 }}>
+                {HAIR_COLORS.map((color, index) => (
+                  <TouchableOpacity
+                    key={`color-${index}`}
+                    activeOpacity={0.8}
+                    className="mr-3 items-center"
+                    onPress={() => setSelectedHairColor(color)}
+                  >
+                    <View
+                      className={`w-[60px] h-[60px] rounded-full mb-3 border-2 ${selectedHairColor === color ? 'border-white' : 'border-[#5B1F7D]'}`}
+                      style={{ backgroundColor: color }}
+                    />
+                    {/* Price tag */}
+                    <View className="absolute bottom-0 bg-[#B366FF] px-2 py-1 rounded-full flex-row items-center border border-[#3A144E]">
+                      <Text className="text-xs">🪙</Text>
+                      <Text className="text-white text-[10px] font-bold ml-1">224</Text>
+                    </View>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            </View>
 
-        {/* Hair Color */}
-        <View className="mb-6">
-          <Text className="text-white text-base font-medium px-6 mb-4">Hair color</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 24 }}>
-            {HAIR_COLORS.map((color, index) => (
-              <TouchableOpacity
-                key={`color-${index}`}
-                activeOpacity={0.8}
-                className="mr-3 items-center"
-                onPress={() => setSelectedHairColor(color)}
-              >
-                <View
-                  className={`w-[60px] h-[60px] rounded-full mb-3 border-2 ${selectedHairColor === color ? 'border-white' : 'border-[#5B1F7D]'}`}
-                  style={{ backgroundColor: color }}
-                />
-                {/* Price tag */}
-                <View className="absolute bottom-0 bg-[#B366FF] px-2 py-1 rounded-full flex-row items-center border border-[#3A144E]">
-                  <Text className="text-xs">🪙</Text>
-                  <Text className="text-white text-[10px] font-bold ml-1">224</Text>
-                </View>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
-        </View>
+            {/* Blazer */}
+            <View className="mb-6">
+              <Text className="text-white text-base font-medium px-6 mb-4">Blazer</Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 24 }}>
+                {BLAZERS.map((blazer, index) => (
+                  <TouchableOpacity
+                    key={`blazer-${index}`}
+                    activeOpacity={0.8}
+                    className="mr-3 items-center opacity-80"
+                    onPress={() => setSelectedBody(index)}
+                  >
+                    <View className="w-[72px] h-[90px] rounded-xl border border-[#3A144E] bg-black/40 overflow-hidden justify-center items-center pb-4">
+                      <Image
+                        source={blazer.source}
+                        className="w-[50%] h-[50%]"
+                        resizeMode="contain"
+                      />
+                    </View>
+                    {/* Price tag */}
+                    <View className="absolute bottom-0 bg-[#3A144E] px-2 py-1 rounded-full flex-row items-center">
+                      <Text className="text-xs opacity-50">🪙</Text>
+                      <Text className="text-white text-[10px] font-bold ml-1 opacity-50">224</Text>
+                    </View>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            </View>
+          </>
+        ) : (
+          <>
+            {/* Full Body Hair Style */}
+            <View className="mb-6">
+              <Text className="text-white text-base font-medium px-6 mb-4">Full Body Hair</Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 24 }}>
+                {FULLBODY_HAIR.map((hair, index) => (
+                  <TouchableOpacity
+                    key={`fb-hair-${index}`}
+                    activeOpacity={0.8}
+                    className="mr-3 items-center"
+                    onPress={() => setSelectedFullbodyHair(index)}
+                  >
+                    <View className="w-[72px] h-[90px] rounded-xl border border-[#5B1F7D] bg-[#1A0B2E] overflow-hidden justify-end pb-6">
+                      <Image
+                        source={hair.source}
+                        className="w-[120%] h-[120%] absolute top-[-10%] left-[-10%]"
+                        resizeMode="cover"
+                      />
+                    </View>
+                    {/* Price tag */}
+                    <View className="absolute bottom-0 bg-[#B366FF] px-2 py-1 rounded-full flex-row items-center border border-[#3A144E]">
+                      <Text className="text-xs">🪙</Text>
+                      <Text className="text-white text-[10px] font-bold ml-1">224</Text>
+                    </View>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            </View>
 
-        {/* Blazer (Replacing Bows as requested) */}
-        <View className="mb-6">
-          <Text className="text-white text-base font-medium px-6 mb-4">Blazer</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 24 }}>
-            {BLAZERS.map((blazer, index) => (
-              <TouchableOpacity
-                key={`blazer-${index}`}
-                activeOpacity={0.8}
-                className="mr-3 items-center opacity-80"
-                onPress={() => setSelectedBody(index)}
-              >
-                <View className="w-[72px] h-[90px] rounded-xl border border-[#3A144E] bg-black/40 overflow-hidden justify-center items-center pb-4">
-                  <Image
-                    source={blazer.source}
-                    className="w-[50%] h-[50%]"
-                    resizeMode="contain"
-                  />
-                </View>
-                {/* Price tag */}
-                <View className="absolute bottom-0 bg-[#3A144E] px-2 py-1 rounded-full flex-row items-center">
-                  <Text className="text-xs opacity-50">🪙</Text>
-                  <Text className="text-white text-[10px] font-bold ml-1 opacity-50">224</Text>
-                </View>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
-        </View>
+            {/* Hair Color (Shared) */}
+            <View className="mb-6">
+              <Text className="text-white text-base font-medium px-6 mb-4">Hair color</Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 24 }}>
+                {HAIR_COLORS.map((color, index) => (
+                  <TouchableOpacity
+                    key={`fb-color-${index}`}
+                    activeOpacity={0.8}
+                    className="mr-3 items-center"
+                    onPress={() => setSelectedHairColor(color)}
+                  >
+                    <View
+                      className={`w-[60px] h-[60px] rounded-full mb-3 border-2 ${selectedHairColor === color ? 'border-white' : 'border-[#5B1F7D]'}`}
+                      style={{ backgroundColor: color }}
+                    />
+                    {/* Price tag */}
+                    <View className="absolute bottom-0 bg-[#B366FF] px-2 py-1 rounded-full flex-row items-center border border-[#3A144E]">
+                      <Text className="text-xs">🪙</Text>
+                      <Text className="text-white text-[10px] font-bold ml-1">224</Text>
+                    </View>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            </View>
+
+            {/* Full Body Outfit */}
+            <View className="mb-6">
+              <Text className="text-white text-base font-medium px-6 mb-4">Full Body Outfit</Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 24 }}>
+                {FULLBODY_OUTFITS.map((outfit, index) => (
+                  <TouchableOpacity
+                    key={`fb-outfit-${index}`}
+                    activeOpacity={0.8}
+                    className="mr-3 items-center"
+                    onPress={() => setSelectedFullbodyOutfit(index)}
+                  >
+                    <View className="w-[72px] h-[90px] rounded-xl border border-[#3A144E] bg-black/40 overflow-hidden justify-center items-center pb-4">
+                      <Image
+                        source={outfit.source}
+                        className="w-[50%] h-[50%]"
+                        resizeMode="contain"
+                      />
+                    </View>
+                    {/* Price tag */}
+                    <View className="absolute bottom-0 bg-[#3A144E] px-2 py-1 rounded-full flex-row items-center">
+                      <Text className="text-xs opacity-50">🪙</Text>
+                      <Text className="text-white text-[10px] font-bold ml-1 opacity-50">224</Text>
+                    </View>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            </View>
+
+            {/* Shoes */}
+            <View className="mb-6">
+              <Text className="text-white text-base font-medium px-6 mb-4">Shoes</Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 24 }}>
+                {SHOES.map((shoe, index) => (
+                  <TouchableOpacity
+                    key={`fb-shoe-${index}`}
+                    activeOpacity={0.8}
+                    className="mr-3 items-center"
+                    onPress={() => setSelectedShoes(index)}
+                  >
+                    <View className="w-[72px] h-[90px] rounded-xl border border-[#3A144E] bg-black/40 overflow-hidden justify-center items-center pb-4">
+                      <Image
+                        source={shoe.source}
+                        className="w-[50%] h-[50%]"
+                        resizeMode="contain"
+                      />
+                    </View>
+                    {/* Price tag */}
+                    <View className="absolute bottom-0 bg-[#3A144E] px-2 py-1 rounded-full flex-row items-center">
+                      <Text className="text-xs opacity-50">🪙</Text>
+                      <Text className="text-white text-[10px] font-bold ml-1 opacity-50">224</Text>
+                    </View>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            </View>
+          </>
+        )}
 
       </ScrollView>
 

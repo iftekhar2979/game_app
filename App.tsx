@@ -29,7 +29,7 @@ export type RootStackParamList = {
   OTPVerification: undefined;
   ResetPassword: undefined;
   ExploreAvatar: undefined;
-  GenerateAvatar: { baseImage: any };
+  GenerateAvatar: { baseImage: any; isFullbody?: boolean };
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
