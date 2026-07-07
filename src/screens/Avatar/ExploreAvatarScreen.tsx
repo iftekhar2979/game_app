@@ -13,7 +13,8 @@ const AVATARS = [
   { id: '1', isFullbody: false, image: require('../../assets/images/avatar/base/base_female_Photoroom2.png') },
   { id: '2', isFullbody: false, image: require('../../assets/images/avatar/base/base_female_Photoroom3.png') },
   { id: '3', isFullbody: false, image: require('../../assets/images/avatar/base/base_female_Photoroom4.png') },
-  { id: '4', isFullbody: true, image: require('../../assets/images/avatar/base/base_female-fullbody-Photoroom.png') },
+  // { id: '4', isFullbody: true, image: require('../../assets/images/avatar/base/base_female-fullbody-Photoroom.png') },
+  { id: '4', isFullbody: true, image: require('../../assets/images/avatar/base/fullbody_base_2.png') },
 ];
 const { width } = Dimensions.get('window');
 const CARD_WIDTH = (width - 48 - 24) / 3; // 48 for screen padding (px-6 is 24*2), 24 for gaps (12*2)
@@ -72,7 +73,7 @@ const ExploreAvatarScreen = () => {
         <View className="px-6 mb-4">
           <Text className="text-white text-lg font-medium">Half body avatar</Text>
         </View>
-        
+
         {/* Grid List - Half Body */}
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: 24 }}>
           {halfBodyAvatars.map((item, index) => renderItem({ item, index }))}

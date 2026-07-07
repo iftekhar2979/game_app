@@ -56,9 +56,17 @@ const FULLBODY_HAIR: AvatarAsset[] = [
 ];
 const FULLBODY_SKIRTS: AvatarAsset[] = [
   { id: 1, source: require('../../assets/images/avatar/fullbody/skirt/fullbody_skirt-1.png') },
+  { id: 2, source: require('../../assets/images/avatar/fullbody/skirt/fullbody_cargopants-1.png') },
+  { id: 3, source: require('../../assets/images/avatar/fullbody/skirt/fullbody_pant_jeans-1.png') },
+  { id: 4, source: require('../../assets/images/avatar/fullbody/skirt/fullbody_skirt_2.png') },
+  { id: 4, source: require('../../assets/images/avatar/fullbody/skirt/fullbody_jogger_1.png') },
 ];
-const FULLBODY_OUTFITS: AvatarAsset[] = [];
-const SHOES: AvatarAsset[] = [];
+const FULLBODY_OUTFITS: AvatarAsset[] = [
+  { id: 1, source: require('../../assets/images/avatar/fullbody/upperbody/fullbody_jacket_1.png') },
+];
+const SHOES: AvatarAsset[] = [
+  { id: 1, source: require('../../assets/images/avatar/fullbody/shoes/fullbody_addidas_1.png') },
+];
 
 const GenerateAvatarScreen = () => {
   const navigation = useNavigation<NavigationProp>();
@@ -387,61 +395,61 @@ const GenerateAvatarScreen = () => {
             </View>
 
             {FULLBODY_OUTFITS.length > 0 && (
-            <View className="mb-6">
-              <Text className="text-white text-base font-medium px-6 mb-4">Full Body Outfit</Text>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 24 }}>
-                {FULLBODY_OUTFITS.map((outfit, index) => (
-                  <TouchableOpacity
-                    key={`fb-outfit-${index}`}
-                    activeOpacity={0.8}
-                    className="mr-3 items-center"
-                    onPress={() => setSelectedFullbodyOutfit(index)}
-                  >
-                    <View className="w-[72px] h-[90px] rounded-xl border border-[#3A144E] bg-black/40 overflow-hidden justify-center items-center pb-4">
-                      <Image
-                        source={outfit.source}
-                        className="w-[50%] h-[50%]"
-                        resizeMode="contain"
-                      />
-                    </View>
-                    {/* Price tag */}
-                    <View className="absolute bottom-0 bg-[#3A144E] px-2 py-1 rounded-full flex-row items-center">
-                      <Text className="text-xs opacity-50">🪙</Text>
-                      <Text className="text-white text-[10px] font-bold ml-1 opacity-50">224</Text>
-                    </View>
-                  </TouchableOpacity>
-                ))}
-              </ScrollView>
-            </View>
+              <View className="mb-6">
+                <Text className="text-white text-base font-medium px-6 mb-4">Full Body Outfit</Text>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 24 }}>
+                  {FULLBODY_OUTFITS.map((outfit, index) => (
+                    <TouchableOpacity
+                      key={`fb-outfit-${index}`}
+                      activeOpacity={0.8}
+                      className="mr-3 items-center"
+                      onPress={() => setSelectedFullbodyOutfit(index)}
+                    >
+                      <View className="w-[72px] h-[90px] rounded-xl border border-[#5B1F7D] bg-[#1A0B2E] overflow-hidden justify-center items-center">
+                        <Image
+                          source={outfit.source}
+                          className="w-[150%] h-[150%]"
+                          resizeMode="contain"
+                        />
+                      </View>
+                      {/* Price tag */}
+                      <View className="absolute bottom-0 bg-[#B366FF] px-2 py-1 rounded-full flex-row items-center border border-[#3A144E]">
+                        <Text className="text-xs">🪙</Text>
+                        <Text className="text-white text-[10px] font-bold ml-1">224</Text>
+                      </View>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+              </View>
             )}
 
             {SHOES.length > 0 && (
-            <View className="mb-6">
-              <Text className="text-white text-base font-medium px-6 mb-4">Shoes</Text>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 24 }}>
-                {SHOES.map((shoe, index) => (
-                  <TouchableOpacity
-                    key={`fb-shoe-${index}`}
-                    activeOpacity={0.8}
-                    className="mr-3 items-center"
-                    onPress={() => setSelectedShoes(index)}
-                  >
-                    <View className="w-[72px] h-[90px] rounded-xl border border-[#3A144E] bg-black/40 overflow-hidden justify-center items-center pb-4">
-                      <Image
-                        source={shoe.source}
-                        className="w-[50%] h-[50%]"
-                        resizeMode="contain"
-                      />
-                    </View>
-                    {/* Price tag */}
-                    <View className="absolute bottom-0 bg-[#3A144E] px-2 py-1 rounded-full flex-row items-center">
-                      <Text className="text-xs opacity-50">🪙</Text>
-                      <Text className="text-white text-[10px] font-bold ml-1 opacity-50">224</Text>
-                    </View>
-                  </TouchableOpacity>
-                ))}
-              </ScrollView>
-            </View>
+              <View className="mb-6">
+                <Text className="text-white text-base font-medium px-6 mb-4">Shoes</Text>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 24 }}>
+                  {SHOES.map((shoe, index) => (
+                    <TouchableOpacity
+                      key={`fb-shoe-${index}`}
+                      activeOpacity={0.8}
+                      className="mr-3 items-center"
+                      onPress={() => setSelectedShoes(index)}
+                    >
+                      <View className="w-[72px] h-[90px] rounded-xl border border-[#5B1F7D] bg-[#1A0B2E] overflow-hidden justify-center items-center">
+                        <Image
+                          source={shoe.source}
+                          className="w-[120%] h-[120%]"
+                          resizeMode="contain"
+                        />
+                      </View>
+                      {/* Price tag */}
+                      <View className="absolute bottom-0 bg-[#B366FF] px-2 py-1 rounded-full flex-row items-center border border-[#3A144E]">
+                        <Text className="text-xs">🪙</Text>
+                        <Text className="text-white text-[10px] font-bold ml-1">224</Text>
+                      </View>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+              </View>
             )}
           </>
         )}
