@@ -101,7 +101,7 @@ const GenerateAvatarScreen = () => {
 
         {/* Large Avatar Preview */}
         <View className="px-6 mb-8">
-          <View 
+          <View
             style={[styles.previewContainer, { height: previewHeight }]}
           >
             {/* The glow effect behind avatar */}
@@ -293,10 +293,10 @@ const GenerateAvatarScreen = () => {
                       />
                     </View>
                     {/* Price tag */}
-                    <View className="absolute bottom-0 bg-[#3A144E] px-2 py-1 rounded-full flex-row items-center">
+                    {/* <View className="absolute bottom-0 bg-[#3A144E] px-2 py-1 rounded-full flex-row items-center">
                       <Text className="text-xs opacity-50">🪙</Text>
                       <Text className="text-white text-[10px] font-bold ml-1 opacity-50">224</Text>
-                    </View>
+                    </View> */}
                   </TouchableOpacity>
                 ))}
               </ScrollView>
@@ -323,10 +323,10 @@ const GenerateAvatarScreen = () => {
                       />
                     </View>
                     {/* Price tag */}
-                    <View className="absolute bottom-0 bg-[#B366FF] px-2 py-1 rounded-full flex-row items-center border border-[#3A144E]">
+                    {/* <View className="absolute bottom-0 bg-[#B366FF] px-2 py-1 rounded-full flex-row items-center border border-[#3A144E]">
                       <Text className="text-xs">🪙</Text>
                       <Text className="text-white text-[10px] font-bold ml-1">224</Text>
-                    </View>
+                    </View> */}
                   </TouchableOpacity>
                 ))}
               </ScrollView>
@@ -453,8 +453,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   fullbodyStage: {
-    width: '96%',
-    height: '98%',
+    width: '140%',
+    height: '110%',
     alignItems: 'center',
     justifyContent: 'center',
   },
