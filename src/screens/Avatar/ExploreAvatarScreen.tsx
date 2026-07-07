@@ -9,17 +9,20 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 type NavigationProp = NativeStackNavigationProp<RootStackParamList, 'ExploreAvatar'>;
 
 const AVATARS = [
-  { id: '0', image: require('../../assets/images/avatar/base/base_female-Photoroom.png') },
-  { id: '1', image: require('../../assets/images/avatar/base/base_female_Photoroom2.png') },
-  { id: '2', image: require('../../assets/images/avatar/base/base_female_Photoroom3.png') },
-  { id: '3', image: require('../../assets/images/avatar/base/base_female_Photoroom4.png') },
-  { id: '4', image: require('../../assets/images/avatar/base/base_female-fullbody-Photoroom.png') },
+  { id: '0', isFullbody: false, image: require('../../assets/images/avatar/base/base_female-Photoroom.png') },
+  { id: '1', isFullbody: false, image: require('../../assets/images/avatar/base/base_female_Photoroom2.png') },
+  { id: '2', isFullbody: false, image: require('../../assets/images/avatar/base/base_female_Photoroom3.png') },
+  { id: '3', isFullbody: false, image: require('../../assets/images/avatar/base/base_female_Photoroom4.png') },
+  { id: '4', isFullbody: true, image: require('../../assets/images/avatar/base/base_female-fullbody-Photoroom.png') },
 ];
 const { width } = Dimensions.get('window');
 const CARD_WIDTH = (width - 48 - 24) / 3; // 48 for screen padding (px-6 is 24*2), 24 for gaps (12*2)
+const HALF_BODY_CARD_HEIGHT = CARD_WIDTH * 1.3;
+const FULL_BODY_CARD_HEIGHT = CARD_WIDTH * 1.9;
 
 const halfBodyAvatars = AVATARS.filter(a => !a.isFullbody);
 const fullBodyAvatars = AVATARS.filter(a => a.isFullbody);
+
 
 const ExploreAvatarScreen = () => {
   const navigation = useNavigation<NavigationProp>();
@@ -29,14 +32,19 @@ const ExploreAvatarScreen = () => {
     <TouchableOpacity
       key={item.id}
       activeOpacity={0.8}
-      style={{ width: CARD_WIDTH, height: CARD_WIDTH * 1.3, marginBottom: 12, marginRight: (index % 3 !== 2) ? 12 : 0 }}
+      style={{
+        width: CARD_WIDTH,
+        height: item.isFullbody ? FULL_BODY_CARD_HEIGHT : HALF_BODY_CARD_HEIGHT,
+        marginBottom: 12,
+        marginRight: (index % 3 !== 2) ? 12 : 0,
+      }}
       onPress={() => navigation.navigate('GenerateAvatar', { baseImage: item.image, isFullbody: item.isFullbody })}
     >
       <View className="flex-1 rounded-2xl border-2 border-[#5B1F7D] overflow-hidden bg-[#1A0B2E]">
         <Image
           source={item.image}
           className="w-full h-full"
-          resizeMode="cover"
+          resizeMode={item.isFullbody ? 'contain' : 'cover'}
         />
         {/* Decorative team initials like in the mock */}
         <View className="absolute bottom-2 w-full items-center">

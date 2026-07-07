@@ -10,7 +10,9 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 type NavigationProp = NativeStackNavigationProp<RootStackParamList, 'GenerateAvatar'>;
 type GenerateAvatarRouteProp = RouteProp<RootStackParamList, 'GenerateAvatar'>;
 
-const { width } = Dimensions.get('window');
+const { height } = Dimensions.get('window');
+const PREVIEW_HEIGHT = 320;
+const FULLBODY_PREVIEW_HEIGHT = Math.min(560, height * 0.68);
 
 // Helper to convert hex to an optimized SVG color matrix
 // This avoids native crashes from FeBlend while providing a nice color tint
@@ -66,7 +68,8 @@ const GenerateAvatarScreen = () => {
   const insets = useSafeAreaInsets();
 
   const baseImage = route.params?.baseImage || require('../../assets/images/avatar/base/base_female-Photoroom.png');
-  const isFullbody = route.params?.isFullbody || false;
+  const isFullbody = route.params?.isFullbody === true;
+  const previewHeight = isFullbody ? FULLBODY_PREVIEW_HEIGHT : PREVIEW_HEIGHT;
 
   // Shared state
   const [selectedHairColor, setSelectedHairColor] = useState<string | null>(null);
@@ -95,14 +98,16 @@ const GenerateAvatarScreen = () => {
       </View>
 
       <ScrollView className="flex-1" showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 100 }}>
-        
+
         {/* Large Avatar Preview */}
         <View className="px-6 mb-8">
-          <View className="w-full h-[320px] rounded-3xl border border-[#5B1F7D] overflow-hidden bg-[#1A0B2E] items-center justify-end pt-4">
+          <View 
+            style={[styles.previewContainer, { height: previewHeight }]}
+          >
             {/* The glow effect behind avatar */}
             <View className="absolute top-10 w-48 h-48 rounded-full bg-[#B366FF] opacity-20 blur-3xl" />
 
-            <View className="w-[90%] h-[95%] items-center justify-center">
+            <View style={isFullbody ? styles.fullbodyStage : styles.avatarStage}>
               {/* Base Head / Base Body */}
               <Image
                 source={baseImage}
@@ -429,6 +434,29 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#0F0318',
+  },
+  previewContainer: {
+    width: '100%',
+    borderRadius: 24,
+    borderWidth: 1,
+    borderColor: '#5B1F7D',
+    overflow: 'hidden',
+    backgroundColor: '#1A0B2E',
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+    paddingTop: 16,
+  },
+  avatarStage: {
+    width: '90%',
+    height: '95%',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  fullbodyStage: {
+    width: '96%',
+    height: '98%',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 });
 
