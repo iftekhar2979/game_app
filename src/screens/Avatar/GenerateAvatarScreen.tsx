@@ -53,6 +53,8 @@ type AvatarAsset = { id: number; source: any };
 const FULLBODY_HAIR: AvatarAsset[] = [
   { id: 1, source: require('../../assets/images/avatar/fullbody/hair/fullbody_hair1.png') },
   { id: 2, source: require('../../assets/images/avatar/fullbody/hair/fullbody_hair2.png') },
+  { id: 3, source: require('../../assets/images/avatar/fullbody/hair/fulbody_hair_10.png') },
+  { id: 4, source: require('../../assets/images/avatar/fullbody/hair/fullbody_hair_12.png') },
 ];
 const FULLBODY_SKIRTS: AvatarAsset[] = [
   { id: 1, source: require('../../assets/images/avatar/fullbody/skirt/fullbody_skirt-1.png') },
@@ -67,12 +69,16 @@ const FULLBODY_OUTFITS: AvatarAsset[] = [
   { id: 2, source: require('../../assets/images/avatar/fullbody/upperbody/fullbody_tshirt_1.png') },
   { id: 3, source: require('../../assets/images/avatar/fullbody/upperbody/fullbody_jacket_4.png') },
   { id: 4, source: require('../../assets/images/avatar/fullbody/upperbody/fullbody_camisole_1.png') },
+  { id: 5, source: require('../../assets/images/avatar/fullbody/upperbody/fullbody_upperbody_1.png') },
+  { id: 6, source: require('../../assets/images/avatar/fullbody/upperbody/fullbody_upperbody_2.png') },
 ];
 const SHOES: AvatarAsset[] = [
   { id: 1, source: require('../../assets/images/avatar/fullbody/shoes/fullbody_addidas_1.png') },
   { id: 2, source: require('../../assets/images/avatar/fullbody/shoes/white_shoe_4.png') },
   { id: 3, source: require('../../assets/images/avatar/fullbody/shoes/shocks_with_shoes_2.png') },
   { id: 4, source: require('../../assets/images/avatar/fullbody/shoes/orange_loffer_1.png') },
+  { id: 5, source: require('../../assets/images/avatar/fullbody/shoes/nakkle_catch_1.png') },
+  { id: 6, source: require('../../assets/images/avatar/fullbody/shoes/long_shoe_1.png') },
 ];
 
 const GenerateAvatarScreen = () => {
