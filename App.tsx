@@ -13,6 +13,7 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import OnboardingScreen from './src/screens/Onboarding';
 import OnboardingCarousel from './src/screens/OnboardingCarousel';
 import SignInScreen from './src/screens/Auth/SignInScreen';
+import CreateAccountScreen from './src/screens/Auth/CreateAccountScreen';
 import EmailVerificationScreen from './src/screens/Auth/EmailVerificationScreen';
 import OTPVerificationScreen from './src/screens/Auth/OTPVerificationScreen';
 import ResetPasswordScreen from './src/screens/Auth/ResetPasswordScreen';
@@ -25,11 +26,12 @@ export type RootStackParamList = {
   Onboarding1: undefined;
   OnboardingCarousel: undefined;
   SignIn: undefined;
+  CreateAccount: undefined;
   EmailVerification: undefined;
   OTPVerification: undefined;
   ResetPassword: undefined;
   ExploreAvatar: undefined;
-  GenerateAvatar: undefined;
+  GenerateAvatar: { baseImage: any; isFullbody?: boolean };
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -46,6 +48,7 @@ function App() {
             <Stack.Screen name="Onboarding1" component={OnboardingScreen} />
             <Stack.Screen name="OnboardingCarousel" component={OnboardingCarousel} />
             <Stack.Screen name="SignIn" component={SignInScreen} />
+            <Stack.Screen name="CreateAccount" component={CreateAccountScreen} />
             <Stack.Screen name="EmailVerification" component={EmailVerificationScreen} />
             <Stack.Screen name="OTPVerification" component={OTPVerificationScreen} />
             <Stack.Screen name="ResetPassword" component={ResetPasswordScreen} />
