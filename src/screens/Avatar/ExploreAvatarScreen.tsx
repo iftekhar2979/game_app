@@ -44,7 +44,7 @@ const ExploreAvatarScreen = () => {
       <View className="flex-1 rounded-2xl border-2 border-[#5B1F7D] overflow-hidden bg-[#1A0B2E]">
         <Image
           source={item.image}
-          className="w-full h-full"
+          className={item.isFullbody ? "w-full h-full scale-[1.8]" : "w-full h-full"}
           resizeMode={item.isFullbody ? 'contain' : 'cover'}
         />
         {/* Decorative team initials like in the mock */}

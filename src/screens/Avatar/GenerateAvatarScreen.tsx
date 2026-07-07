@@ -59,13 +59,20 @@ const FULLBODY_SKIRTS: AvatarAsset[] = [
   { id: 2, source: require('../../assets/images/avatar/fullbody/skirt/fullbody_cargopants-1.png') },
   { id: 3, source: require('../../assets/images/avatar/fullbody/skirt/fullbody_pant_jeans-1.png') },
   { id: 4, source: require('../../assets/images/avatar/fullbody/skirt/fullbody_skirt_2.png') },
-  { id: 4, source: require('../../assets/images/avatar/fullbody/skirt/fullbody_jogger_1.png') },
+  { id: 5, source: require('../../assets/images/avatar/fullbody/skirt/fullbody_jogger_1.png') },
+  { id: 6, source: require('../../assets/images/avatar/fullbody/skirt/fullbody_skirt_4.png') },
 ];
 const FULLBODY_OUTFITS: AvatarAsset[] = [
   { id: 1, source: require('../../assets/images/avatar/fullbody/upperbody/fullbody_jacket_1.png') },
+  { id: 2, source: require('../../assets/images/avatar/fullbody/upperbody/fullbody_tshirt_1.png') },
+  { id: 3, source: require('../../assets/images/avatar/fullbody/upperbody/fullbody_jacket_4.png') },
+  { id: 4, source: require('../../assets/images/avatar/fullbody/upperbody/fullbody_camisole_1.png') },
 ];
 const SHOES: AvatarAsset[] = [
   { id: 1, source: require('../../assets/images/avatar/fullbody/shoes/fullbody_addidas_1.png') },
+  { id: 2, source: require('../../assets/images/avatar/fullbody/shoes/white_shoe_4.png') },
+  { id: 3, source: require('../../assets/images/avatar/fullbody/shoes/shocks_with_shoes_2.png') },
+  { id: 4, source: require('../../assets/images/avatar/fullbody/shoes/orange_loffer_1.png') },
 ];
 
 const GenerateAvatarScreen = () => {
@@ -330,11 +337,11 @@ const GenerateAvatarScreen = () => {
                     className="mr-3 items-center"
                     onPress={() => setSelectedFullbodyHair(index)}
                   >
-                    <View className="w-[72px] h-[90px] rounded-xl border border-[#5B1F7D] bg-[#1A0B2E] overflow-hidden justify-end pb-6">
+                    <View className="w-[72px] h-[90px] rounded-xl border border-[#5B1F7D] bg-[#1A0B2E] overflow-hidden items-center">
                       <Image
                         source={hair.source}
-                        className="w-[120%] h-[120%] absolute top-[-10%] left-[-10%]"
-                        resizeMode="cover"
+                        className="w-[250%] h-[250%] absolute top-[-10%]"
+                        resizeMode="contain"
                       />
                     </View>
                     {/* Price tag */}
@@ -382,10 +389,10 @@ const GenerateAvatarScreen = () => {
                     className="mr-3 items-center"
                     onPress={() => setSelectedFullbodySkirt(index)}
                   >
-                    <View className="w-[72px] h-[90px] rounded-xl border border-[#5B1F7D] bg-[#1A0B2E] overflow-hidden justify-center items-center">
+                    <View className="w-[72px] h-[90px] rounded-xl border border-[#5B1F7D] bg-[#1A0B2E] overflow-hidden items-center">
                       <Image
                         source={skirt.source}
-                        className="w-[150%] h-[150%]"
+                        className="w-[220%] h-[220%] absolute top-[-40%]"
                         resizeMode="contain"
                       />
                     </View>
@@ -405,10 +412,10 @@ const GenerateAvatarScreen = () => {
                       className="mr-3 items-center"
                       onPress={() => setSelectedFullbodyOutfit(index)}
                     >
-                      <View className="w-[72px] h-[90px] rounded-xl border border-[#5B1F7D] bg-[#1A0B2E] overflow-hidden justify-center items-center">
+                      <View className="w-[72px] h-[90px] rounded-xl border border-[#5B1F7D] bg-[#1A0B2E] overflow-hidden items-center">
                         <Image
                           source={outfit.source}
-                          className="w-[150%] h-[150%]"
+                          className="w-[220%] h-[220%] absolute top-[-25%]"
                           resizeMode="contain"
                         />
                       </View>
@@ -434,10 +441,10 @@ const GenerateAvatarScreen = () => {
                       className="mr-3 items-center"
                       onPress={() => setSelectedShoes(index)}
                     >
-                      <View className="w-[72px] h-[90px] rounded-xl border border-[#5B1F7D] bg-[#1A0B2E] overflow-hidden justify-center items-center">
+                      <View className="w-[72px] h-[90px] rounded-xl border border-[#5B1F7D] bg-[#1A0B2E] overflow-hidden items-center">
                         <Image
                           source={shoe.source}
-                          className="w-[120%] h-[120%]"
+                          className="w-[280%] h-[280%] absolute bottom-[0%]"
                           resizeMode="contain"
                         />
                       </View>
