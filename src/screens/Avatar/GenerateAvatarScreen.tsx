@@ -48,19 +48,17 @@ const BLAZERS = [
 ];
 
 // --- FULL BODY ASSETS ---
-// These are currently using half body assets as placeholders.
-// Please update the require paths when you have the actual full body assets!
-const FULLBODY_HAIR = [
-  { id: 1, source: require('../../assets/images/avatar/hair/Hair.png') },
-  { id: 2, source: require('../../assets/images/avatar/hair/Hair2.png') },
+type AvatarAsset = { id: number; source: any };
+
+const FULLBODY_HAIR: AvatarAsset[] = [
+  { id: 1, source: require('../../assets/images/avatar/fullbody/hair/fullbody_hair1.png') },
+  { id: 2, source: require('../../assets/images/avatar/fullbody/hair/fullbody_hair2.png') },
 ];
-const FULLBODY_OUTFITS = [
-  { id: 1, source: require('../../assets/images/avatar/body/court.png') },
-  { id: 2, source: require('../../assets/images/avatar/body/jacket.png') },
+const FULLBODY_SKIRTS: AvatarAsset[] = [
+  { id: 1, source: require('../../assets/images/avatar/fullbody/skirt/fullbody_skirt-1.png') },
 ];
-const SHOES = [
-  { id: 1, source: require('../../assets/images/avatar/body/tshirt.png') },
-];
+const FULLBODY_OUTFITS: AvatarAsset[] = [];
+const SHOES: AvatarAsset[] = [];
 
 const GenerateAvatarScreen = () => {
   const navigation = useNavigation<NavigationProp>();
@@ -80,6 +78,7 @@ const GenerateAvatarScreen = () => {
 
   // Full body state
   const [selectedFullbodyHair, setSelectedFullbodyHair] = useState<number | null>(null);
+  const [selectedFullbodySkirt, setSelectedFullbodySkirt] = useState<number | null>(null);
   const [selectedFullbodyOutfit, setSelectedFullbodyOutfit] = useState<number | null>(null);
   const [selectedShoes, setSelectedShoes] = useState<number | null>(null);
 
@@ -155,7 +154,7 @@ const GenerateAvatarScreen = () => {
               )}
 
               {/* --- FULL BODY LAYERS --- */}
-              {isFullbody && selectedFullbodyOutfit !== null && (
+              {isFullbody && selectedFullbodyOutfit !== null && FULLBODY_OUTFITS[selectedFullbodyOutfit] && (
                 <Image
                   source={FULLBODY_OUTFITS[selectedFullbodyOutfit].source}
                   className="absolute w-full h-full"
@@ -163,8 +162,16 @@ const GenerateAvatarScreen = () => {
                 />
               )}
 
+              {isFullbody && selectedFullbodySkirt !== null && FULLBODY_SKIRTS[selectedFullbodySkirt] && (
+                <Image
+                  source={FULLBODY_SKIRTS[selectedFullbodySkirt].source}
+                  className="absolute w-full h-full"
+                  resizeMode="contain"
+                />
+              )}
+
               {isFullbody && selectedFullbodyHair !== null && (
-                <View className="absolute w-full h-full scale-[1.03] top-[-1%]">
+                <View className="absolute w-full h-full">
                   {selectedHairColor ? (
                     <Svg width="100%" height="100%">
                       <Defs>
@@ -193,7 +200,7 @@ const GenerateAvatarScreen = () => {
                 </View>
               )}
 
-              {isFullbody && selectedShoes !== null && (
+              {isFullbody && selectedShoes !== null && SHOES[selectedShoes] && (
                 <Image
                   source={SHOES[selectedShoes].source}
                   className="absolute w-full h-full"
@@ -357,7 +364,29 @@ const GenerateAvatarScreen = () => {
               </ScrollView>
             </View>
 
-            {/* Full Body Outfit */}
+            <View className="mb-6">
+              <Text className="text-white text-base font-medium px-6 mb-4">Skirt</Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 24 }}>
+                {FULLBODY_SKIRTS.map((skirt, index) => (
+                  <TouchableOpacity
+                    key={`fb-skirt-${index}`}
+                    activeOpacity={0.8}
+                    className="mr-3 items-center"
+                    onPress={() => setSelectedFullbodySkirt(index)}
+                  >
+                    <View className="w-[72px] h-[90px] rounded-xl border border-[#5B1F7D] bg-[#1A0B2E] overflow-hidden justify-center items-center">
+                      <Image
+                        source={skirt.source}
+                        className="w-[150%] h-[150%]"
+                        resizeMode="contain"
+                      />
+                    </View>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            </View>
+
+            {FULLBODY_OUTFITS.length > 0 && (
             <View className="mb-6">
               <Text className="text-white text-base font-medium px-6 mb-4">Full Body Outfit</Text>
               <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 24 }}>
@@ -384,8 +413,9 @@ const GenerateAvatarScreen = () => {
                 ))}
               </ScrollView>
             </View>
+            )}
 
-            {/* Shoes */}
+            {SHOES.length > 0 && (
             <View className="mb-6">
               <Text className="text-white text-base font-medium px-6 mb-4">Shoes</Text>
               <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 24 }}>
@@ -412,6 +442,7 @@ const GenerateAvatarScreen = () => {
                 ))}
               </ScrollView>
             </View>
+            )}
           </>
         )}
 
@@ -454,7 +485,7 @@ const styles = StyleSheet.create({
   },
   fullbodyStage: {
     width: '140%',
-    height: '110%',
+    height: '105%',
     alignItems: 'center',
     justifyContent: 'center',
   },
