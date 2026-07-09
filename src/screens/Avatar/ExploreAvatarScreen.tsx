@@ -13,8 +13,7 @@ const AVATARS = [
   { id: '1', isFullbody: false, image: require('../../assets/images/avatar/base/base_female_Photoroom2.png') },
   { id: '2', isFullbody: false, image: require('../../assets/images/avatar/base/base_female_Photoroom3.png') },
   { id: '3', isFullbody: false, image: require('../../assets/images/avatar/base/base_female_Photoroom4.png') },
-  // { id: '4', isFullbody: true, image: require('../../assets/images/avatar/base/base_female-fullbody-Photoroom.png') },
-  { id: '4', isFullbody: true, image: require('../../assets/images/avatar/base/fullbody_base_2.png') },
+  { id: '4', isFullbody: true, image: require('../../assets/images/avatar/base/base_avatar_3.png') },
 ];
 const { width } = Dimensions.get('window');
 const CARD_WIDTH = (width - 48 - 24) / 3; // 48 for screen padding (px-6 is 24*2), 24 for gaps (12*2)
@@ -44,11 +43,19 @@ const ExploreAvatarScreen = () => {
       <View className="flex-1 rounded-2xl border-2 border-[#5B1F7D] overflow-hidden bg-[#1A0B2E]">
         <Image
           source={item.image}
-          className={item.isFullbody ? "w-full h-full scale-[1.8]" : "w-full h-full"}
+          className={item.isFullbody ? "absolute w-full h-full scale-[1.8]" : "absolute w-full h-full"}
           resizeMode={item.isFullbody ? 'contain' : 'cover'}
         />
+        {item.isFullbody && (
+          <>
+            <Image source={require('../../assets/images/avatar/fullbody/skirt/full_pant_33.png')} className="absolute w-full h-full scale-[1.8]" resizeMode="contain" />
+            <Image source={require('../../assets/images/avatar/fullbody/shoes/green_shoe_1.png')} className="absolute w-full h-full scale-[1.8]" resizeMode="contain" />
+            <Image source={require('../../assets/images/avatar/fullbody/upperbody/suit1.png')} className="absolute w-full h-full scale-[1.8]" resizeMode="contain" />
+            <Image source={require('../../assets/images/avatar/hair/base_avatar_hair1.png')} className="absolute w-full h-full scale-[1.8]" resizeMode="contain" />
+          </>
+        )}
         {/* Decorative team initials like in the mock */}
-        <View className="absolute bottom-2 w-full items-center">
+        <View className="absolute bottom-2 w-full items-center z-10">
           <Text className="text-white font-bold italic opacity-80 text-xs shadow-lg">CB</Text>
         </View>
       </View>

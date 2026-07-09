@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, Image, StyleSheet, ScrollView, Dimensions } from 'react-native';
 import Svg, { Defs, LinearGradient, Stop, Rect, Filter, FeColorMatrix, Image as SvgImage } from 'react-native-svg';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
@@ -51,34 +51,35 @@ const BLAZERS = [
 type AvatarAsset = { id: number; source: any };
 
 const FULLBODY_HAIR: AvatarAsset[] = [
-  { id: 1, source: require('../../assets/images/avatar/fullbody/hair/fullbody_hair1.png') },
-  { id: 2, source: require('../../assets/images/avatar/fullbody/hair/fullbody_hair2.png') },
-  { id: 3, source: require('../../assets/images/avatar/fullbody/hair/fulbody_hair_10.png') },
-  { id: 4, source: require('../../assets/images/avatar/fullbody/hair/fullbody_hair_12.png') },
+  // { id: 1, source: require('../../assets/images/avatar/fullbody/hair/fullbody_hair1.png') },
+  { id: 2, source: require('../../assets/images/avatar/hair/Hair2.png') },
+  { id: 3, source: require('../../assets/images/avatar/hair/Hair6.png') },
+  // { id: 3, source: require('../../assets/images/avatar/fullbody/hair/fulbody_hair_10.png') },
+  // { id: 4, source: require('../../assets/images/avatar/fullbody/hair/fullbody_hair_12.png') },
+  { id: 1, source: require('../../assets/images/avatar/hair/base_avatar_hair1.png') },
 ];
 const FULLBODY_SKIRTS: AvatarAsset[] = [
-  { id: 1, source: require('../../assets/images/avatar/fullbody/skirt/fullbody_skirt-1.png') },
-  { id: 2, source: require('../../assets/images/avatar/fullbody/skirt/fullbody_cargopants-1.png') },
-  { id: 3, source: require('../../assets/images/avatar/fullbody/skirt/fullbody_pant_jeans-1.png') },
-  { id: 4, source: require('../../assets/images/avatar/fullbody/skirt/fullbody_skirt_2.png') },
-  { id: 5, source: require('../../assets/images/avatar/fullbody/skirt/fullbody_jogger_1.png') },
-  { id: 6, source: require('../../assets/images/avatar/fullbody/skirt/fullbody_skirt_4.png') },
+  { id: 1, source: require('../../assets/images/avatar/fullbody/skirt/full_pant_33.png') },
+  { id: 2, source: require('../../assets/images/avatar/fullbody/skirt/short_pant_1.png') },
+  { id: 3, source: require('../../assets/images/avatar/fullbody/skirt/short_pant_2.png') },
+  { id: 4, source: require('../../assets/images/avatar/fullbody/skirt/short_pant_3.png') },
+  // { id: 5, source: require('../../assets/images/avatar/fullbody/skirt/fullbody_jogger_1.png') },
+  // { id: 6, source: require('../../assets/images/avatar/fullbody/skirt/fullbody_skirt_4.png') },
 ];
 const FULLBODY_OUTFITS: AvatarAsset[] = [
-  { id: 1, source: require('../../assets/images/avatar/fullbody/upperbody/fullbody_jacket_1.png') },
-  { id: 2, source: require('../../assets/images/avatar/fullbody/upperbody/fullbody_tshirt_1.png') },
-  { id: 3, source: require('../../assets/images/avatar/fullbody/upperbody/fullbody_jacket_4.png') },
-  { id: 4, source: require('../../assets/images/avatar/fullbody/upperbody/fullbody_camisole_1.png') },
-  { id: 5, source: require('../../assets/images/avatar/fullbody/upperbody/fullbody_upperbody_1.png') },
-  { id: 6, source: require('../../assets/images/avatar/fullbody/upperbody/fullbody_upperbody_2.png') },
+  { id: 1, source: require('../../assets/images/avatar/fullbody/upperbody/suit1.png') },
+  { id: 2, source: require('../../assets/images/avatar/fullbody/upperbody/half_sleve_blouse_1.png') },
+  { id: 3, source: require('../../assets/images/avatar/fullbody/upperbody/full_sleve_1.png') },
+  { id: 4, source: require('../../assets/images/avatar/fullbody/upperbody/necksleb_1.png') },
+  { id: 5, source: require('../../assets/images/avatar/fullbody/upperbody/neckless_sleve_2.png') },
 ];
 const SHOES: AvatarAsset[] = [
-  { id: 1, source: require('../../assets/images/avatar/fullbody/shoes/fullbody_addidas_1.png') },
-  { id: 2, source: require('../../assets/images/avatar/fullbody/shoes/white_shoe_4.png') },
-  { id: 3, source: require('../../assets/images/avatar/fullbody/shoes/shocks_with_shoes_2.png') },
-  { id: 4, source: require('../../assets/images/avatar/fullbody/shoes/orange_loffer_1.png') },
-  { id: 5, source: require('../../assets/images/avatar/fullbody/shoes/nakkle_catch_1.png') },
-  { id: 6, source: require('../../assets/images/avatar/fullbody/shoes/long_shoe_1.png') },
+  { id: 1, source: require('../../assets/images/avatar/fullbody/shoes/green_shoe_1.png') },
+  { id: 2, source: require('../../assets/images/avatar/fullbody/shoes/green_shoe_14.png') },
+  { id: 3, source: require('../../assets/images/avatar/fullbody/shoes/green_shoes_41.png') },
+  { id: 4, source: require('../../assets/images/avatar/fullbody/shoes/shoe_1.png') },
+  // { id: 5, source: require('../../assets/images/avatar/fullbody/shoes/nakkle_catch_1.png') },
+  // { id: 6, source: require('../../assets/images/avatar/fullbody/shoes/long_shoe_1.png') },
 ];
 
 const GenerateAvatarScreen = () => {
@@ -94,14 +95,28 @@ const GenerateAvatarScreen = () => {
   const [selectedHairColor, setSelectedHairColor] = useState<string | null>(null);
 
   // Half body state
-  const [selectedHair, setSelectedHair] = useState<number | null>(null);
-  const [selectedBody, setSelectedBody] = useState<number | null>(null);
+  const [selectedHair, setSelectedHair] = useState<number | null>(!isFullbody ? 0 : null);
+  const [selectedBody, setSelectedBody] = useState<number | null>(!isFullbody ? 0 : null);
 
   // Full body state
-  const [selectedFullbodyHair, setSelectedFullbodyHair] = useState<number | null>(null);
-  const [selectedFullbodySkirt, setSelectedFullbodySkirt] = useState<number | null>(null);
-  const [selectedFullbodyOutfit, setSelectedFullbodyOutfit] = useState<number | null>(null);
-  const [selectedShoes, setSelectedShoes] = useState<number | null>(null);
+  const [selectedFullbodyHair, setSelectedFullbodyHair] = useState<number | null>(isFullbody ? 0 : null);
+  const [selectedFullbodySkirt, setSelectedFullbodySkirt] = useState<number | null>(isFullbody ? 0 : null);
+  const [selectedFullbodyOutfit, setSelectedFullbodyOutfit] = useState<number | null>(isFullbody ? 0 : null);
+  const [selectedShoes, setSelectedShoes] = useState<number | null>(isFullbody ? 0 : null);
+
+  // Eye Animation State
+  const [eyeState, setEyeState] = useState<'open' | 'half_closed' | 'closed'>('open');
+
+  useEffect(() => {
+    const blinkInterval = setInterval(() => {
+      setEyeState('half_closed');
+      setTimeout(() => setEyeState('closed'), 100);
+      setTimeout(() => setEyeState('half_closed'), 200);
+      setTimeout(() => setEyeState('open'), 300);
+    }, 2000);
+
+    return () => clearInterval(blinkInterval);
+  }, []);
 
   return (
     <View style={[styles.container, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
@@ -134,6 +149,22 @@ const GenerateAvatarScreen = () => {
                 className="absolute w-full h-full"
                 resizeMode="contain"
               />
+
+              {/* Eye Blinking Animation Overlay */}
+              {eyeState === 'half_closed' && (
+                <Image
+                  source={require('../../assets/images/avatar/utils/half_eye_closed.png')}
+                  className="absolute w-full h-full"
+                  resizeMode="contain"
+                />
+              )}
+              {eyeState === 'closed' && (
+                <Image
+                  source={require('../../assets/images/avatar/utils/closed_eye.png')}
+                  className="absolute w-full h-full"
+                  resizeMode="contain"
+                />
+              )}
 
               {/* --- HALF BODY LAYERS --- */}
               {!isFullbody && selectedBody !== null && (
@@ -175,6 +206,22 @@ const GenerateAvatarScreen = () => {
               )}
 
               {/* --- FULL BODY LAYERS --- */}
+              {isFullbody && selectedFullbodySkirt !== null && FULLBODY_SKIRTS[selectedFullbodySkirt] && (
+                <Image
+                  source={FULLBODY_SKIRTS[selectedFullbodySkirt].source}
+                  className="absolute w-full h-full"
+                  resizeMode="contain"
+                />
+              )}
+
+              {isFullbody && selectedShoes !== null && SHOES[selectedShoes] && (
+                <Image
+                  source={SHOES[selectedShoes].source}
+                  className="absolute w-full h-full"
+                  resizeMode="contain"
+                />
+              )}
+
               {isFullbody && selectedFullbodyOutfit !== null && FULLBODY_OUTFITS[selectedFullbodyOutfit] && (
                 <Image
                   source={FULLBODY_OUTFITS[selectedFullbodyOutfit].source}
@@ -183,13 +230,7 @@ const GenerateAvatarScreen = () => {
                 />
               )}
 
-              {isFullbody && selectedFullbodySkirt !== null && FULLBODY_SKIRTS[selectedFullbodySkirt] && (
-                <Image
-                  source={FULLBODY_SKIRTS[selectedFullbodySkirt].source}
-                  className="absolute w-full h-full"
-                  resizeMode="contain"
-                />
-              )}
+
 
               {isFullbody && selectedFullbodyHair !== null && (
                 <View className="absolute w-full h-full">
@@ -219,14 +260,6 @@ const GenerateAvatarScreen = () => {
                     />
                   )}
                 </View>
-              )}
-
-              {isFullbody && selectedShoes !== null && SHOES[selectedShoes] && (
-                <Image
-                  source={SHOES[selectedShoes].source}
-                  className="absolute w-full h-full"
-                  resizeMode="contain"
-                />
               )}
 
             </View>
@@ -505,10 +538,11 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   fullbodyStage: {
-    width: '140%',
-    height: '105%',
+    width: '160%',
+    height: '100%',
     alignItems: 'center',
     justifyContent: 'center',
+    transform: [{ scale: 1.15 }],
   },
 });
 
