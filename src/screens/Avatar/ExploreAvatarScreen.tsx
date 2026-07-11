@@ -9,10 +9,10 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 type NavigationProp = NativeStackNavigationProp<RootStackParamList, 'ExploreAvatar'>;
 
 const AVATARS = [
-  { id: '0', isFullbody: false, image: require('../../assets/images/avatar/base/base_female-Photoroom.png') },
-  { id: '1', isFullbody: false, image: require('../../assets/images/avatar/base/base_female_Photoroom2.png') },
-  { id: '2', isFullbody: false, image: require('../../assets/images/avatar/base/base_female_Photoroom3.png') },
-  { id: '3', isFullbody: false, image: require('../../assets/images/avatar/base/base_female_Photoroom4.png') },
+  // { id: '0', isFullbody: false, image: require('../../assets/images/avatar/base/base_female-Photoroom.png') },
+  // { id: '1', isFullbody: false, image: require('../../assets/images/avatar/base/base_female_Photoroom2.png') },
+  // { id: '2', isFullbody: false, image: require('../../assets/images/avatar/base/base_female_Photoroom3.png') },
+  // { id: '3', isFullbody: true, image: require('../../assets/images/avatar/base/base_female_Photoroom4.png') },
   { id: '4', isFullbody: true, image: require('../../assets/images/avatar/base/base_avatar_3.png') },
 ];
 const { width } = Dimensions.get('window');
@@ -51,7 +51,7 @@ const ExploreAvatarScreen = () => {
             <Image source={require('../../assets/images/avatar/fullbody/skirt/full_pant_33.png')} className="absolute w-full h-full scale-[1.8]" resizeMode="contain" />
             <Image source={require('../../assets/images/avatar/fullbody/shoes/green_shoe_1.png')} className="absolute w-full h-full scale-[1.8]" resizeMode="contain" />
             <Image source={require('../../assets/images/avatar/fullbody/upperbody/suit1.png')} className="absolute w-full h-full scale-[1.8]" resizeMode="contain" />
-            <Image source={require('../../assets/images/avatar/hair/base_avatar_hair1.png')} className="absolute w-full h-full scale-[1.8]" resizeMode="contain" />
+            <Image source={require('../../assets/images/avatar/hair/Hair2.png')} className="absolute w-full h-full scale-[1.8]" resizeMode="contain" />
           </>
         )}
         {/* Decorative team initials like in the mock */}
