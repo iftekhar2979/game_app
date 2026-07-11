@@ -49,15 +49,15 @@ const ExploreAvatarScreen = () => {
       <View className="flex-1 rounded-2xl border-2 border-[#5B1F7D] overflow-hidden bg-[#1A0B2E]">
         <Image
           source={item.image}
-          className={item.isFullbody ? "absolute w-full h-full scale-[1.8]" : "absolute w-full h-full"}
+          className={item.isFullbody ? "absolute w-full h-full scale-[2.6] mt-4" : "absolute w-full h-full"}
           resizeMode={item.isFullbody ? 'contain' : 'cover'}
         />
         {item.isFullbody && (
           <>
-            <Image source={require('../../assets/images/avatar/fullbody/skirt/full_pant_33.png')} className="absolute w-full h-full scale-[1.8]" resizeMode="contain" />
-            <Image source={require('../../assets/images/avatar/fullbody/shoes/green_shoe_1.png')} className="absolute w-full h-full scale-[1.8]" resizeMode="contain" />
-            <Image source={require('../../assets/images/avatar/fullbody/upperbody/suit1.png')} className="absolute w-full h-full scale-[1.8]" resizeMode="contain" />
-            <Image source={require('../../assets/images/avatar/hair/Hair2.png')} className="absolute w-full h-full scale-[1.8]" resizeMode="contain" />
+            <Image source={require('../../assets/images/avatar/fullbody/skirt/full_pant_33.png')} className="absolute w-full h-full scale-[2.6] mt-4" resizeMode="contain" />
+            <Image source={require('../../assets/images/avatar/fullbody/shoes/green_shoe_1.png')} className="absolute w-full h-full scale-[2.6] mt-4" resizeMode="contain" />
+            <Image source={require('../../assets/images/avatar/fullbody/upperbody/suit1.png')} className="absolute w-full h-full scale-[2.6] mt-4" resizeMode="contain" />
+            <Image source={require('../../assets/images/avatar/hair/Hair2.png')} className="absolute w-full h-full scale-[2.6] mt-4" resizeMode="contain" />
           </>
         )}
         {/* Decorative team initials like in the mock */}
