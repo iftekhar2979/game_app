@@ -13,7 +13,13 @@ const AVATARS = [
   // { id: '1', isFullbody: false, image: require('../../assets/images/avatar/base/base_female_Photoroom2.png') },
   // { id: '2', isFullbody: false, image: require('../../assets/images/avatar/base/base_female_Photoroom3.png') },
   // { id: '3', isFullbody: true, image: require('../../assets/images/avatar/base/base_female_Photoroom4.png') },
+  // { id: '0', isFullbody: false, image: require('../../assets/images/avatar/base/base_female-Photoroom.png') },
+  // { id: '1', isFullbody: false, image: require('../../assets/images/avatar/base/base_female_Photoroom2.png') },
+  // { id: '2', isFullbody: false, image: require('../../assets/images/avatar/base/base_female_Photoroom3.png') },
+  // { id: '3', isFullbody: true, image: require('../../assets/images/avatar/base/base_female_Photoroom4.png') },
   { id: '4', isFullbody: true, image: require('../../assets/images/avatar/base/base_avatar_3.png') },
+  { id: '5', isFullbody: true, image: require('../../assets/images/avatar/base/base_avatar_4.png') },
+  { id: '6', isFullbody: true, image: require('../../assets/images/avatar/base/base_avatar_5.png') },
 ];
 const { width } = Dimensions.get('window');
 const CARD_WIDTH = (width - 48 - 24) / 3; // 48 for screen padding (px-6 is 24*2), 24 for gaps (12*2)
