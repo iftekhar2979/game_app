@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, Image, StyleSheet, ScrollView, Dimensions } from 'react-native';
+import React, { useState, useEffect, useRef } from 'react';
+import { View, Text, TouchableOpacity, Image, StyleSheet, ScrollView, Dimensions, Animated } from 'react-native';
 import Svg, { Defs, LinearGradient, Stop, Rect, Filter, FeColorMatrix, Image as SvgImage } from 'react-native-svg';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -118,6 +118,36 @@ const GenerateAvatarScreen = () => {
     return () => clearInterval(blinkInterval);
   }, []);
 
+  // Breathing Animation State
+  const breatheAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(breatheAnim, {
+          toValue: 1, // Inhale
+          duration: 2000,
+          useNativeDriver: true,
+        }),
+        Animated.timing(breatheAnim, {
+          toValue: 0, // Exhale
+          duration: 2000,
+          useNativeDriver: true,
+        }),
+      ])
+    ).start();
+  }, [breatheAnim]);
+
+  const breatheScaleY = breatheAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [1, 1.008],
+  });
+
+  const breatheScaleX = breatheAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [1, 1.008],
+  });
+
   return (
     <View style={[styles.container, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
       {/* Header */}
@@ -142,7 +172,12 @@ const GenerateAvatarScreen = () => {
             {/* The glow effect behind avatar */}
             <View className="absolute top-10 w-48 h-48 rounded-full bg-[#B366FF] opacity-20 blur-3xl" />
 
-            <View style={isFullbody ? styles.fullbodyStage : styles.avatarStage}>
+            <Animated.View
+              style={[
+                isFullbody ? styles.fullbodyStage : styles.avatarStage,
+                { transform: [{ scaleX: breatheScaleX }, { scaleY: breatheScaleY }], transformOrigin: 'bottom center' as any }
+              ]}
+            >
               {/* Base Head / Base Body */}
               <Image
                 source={baseImage}
@@ -260,7 +295,7 @@ const GenerateAvatarScreen = () => {
                 </View>
               )}
 
-            </View>
+            </Animated.View>
 
             {/* Gradient Overlay to hide edge artifacts */}
             <View className="absolute bottom-0 w-full h-24 pointer-events-none">
