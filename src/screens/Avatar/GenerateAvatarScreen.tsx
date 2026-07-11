@@ -109,11 +109,11 @@ const GenerateAvatarScreen = () => {
 
   useEffect(() => {
     const blinkInterval = setInterval(() => {
-      setEyeState('half_closed');
-      setTimeout(() => setEyeState('closed'), 100);
-      setTimeout(() => setEyeState('half_closed'), 200);
-      setTimeout(() => setEyeState('open'), 300);
-    }, 2000);
+      setEyeState('half_closed'); // Starts at 0ms
+      setTimeout(() => setEyeState('closed'), 150); // Happens at 150ms
+      setTimeout(() => setEyeState('half_closed'), 300); // Happens at 300ms
+      setTimeout(() => setEyeState('open'), 450); // Happens at 450ms
+    }, 3000); // Every 3 seconds
 
     return () => clearInterval(blinkInterval);
   }, []);
@@ -150,21 +150,19 @@ const GenerateAvatarScreen = () => {
                 resizeMode="contain"
               />
 
-              {/* Eye Blinking Animation Overlay */}
-              {eyeState === 'half_closed' && (
-                <Image
-                  source={require('../../assets/images/avatar/utils/half_eye_closed.png')}
-                  className="absolute w-full h-full"
-                  resizeMode="contain"
-                />
-              )}
-              {eyeState === 'closed' && (
-                <Image
-                  source={require('../../assets/images/avatar/utils/closed_eye.png')}
-                  className="absolute w-full h-full"
-                  resizeMode="contain"
-                />
-              )}
+              {/* Eye Blinking Animation Overlay - Opacity toggled to prevent load lag */}
+              <Image
+                source={require('../../assets/images/avatar/utils/half_eye_closed.png')}
+                className="absolute w-full h-full"
+                resizeMode="contain"
+                style={{ opacity: eyeState === 'half_closed' ? 1 : 0 }}
+              />
+              <Image
+                source={require('../../assets/images/avatar/utils/closed_eye.png')}
+                className="absolute w-full h-full"
+                resizeMode="contain"
+                style={{ opacity: eyeState === 'closed' ? 1 : 0 }}
+              />
 
               {/* --- HALF BODY LAYERS --- */}
               {!isFullbody && selectedBody !== null && (
