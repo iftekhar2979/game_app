@@ -30,21 +30,18 @@ const hexToTintMatrix = (hex: string) => {
 
 // --- HALF BODY ASSETS ---
 const HAIR_STYLES = [
-  { id: 1, source: require('../../assets/images/avatar/hair/Hair.png') },
   { id: 2, source: require('../../assets/images/avatar/hair/Hair2.png') },
-  { id: 3, source: require('../../assets/images/avatar/hair/hair3.png') },
-  { id: 4, source: require('../../assets/images/avatar/hair/hair4.png') },
-  { id: 5, source: require('../../assets/images/avatar/hair/hair5.png') },
+  { id: 3, source: require('../../assets/images/avatar/hair/Hair6.png') },
 ];
 const HAIR_COLORS = [
   '#E6C27A', '#8D5B36', '#4A2F1D', '#1A1A1A', '#A33327', '#E6E6E6'
 ];
 const BLAZERS = [
-  { id: 1, source: require('../../assets/images/avatar/body/court.png') },
-  { id: 2, source: require('../../assets/images/avatar/body/jacket.png') },
-  { id: 3, source: require('../../assets/images/avatar/body/tshirt.png') },
-  { id: 4, source: require('../../assets/images/avatar/body/shirt.png') },
-  { id: 5, source: require('../../assets/images/avatar/body/hoddie.png') },
+  { id: 1, source: require('../../assets/images/avatar/fullbody/upperbody/suit1.png') },
+  { id: 2, source: require('../../assets/images/avatar/fullbody/upperbody/half_sleve_blouse_1.png') },
+  { id: 3, source: require('../../assets/images/avatar/fullbody/upperbody/full_sleve_1.png') },
+  { id: 4, source: require('../../assets/images/avatar/fullbody/upperbody/necksleb_1.png') },
+  { id: 5, source: require('../../assets/images/avatar/fullbody/upperbody/neckless_sleve_2.png') },
 ];
 
 // --- FULL BODY ASSETS ---
@@ -52,11 +49,12 @@ type AvatarAsset = { id: number; source: any };
 
 const FULLBODY_HAIR: AvatarAsset[] = [
   // { id: 1, source: require('../../assets/images/avatar/fullbody/hair/fullbody_hair1.png') },
+
   { id: 2, source: require('../../assets/images/avatar/hair/Hair2.png') },
   { id: 3, source: require('../../assets/images/avatar/hair/Hair6.png') },
   // { id: 3, source: require('../../assets/images/avatar/fullbody/hair/fulbody_hair_10.png') },
   // { id: 4, source: require('../../assets/images/avatar/fullbody/hair/fullbody_hair_12.png') },
-  { id: 1, source: require('../../assets/images/avatar/hair/base_avatar_hair1.png') },
+
 ];
 const FULLBODY_SKIRTS: AvatarAsset[] = [
   { id: 1, source: require('../../assets/images/avatar/fullbody/skirt/full_pant_33.png') },
@@ -87,7 +85,7 @@ const GenerateAvatarScreen = () => {
   const route = useRoute<GenerateAvatarRouteProp>();
   const insets = useSafeAreaInsets();
 
-  const baseImage = route.params?.baseImage || require('../../assets/images/avatar/base/base_female-Photoroom.png');
+  const baseImage = route.params?.baseImage || require('../../assets/images/avatar/base/base_avatar_3.png');
   const isFullbody = route.params?.isFullbody === true;
   const previewHeight = isFullbody ? FULLBODY_PREVIEW_HEIGHT : PREVIEW_HEIGHT;
 
@@ -140,7 +138,7 @@ const GenerateAvatarScreen = () => {
 
   const breatheScaleY = breatheAnim.interpolate({
     inputRange: [0, 1],
-    outputRange: [1, 1.008],
+    outputRange: [1, 1.010],
   });
 
   const breatheScaleX = breatheAnim.interpolate({
