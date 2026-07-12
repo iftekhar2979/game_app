@@ -13,10 +13,14 @@ const SKIRTS = [
   { target: 'female', avatarCategories: [4, 5, 6], source: require('../../assets/images/avatar/fullbody/skirt/short_pant_1.png') },
   { target: 'female', avatarCategories: [4, 5, 6], source: require('../../assets/images/avatar/fullbody/skirt/short_pant_2.png') },
   { target: 'female', avatarCategories: [4, 5, 6], source: require('../../assets/images/avatar/fullbody/skirt/short_pant_3.png') },
-  { target: 'male', avatarCategories: [1], source: require('../../assets/images/avatar/male/pants/black_short_pant_1.png') },
-  { target: 'male', avatarCategories: [1], source: require('../../assets/images/avatar/male/pants/blue_short_pant_1.png') },
-  { target: 'male', avatarCategories: [1], source: require('../../assets/images/avatar/male/pants/green_short_pant_1.png') },
+  { target: 'male', avatarCategories: [1], source: require('../../assets/images/avatar/male/pants/black_short_pant_1_1.png') },
+  { target: 'male', avatarCategories: [1], source: require('../../assets/images/avatar/male/pants/blue_short_pant_1_1.png') },
+  { target: 'male', avatarCategories: [1], source: require('../../assets/images/avatar/male/pants/green_short_pant_1_1.png') },
+  { target: 'male', avatarCategories: [1], source: require('../../assets/images/avatar/male/pants/green_pant_1_1.png') },
+  { target: 'male', avatarCategories: [1], source: require('../../assets/images/avatar/male/pants/red_short_pant_1_1.png') },
   { target: 'male', avatarCategories: [1], source: require('../../assets/images/avatar/male/pants/green_short_pant_2.png') },
+  { target: 'male', avatarCategories: [2], source: require('../../assets/images/avatar/male/pants/blue_short_pant_2_1.png') },
+  { target: 'male', avatarCategories: [2], source: require('../../assets/images/avatar/male/pants/red_short_pant_2_1.png') },
 ];
 
 const SHOES = [
@@ -48,6 +52,16 @@ const UPPERBODIES = [
 const HAIRS = [
   { target: 'female', avatarCategories: [4, 5, 6], source: require('../../assets/images/avatar/hair/Hair2.png') },
   { target: 'female', avatarCategories: [4, 5, 6], source: require('../../assets/images/avatar/hair/Hair6.png') },
+  { target: 'male', avatarCategories: [1], source: require('../../assets/images/avatar/male/hair/black_hair_1_1.png') },
+  { target: 'male', avatarCategories: [1], source: require('../../assets/images/avatar/male/hair/black_hair_1_2.png') },
+  { target: 'male', avatarCategories: [1], source: require('../../assets/images/avatar/male/hair/black_hair_1_5.png') },
+  { target: 'male', avatarCategories: [1], source: require('../../assets/images/avatar/male/hair/hair_1_3.png') },
+  { target: 'male', avatarCategories: [2], source: require('../../assets/images/avatar/male/hair/hair_2_1.png') },
+  { target: 'male', avatarCategories: [2], source: require('../../assets/images/avatar/male/hair/black_hair_2_3.png') },
+  { target: 'male', avatarCategories: [2], source: require('../../assets/images/avatar/male/hair/black_hair_2_4.png') },
+  { target: 'male', avatarCategories: [2], source: require('../../assets/images/avatar/male/hair/black_hair_2_5.png') },
+  { target: 'male', avatarCategories: [2], source: require('../../assets/images/avatar/male/hair/red_hair_2_1.png') },
+  { target: 'male', avatarCategories: [2], source: require('../../assets/images/avatar/male/hair/white_hair_2_2.png') },
 ];
 
 const getRandomItem = (array: any[]) => array[Math.floor(Math.random() * array.length)];

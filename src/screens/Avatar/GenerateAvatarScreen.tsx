@@ -32,6 +32,16 @@ const hexToTintMatrix = (hex: string) => {
 const ALL_HAIR_STYLES: AvatarAsset[] = [
   { id: 2, target: 'female', avatarCategories: [4, 5, 6], source: require('../../assets/images/avatar/hair/Hair2.png') },
   { id: 3, target: 'female', avatarCategories: [4, 5, 6], source: require('../../assets/images/avatar/hair/Hair6.png') },
+  { id: 4, target: 'male', avatarCategories: [1], source: require('../../assets/images/avatar/male/hair/black_hair_1_1.png') },
+  { id: 5, target: 'male', avatarCategories: [1], source: require('../../assets/images/avatar/male/hair/black_hair_1_2.png') },
+  { id: 6, target: 'male', avatarCategories: [1], source: require('../../assets/images/avatar/male/hair/black_hair_1_5.png') },
+  { id: 7, target: 'male', avatarCategories: [1], source: require('../../assets/images/avatar/male/hair/hair_1_3.png') },
+  { id: 8, target: 'male', avatarCategories: [2], source: require('../../assets/images/avatar/male/hair/hair_2_1.png') },
+  { id: 9, target: 'male', avatarCategories: [2], source: require('../../assets/images/avatar/male/hair/black_hair_2_3.png') },
+  { id: 10, target: 'male', avatarCategories: [2], source: require('../../assets/images/avatar/male/hair/black_hair_2_4.png') },
+  { id: 11, target: 'male', avatarCategories: [2], source: require('../../assets/images/avatar/male/hair/black_hair_2_5.png') },
+  { id: 12, target: 'male', avatarCategories: [2], source: require('../../assets/images/avatar/male/hair/red_hair_2_1.png') },
+  { id: 13, target: 'male', avatarCategories: [2], source: require('../../assets/images/avatar/male/hair/white_hair_2_2.png') },
 ];
 const HAIR_COLORS = [
   '#E6C27A', '#8D5B36', '#4A2F1D', '#1A1A1A', '#A33327', '#E6E6E6'
@@ -61,16 +71,30 @@ type AvatarAsset = { id: number; target: 'female' | 'male'; avatarCategories: nu
 const ALL_FULLBODY_HAIR: AvatarAsset[] = [
   { id: 2, target: 'female', avatarCategories: [4, 5, 6], source: require('../../assets/images/avatar/hair/Hair2.png') },
   { id: 3, target: 'female', avatarCategories: [4, 5, 6], source: require('../../assets/images/avatar/hair/Hair6.png') },
+  { id: 4, target: 'male', avatarCategories: [1], source: require('../../assets/images/avatar/male/hair/black_hair_1_1.png') },
+  { id: 5, target: 'male', avatarCategories: [1], source: require('../../assets/images/avatar/male/hair/black_hair_1_2.png') },
+  { id: 6, target: 'male', avatarCategories: [1], source: require('../../assets/images/avatar/male/hair/black_hair_1_5.png') },
+  { id: 7, target: 'male', avatarCategories: [1], source: require('../../assets/images/avatar/male/hair/hair_1_3.png') },
+  { id: 8, target: 'male', avatarCategories: [2], source: require('../../assets/images/avatar/male/hair/hair_2_1.png') },
+  { id: 9, target: 'male', avatarCategories: [2], source: require('../../assets/images/avatar/male/hair/black_hair_2_3.png') },
+  { id: 10, target: 'male', avatarCategories: [2], source: require('../../assets/images/avatar/male/hair/black_hair_2_4.png') },
+  { id: 11, target: 'male', avatarCategories: [2], source: require('../../assets/images/avatar/male/hair/black_hair_2_5.png') },
+  { id: 12, target: 'male', avatarCategories: [2], source: require('../../assets/images/avatar/male/hair/red_hair_2_1.png') },
+  { id: 13, target: 'male', avatarCategories: [2], source: require('../../assets/images/avatar/male/hair/white_hair_2_2.png') },
 ];
 const ALL_FULLBODY_SKIRTS: AvatarAsset[] = [
   { id: 1, target: 'female', avatarCategories: [4, 5, 6], source: require('../../assets/images/avatar/fullbody/skirt/full_pant_33.png') },
   { id: 2, target: 'female', avatarCategories: [4, 5, 6], source: require('../../assets/images/avatar/fullbody/skirt/short_pant_1.png') },
   { id: 3, target: 'female', avatarCategories: [4, 5, 6], source: require('../../assets/images/avatar/fullbody/skirt/short_pant_2.png') },
   { id: 4, target: 'female', avatarCategories: [4, 5, 6], source: require('../../assets/images/avatar/fullbody/skirt/short_pant_3.png') },
-  { id: 5, target: 'male', avatarCategories: [1], source: require('../../assets/images/avatar/male/pants/black_short_pant_1.png') },
-  { id: 6, target: 'male', avatarCategories: [1], source: require('../../assets/images/avatar/male/pants/blue_short_pant_1.png') },
-  { id: 7, target: 'male', avatarCategories: [1], source: require('../../assets/images/avatar/male/pants/green_short_pant_1.png') },
+  { id: 5, target: 'male', avatarCategories: [1], source: require('../../assets/images/avatar/male/pants/black_short_pant_1_1.png') },
+  { id: 6, target: 'male', avatarCategories: [1], source: require('../../assets/images/avatar/male/pants/blue_short_pant_1_1.png') },
+  { id: 7, target: 'male', avatarCategories: [1], source: require('../../assets/images/avatar/male/pants/green_short_pant_1_1.png') },
+  { id: 11, target: 'male', avatarCategories: [1], source: require('../../assets/images/avatar/male/pants/green_pant_1_1.png') },
+  { id: 12, target: 'male', avatarCategories: [1], source: require('../../assets/images/avatar/male/pants/red_short_pant_1_1.png') },
   { id: 8, target: 'male', avatarCategories: [1], source: require('../../assets/images/avatar/male/pants/green_short_pant_2.png') },
+  { id: 9, target: 'male', avatarCategories: [2], source: require('../../assets/images/avatar/male/pants/blue_short_pant_2_1.png') },
+  { id: 10, target: 'male', avatarCategories: [2], source: require('../../assets/images/avatar/male/pants/red_short_pant_2_1.png') },
 ];
 const ALL_FULLBODY_OUTFITS: AvatarAsset[] = [
   { id: 1, target: 'female', avatarCategories: [4, 5, 6], source: require('../../assets/images/avatar/fullbody/upperbody/suit1.png') },
@@ -115,6 +139,26 @@ const GenerateAvatarScreen = () => {
   const baseImage = route.params?.baseImage || require('../../assets/images/avatar/base/base_avatar_3.png');
   const isFullbody = route.params?.isFullbody === true;
   const previewHeight = isFullbody ? FULLBODY_PREVIEW_HEIGHT : PREVIEW_HEIGHT;
+
+  const getHalfClosedEyeSource = () => {
+    if (target === 'male' && avatarCategory === 2) {
+      return require('../../assets/images/avatar/utils/half_closed_eye_male_2.png');
+    }
+    if (target === 'male' && avatarCategory === 1) {
+      return require('../../assets/images/avatar/utils/half_closed_eye_male_1.png');
+    }
+    return require('../../assets/images/avatar/utils/half_closed_eye_female_all.png');
+  };
+
+  const getFullClosedEyeSource = () => {
+    if (target === 'male' && avatarCategory === 2) {
+      return require('../../assets/images/avatar/utils/full_closed_eye_male_2.png');
+    }
+    if (target === 'male' && avatarCategory === 1) {
+      return require('../../assets/images/avatar/utils/full_closed_eye_male_1.png');
+    }
+    return require('../../assets/images/avatar/utils/full_closed_eye_female_all.png');
+  };
 
   // Shared state
   const [selectedHairColor, setSelectedHairColor] = useState<string | null>(null);
@@ -212,13 +256,13 @@ const GenerateAvatarScreen = () => {
 
               {/* Eye Blinking Animation Overlay - Opacity toggled to prevent load lag */}
               <Image
-                source={require('../../assets/images/avatar/utils/half_eye_closed.png')}
+                source={getHalfClosedEyeSource()}
                 className="absolute w-full h-full"
                 resizeMode="contain"
                 style={{ opacity: eyeState === 'half_closed' ? 1 : 0 }}
               />
               <Image
-                source={require('../../assets/images/avatar/utils/closed_eye.png')}
+                source={getFullClosedEyeSource()}
                 className="absolute w-full h-full"
                 resizeMode="contain"
                 style={{ opacity: eyeState === 'closed' ? 1 : 0 }}
