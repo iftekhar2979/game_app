@@ -29,54 +29,73 @@ const hexToTintMatrix = (hex: string) => {
 };
 
 // --- HALF BODY ASSETS ---
-const HAIR_STYLES = [
-  { id: 2, source: require('../../assets/images/avatar/hair/Hair2.png') },
-  { id: 3, source: require('../../assets/images/avatar/hair/Hair6.png') },
+const ALL_HAIR_STYLES: AvatarAsset[] = [
+  { id: 2, target: 'female', source: require('../../assets/images/avatar/hair/Hair2.png') },
+  { id: 3, target: 'female', source: require('../../assets/images/avatar/hair/Hair6.png') },
 ];
 const HAIR_COLORS = [
   '#E6C27A', '#8D5B36', '#4A2F1D', '#1A1A1A', '#A33327', '#E6E6E6'
 ];
-const BLAZERS = [
-  { id: 1, source: require('../../assets/images/avatar/fullbody/upperbody/suit1.png') },
-  { id: 2, source: require('../../assets/images/avatar/fullbody/upperbody/half_sleve_blouse_1.png') },
-  { id: 3, source: require('../../assets/images/avatar/fullbody/upperbody/full_sleve_1.png') },
-  { id: 4, source: require('../../assets/images/avatar/fullbody/upperbody/necksleb_1.png') },
-  { id: 5, source: require('../../assets/images/avatar/fullbody/upperbody/neckless_sleve_2.png') },
+const ALL_BLAZERS: AvatarAsset[] = [
+  { id: 1, target: 'female', source: require('../../assets/images/avatar/fullbody/upperbody/suit1.png') },
+  { id: 2, target: 'female', source: require('../../assets/images/avatar/fullbody/upperbody/half_sleve_blouse_1.png') },
+  { id: 3, target: 'female', source: require('../../assets/images/avatar/fullbody/upperbody/full_sleve_1.png') },
+  { id: 4, target: 'female', source: require('../../assets/images/avatar/fullbody/upperbody/necksleb_1.png') },
+  { id: 5, target: 'female', source: require('../../assets/images/avatar/fullbody/upperbody/neckless_sleve_2.png') },
+  { id: 6, target: 'male', source: require('../../assets/images/avatar/male/upperbody/blue_shirt_1.png') },
+  { id: 7, target: 'male', source: require('../../assets/images/avatar/male/upperbody/blue_shirt_2.png') },
+  { id: 8, target: 'male', source: require('../../assets/images/avatar/male/upperbody/green_shirt_1.png') },
+  { id: 9, target: 'male', source: require('../../assets/images/avatar/male/upperbody/red_shirt_1.png') },
 ];
 
 // --- FULL BODY ASSETS ---
-type AvatarAsset = { id: number; source: any };
+type AvatarAsset = { id: number; target: 'female' | 'male'; source: any };
 
-const FULLBODY_HAIR: AvatarAsset[] = [
-
-  { id: 2, source: require('../../assets/images/avatar/hair/Hair2.png') },
-  { id: 3, source: require('../../assets/images/avatar/hair/Hair6.png') },
-
+const ALL_FULLBODY_HAIR: AvatarAsset[] = [
+  { id: 2, target: 'female', source: require('../../assets/images/avatar/hair/Hair2.png') },
+  { id: 3, target: 'female', source: require('../../assets/images/avatar/hair/Hair6.png') },
 ];
-const FULLBODY_SKIRTS: AvatarAsset[] = [
-  { id: 1, source: require('../../assets/images/avatar/fullbody/skirt/full_pant_33.png') },
-  { id: 2, source: require('../../assets/images/avatar/fullbody/skirt/short_pant_1.png') },
-  { id: 3, source: require('../../assets/images/avatar/fullbody/skirt/short_pant_2.png') },
-  { id: 4, source: require('../../assets/images/avatar/fullbody/skirt/short_pant_3.png') },
+const ALL_FULLBODY_SKIRTS: AvatarAsset[] = [
+  { id: 1, target: 'female', source: require('../../assets/images/avatar/fullbody/skirt/full_pant_33.png') },
+  { id: 2, target: 'female', source: require('../../assets/images/avatar/fullbody/skirt/short_pant_1.png') },
+  { id: 3, target: 'female', source: require('../../assets/images/avatar/fullbody/skirt/short_pant_2.png') },
+  { id: 4, target: 'female', source: require('../../assets/images/avatar/fullbody/skirt/short_pant_3.png') },
+  { id: 5, target: 'male', source: require('../../assets/images/avatar/male/pants/black_short_pant_1.png') },
+  { id: 6, target: 'male', source: require('../../assets/images/avatar/male/pants/blue_short_pant_1.png') },
+  { id: 7, target: 'male', source: require('../../assets/images/avatar/male/pants/green_short_pant_1.png') },
+  { id: 8, target: 'male', source: require('../../assets/images/avatar/male/pants/green_short_pant_2.png') },
 ];
-const FULLBODY_OUTFITS: AvatarAsset[] = [
-  { id: 1, source: require('../../assets/images/avatar/fullbody/upperbody/suit1.png') },
-  { id: 2, source: require('../../assets/images/avatar/fullbody/upperbody/half_sleve_blouse_1.png') },
-  { id: 3, source: require('../../assets/images/avatar/fullbody/upperbody/full_sleve_1.png') },
-  { id: 4, source: require('../../assets/images/avatar/fullbody/upperbody/necksleb_1.png') },
-  { id: 5, source: require('../../assets/images/avatar/fullbody/upperbody/neckless_sleve_2.png') },
+const ALL_FULLBODY_OUTFITS: AvatarAsset[] = [
+  { id: 1, target: 'female', source: require('../../assets/images/avatar/fullbody/upperbody/suit1.png') },
+  { id: 2, target: 'female', source: require('../../assets/images/avatar/fullbody/upperbody/half_sleve_blouse_1.png') },
+  { id: 3, target: 'female', source: require('../../assets/images/avatar/fullbody/upperbody/full_sleve_1.png') },
+  { id: 4, target: 'female', source: require('../../assets/images/avatar/fullbody/upperbody/necksleb_1.png') },
+  { id: 5, target: 'female', source: require('../../assets/images/avatar/fullbody/upperbody/neckless_sleve_2.png') },
+  { id: 6, target: 'male', source: require('../../assets/images/avatar/male/upperbody/blue_shirt_1.png') },
+  { id: 7, target: 'male', source: require('../../assets/images/avatar/male/upperbody/blue_shirt_2.png') },
+  { id: 8, target: 'male', source: require('../../assets/images/avatar/male/upperbody/green_shirt_1.png') },
+  { id: 9, target: 'male', source: require('../../assets/images/avatar/male/upperbody/red_shirt_1.png') },
 ];
-const SHOES: AvatarAsset[] = [
-  { id: 1, source: require('../../assets/images/avatar/fullbody/shoes/green_shoe_1.png') },
-  { id: 2, source: require('../../assets/images/avatar/fullbody/shoes/green_shoe_14.png') },
-  { id: 3, source: require('../../assets/images/avatar/fullbody/shoes/green_shoes_41.png') },
-  { id: 4, source: require('../../assets/images/avatar/fullbody/shoes/shoe_1.png') },
+const ALL_SHOES: AvatarAsset[] = [
+  { id: 1, target: 'female', source: require('../../assets/images/avatar/fullbody/shoes/green_shoe_1.png') },
+  { id: 2, target: 'female', source: require('../../assets/images/avatar/fullbody/shoes/green_shoe_14.png') },
+  { id: 3, target: 'female', source: require('../../assets/images/avatar/fullbody/shoes/green_shoes_41.png') },
+  { id: 4, target: 'female', source: require('../../assets/images/avatar/fullbody/shoes/shoe_1.png') },
 ];
 
 const GenerateAvatarScreen = () => {
   const navigation = useNavigation<NavigationProp>();
   const route = useRoute<GenerateAvatarRouteProp>();
   const insets = useSafeAreaInsets();
+
+  const target = route.params?.target || 'female';
+
+  const HAIR_STYLES = ALL_HAIR_STYLES.filter(a => a.target === target);
+  const BLAZERS = ALL_BLAZERS.filter(a => a.target === target);
+  const FULLBODY_HAIR = ALL_FULLBODY_HAIR.filter(a => a.target === target);
+  const FULLBODY_SKIRTS = ALL_FULLBODY_SKIRTS.filter(a => a.target === target);
+  const FULLBODY_OUTFITS = ALL_FULLBODY_OUTFITS.filter(a => a.target === target);
+  const SHOES = ALL_SHOES.filter(a => a.target === target);
 
   const baseImage = route.params?.baseImage || require('../../assets/images/avatar/base/base_avatar_3.png');
   const isFullbody = route.params?.isFullbody === true;
@@ -191,7 +210,7 @@ const GenerateAvatarScreen = () => {
               />
 
               {/* --- HALF BODY LAYERS --- */}
-              {!isFullbody && selectedBody !== null && (
+              {!isFullbody && selectedBody !== null && BLAZERS[selectedBody] && (
                 <Image
                   source={BLAZERS[selectedBody].source}
                   className="absolute w-full h-full"
@@ -199,7 +218,7 @@ const GenerateAvatarScreen = () => {
                 />
               )}
 
-              {!isFullbody && selectedHair !== null && (
+              {!isFullbody && selectedHair !== null && HAIR_STYLES[selectedHair] && (
                 <View className="absolute w-full h-full scale-[1.03] top-[-1%]">
                   {selectedHairColor ? (
                     <Svg width="100%" height="100%">
@@ -256,7 +275,7 @@ const GenerateAvatarScreen = () => {
 
 
 
-              {isFullbody && selectedFullbodyHair !== null && (
+              {isFullbody && selectedFullbodyHair !== null && FULLBODY_HAIR[selectedFullbodyHair] && (
                 <View className="absolute w-full h-full">
                   {selectedHairColor ? (
                     <Svg width="100%" height="100%">
