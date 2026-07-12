@@ -9,54 +9,63 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 type NavigationProp = NativeStackNavigationProp<RootStackParamList, 'ExploreAvatar'>;
 
 const SKIRTS = [
-  { target: 'female', source: require('../../assets/images/avatar/fullbody/skirt/full_pant_33.png') },
-  { target: 'female', source: require('../../assets/images/avatar/fullbody/skirt/short_pant_1.png') },
-  { target: 'female', source: require('../../assets/images/avatar/fullbody/skirt/short_pant_2.png') },
-  { target: 'female', source: require('../../assets/images/avatar/fullbody/skirt/short_pant_3.png') },
-  { target: 'male', source: require('../../assets/images/avatar/male/pants/black_short_pant_1.png') },
-  { target: 'male', source: require('../../assets/images/avatar/male/pants/blue_short_pant_1.png') },
-  { target: 'male', source: require('../../assets/images/avatar/male/pants/green_short_pant_1.png') },
-  { target: 'male', source: require('../../assets/images/avatar/male/pants/green_short_pant_2.png') },
+  { target: 'female', avatarCategories: [4, 5, 6], source: require('../../assets/images/avatar/fullbody/skirt/full_pant_33.png') },
+  { target: 'female', avatarCategories: [4, 5, 6], source: require('../../assets/images/avatar/fullbody/skirt/short_pant_1.png') },
+  { target: 'female', avatarCategories: [4, 5, 6], source: require('../../assets/images/avatar/fullbody/skirt/short_pant_2.png') },
+  { target: 'female', avatarCategories: [4, 5, 6], source: require('../../assets/images/avatar/fullbody/skirt/short_pant_3.png') },
+  { target: 'male', avatarCategories: [1], source: require('../../assets/images/avatar/male/pants/black_short_pant_1.png') },
+  { target: 'male', avatarCategories: [1], source: require('../../assets/images/avatar/male/pants/blue_short_pant_1.png') },
+  { target: 'male', avatarCategories: [1], source: require('../../assets/images/avatar/male/pants/green_short_pant_1.png') },
+  { target: 'male', avatarCategories: [1], source: require('../../assets/images/avatar/male/pants/green_short_pant_2.png') },
 ];
 
 const SHOES = [
-  { target: 'female', source: require('../../assets/images/avatar/fullbody/shoes/green_shoe_1.png') },
-  { target: 'female', source: require('../../assets/images/avatar/fullbody/shoes/green_shoe_14.png') },
-  { target: 'female', source: require('../../assets/images/avatar/fullbody/shoes/green_shoes_41.png') },
-  { target: 'female', source: require('../../assets/images/avatar/fullbody/shoes/shoe_1.png') },
+  { target: 'female', avatarCategories: [4, 5, 6], source: require('../../assets/images/avatar/fullbody/shoes/green_shoe_1.png') },
+  { target: 'female', avatarCategories: [4, 5, 6], source: require('../../assets/images/avatar/fullbody/shoes/green_shoe_14.png') },
+  { target: 'female', avatarCategories: [4, 5, 6], source: require('../../assets/images/avatar/fullbody/shoes/green_shoes_41.png') },
+  { target: 'female', avatarCategories: [4, 5, 6], source: require('../../assets/images/avatar/fullbody/shoes/shoe_1.png') },
 ];
 
 const UPPERBODIES = [
-  { target: 'female', source: require('../../assets/images/avatar/fullbody/upperbody/suit1.png') },
-  { target: 'female', source: require('../../assets/images/avatar/fullbody/upperbody/half_sleve_blouse_1.png') },
-  { target: 'female', source: require('../../assets/images/avatar/fullbody/upperbody/full_sleve_1.png') },
-  { target: 'female', source: require('../../assets/images/avatar/fullbody/upperbody/necksleb_1.png') },
-  { target: 'female', source: require('../../assets/images/avatar/fullbody/upperbody/neckless_sleve_2.png') },
-  { target: 'male', source: require('../../assets/images/avatar/male/upperbody/blue_shirt_1.png') },
-  { target: 'male', source: require('../../assets/images/avatar/male/upperbody/blue_shirt_2.png') },
-  { target: 'male', source: require('../../assets/images/avatar/male/upperbody/green_shirt_1.png') },
-  { target: 'male', source: require('../../assets/images/avatar/male/upperbody/red_shirt_1.png') },
+  { target: 'female', avatarCategories: [4, 5, 6], source: require('../../assets/images/avatar/fullbody/upperbody/suit1.png') },
+  { target: 'female', avatarCategories: [4, 5, 6], source: require('../../assets/images/avatar/fullbody/upperbody/half_sleve_blouse_1.png') },
+  { target: 'female', avatarCategories: [4, 5, 6], source: require('../../assets/images/avatar/fullbody/upperbody/full_sleve_1.png') },
+  { target: 'female', avatarCategories: [4, 5, 6], source: require('../../assets/images/avatar/fullbody/upperbody/necksleb_1.png') },
+  { target: 'female', avatarCategories: [4, 5, 6], source: require('../../assets/images/avatar/fullbody/upperbody/neckless_sleve_2.png') },
+  { target: 'male', avatarCategories: [1], source: require('../../assets/images/avatar/male/upperbody/blue_shirt_1_1.png') },
+  { target: 'male', avatarCategories: [1], source: require('../../assets/images/avatar/male/upperbody/blue_shirt_1_2.png') },
+  { target: 'male', avatarCategories: [1], source: require('../../assets/images/avatar/male/upperbody/green_shirt_1_1.png') },
+  { target: 'male', avatarCategories: [1], source: require('../../assets/images/avatar/male/upperbody/red_shirt_1_1.png') },
+  { target: 'male', avatarCategories: [2], source: require('../../assets/images/avatar/male/upperbody/black_shirt_2_1.png') },
+  { target: 'male', avatarCategories: [2], source: require('../../assets/images/avatar/male/upperbody/black_undershirt_2_1.png') },
+  { target: 'male', avatarCategories: [2], source: require('../../assets/images/avatar/male/upperbody/blue_shirt_2_1.png') },
+  { target: 'male', avatarCategories: [2], source: require('../../assets/images/avatar/male/upperbody/blue_undershirt_2_1.png') },
+  { target: 'male', avatarCategories: [2], source: require('../../assets/images/avatar/male/upperbody/green_shirt_2_1.png') },
+  { target: 'male', avatarCategories: [2], source: require('../../assets/images/avatar/male/upperbody/green_undershirt_2_1.png') },
+  { target: 'male', avatarCategories: [2], source: require('../../assets/images/avatar/male/upperbody/red_undershirt_2_1.png') },
 ];
 
 const HAIRS = [
-  { target: 'female', source: require('../../assets/images/avatar/hair/Hair2.png') },
-  { target: 'female', source: require('../../assets/images/avatar/hair/Hair6.png') },
+  { target: 'female', avatarCategories: [4, 5, 6], source: require('../../assets/images/avatar/hair/Hair2.png') },
+  { target: 'female', avatarCategories: [4, 5, 6], source: require('../../assets/images/avatar/hair/Hair6.png') },
 ];
 
 const getRandomItem = (array: any[]) => array[Math.floor(Math.random() * array.length)];
 
 const AVATARS = [
-  { id: '4', isFullbody: true, target: 'female', image: require('../../assets/images/avatar/base/base_avatar_3.png') },
-  { id: '5', isFullbody: true, target: 'female', image: require('../../assets/images/avatar/base/base_avatar_4.png') },
-  { id: '6', isFullbody: true, target: 'female', image: require('../../assets/images/avatar/base/base_avatar_5.png') },
-  { id: '7', isFullbody: true, target: 'male', image: require('../../assets/images/avatar/base/male_avatar_1.png') },
+  { id: 4, isFullbody: true, target: 'female', avatarCategory: 4, image: require('../../assets/images/avatar/base/base_avatar_3.png') },
+  { id: 5, isFullbody: true, target: 'female', avatarCategory: 5, image: require('../../assets/images/avatar/base/base_avatar_4.png') },
+  { id: 6, isFullbody: true, target: 'female', avatarCategory: 6, image: require('../../assets/images/avatar/base/base_avatar_5.png') },
+  { id: 1, isFullbody: true, target: 'male', avatarCategory: 1, image: require('../../assets/images/avatar/base/male_avatar_1.png') },
+  { id: 2, isFullbody: true, target: 'male', avatarCategory: 2, image: require('../../assets/images/avatar/base/male_avatar_2.png') },
 ].map(avatar => {
   const target = avatar.target || 'female';
-  const targetSkirts = SKIRTS.filter(s => s.target === target).map(s => s.source);
-  const targetShoes = SHOES.filter(s => s.target === target).map(s => s.source);
-  const targetUpperbodies = UPPERBODIES.filter(s => s.target === target).map(s => s.source);
-  const targetHairs = HAIRS.filter(s => s.target === target).map(s => s.source);
-  
+  const category = avatar.avatarCategory || 1;
+  const targetSkirts = SKIRTS.filter(s => s.target === target && s.avatarCategories && s.avatarCategories.includes(category)).map(s => s.source);
+  const targetShoes = SHOES.filter(s => s.target === target && s.avatarCategories && s.avatarCategories.includes(category)).map(s => s.source);
+  const targetUpperbodies = UPPERBODIES.filter(s => s.target === target && s.avatarCategories && s.avatarCategories.includes(category)).map(s => s.source);
+  const targetHairs = HAIRS.filter(s => s.target === target && s.avatarCategories && s.avatarCategories.includes(category)).map(s => s.source);
+
   return {
     ...avatar,
     randomSkirt: targetSkirts.length > 0 ? getRandomItem(targetSkirts) : null,
@@ -78,7 +87,7 @@ const ExploreAvatarScreen = () => {
   const navigation = useNavigation<NavigationProp>();
   const insets = useSafeAreaInsets();
 
-  const renderItem = ({ item, index }: { item: { id: string; image: any; isFullbody?: boolean; randomSkirt?: any; randomShoes?: any; randomUpperbody?: any; randomHair?: any; target?: string }, index: number }) => (
+  const renderItem = ({ item, index }: { item: { id: number; image: any; isFullbody?: boolean; randomSkirt?: any; randomShoes?: any; randomUpperbody?: any; randomHair?: any; target?: string; avatarCategory?: number }, index: number }) => (
     <TouchableOpacity
       key={item.id}
       activeOpacity={0.8}
@@ -88,7 +97,7 @@ const ExploreAvatarScreen = () => {
         marginBottom: 12,
         marginRight: (index % 3 !== 2) ? 12 : 0,
       }}
-      onPress={() => navigation.navigate('GenerateAvatar', { baseImage: item.image, isFullbody: item.isFullbody, target: item.target as any })}
+      onPress={() => navigation.navigate('GenerateAvatar', { baseImage: item.image, isFullbody: item.isFullbody, target: item.target as any, avatarCategory: item.avatarCategory })}
     >
       <View className="flex-1 rounded-2xl border-2 border-[#5B1F7D] overflow-hidden bg-[#1A0B2E]">
         <Image

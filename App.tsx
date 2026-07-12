@@ -31,7 +31,7 @@ export type RootStackParamList = {
   OTPVerification: undefined;
   ResetPassword: undefined;
   ExploreAvatar: undefined;
-  GenerateAvatar: { baseImage: any; isFullbody?: boolean; target?: 'female' | 'male' };
+  GenerateAvatar: { baseImage: any; isFullbody?: boolean; target?: 'female' | 'male'; avatarCategory?: number };
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
