@@ -4,6 +4,9 @@ import Svg, { Defs, LinearGradient, Stop, Rect, Filter, FeColorMatrix, Image as 
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { ChevronLeft } from 'lucide-react-native';
+import { useDispatch } from 'react-redux';
+import { saveAvatar } from '../../store/slices/avatarSlice';
+import ViewShot from 'react-native-view-shot';
 import { RootStackParamList } from '../../../App';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -125,6 +128,8 @@ const GenerateAvatarScreen = () => {
   const navigation = useNavigation<NavigationProp>();
   const route = useRoute<GenerateAvatarRouteProp>();
   const insets = useSafeAreaInsets();
+  const dispatch = useDispatch();
+  const viewShotRef = useRef<ViewShot>(null);
 
   const target = route.params?.target || 'female';
   const avatarCategory = route.params?.avatarCategory || 1;
@@ -235,9 +240,10 @@ const GenerateAvatarScreen = () => {
 
         {/* Large Avatar Preview */}
         <View className="px-6 mb-8">
-          <View
-            style={[styles.previewContainer, { height: previewHeight }]}
-          >
+          <ViewShot ref={viewShotRef} options={{ format: 'png', quality: 0.9 }}>
+            <View
+              style={[styles.previewContainer, { height: previewHeight }]}
+            >
             {/* The glow effect behind avatar */}
             <View className="absolute top-10 w-48 h-48 rounded-full bg-[#B366FF] opacity-20 blur-3xl" />
 
@@ -379,6 +385,7 @@ const GenerateAvatarScreen = () => {
               </Svg>
             </View>
           </View>
+          </ViewShot>
         </View>
 
         {/* Customization Sections */}
@@ -609,6 +616,38 @@ const GenerateAvatarScreen = () => {
         <TouchableOpacity
           className="w-full bg-black/60 border border-[#B366FF] py-4 rounded-full items-center justify-center backdrop-blur-md"
           activeOpacity={0.8}
+          onPress={async () => {
+            if (viewShotRef.current && viewShotRef.current.capture) {
+              try {
+                const uri = await viewShotRef.current.capture();
+                dispatch(
+                  saveAvatar({
+                    id: Date.now().toString(),
+                    imageUri: uri,
+                    configuration: {
+                      target,
+                      avatarCategory,
+                      isFullbody,
+                      details: {
+                        selectedHair,
+                        selectedHairColor,
+                        selectedBody,
+                        selectedFullbodyHair,
+                        selectedFullbodySkirt,
+                        selectedFullbodyOutfit,
+                        selectedShoes,
+                      },
+                    },
+                    createdAt: Date.now(),
+                  })
+                );
+                // Navigate to the Home Feed screen
+                navigation.navigate('Home');
+              } catch (error) {
+                console.error('Failed to capture avatar', error);
+              }
+            }
+          }}
         >
           <Text className="text-white font-semibold text-base">Create avatar</Text>
         </TouchableOpacity>

@@ -19,6 +19,7 @@ import OTPVerificationScreen from './src/screens/Auth/OTPVerificationScreen';
 import ResetPasswordScreen from './src/screens/Auth/ResetPasswordScreen';
 import ExploreAvatarScreen from './src/screens/Avatar/ExploreAvatarScreen';
 import GenerateAvatarScreen from './src/screens/Avatar/GenerateAvatarScreen';
+import HomeScreen from './src/screens/Home/HomeScreen';
 import { Provider } from 'react-redux';
 import { store } from './src/store';
 
@@ -32,6 +33,7 @@ export type RootStackParamList = {
   ResetPassword: undefined;
   ExploreAvatar: undefined;
   GenerateAvatar: { baseImage: any; isFullbody?: boolean; target?: 'female' | 'male'; avatarCategory?: number };
+  Home: undefined;
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -54,6 +56,7 @@ function App() {
             <Stack.Screen name="ResetPassword" component={ResetPasswordScreen} />
             <Stack.Screen name="ExploreAvatar" component={ExploreAvatarScreen} />
             <Stack.Screen name="GenerateAvatar" component={GenerateAvatarScreen} />
+            <Stack.Screen name="Home" component={HomeScreen} />
           </Stack.Navigator>
         </NavigationContainer>
       </SafeAreaProvider>
