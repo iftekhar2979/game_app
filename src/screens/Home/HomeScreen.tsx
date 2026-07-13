@@ -40,6 +40,13 @@ export default function HomeScreen() {
   const avatars = useSelector((state: RootState) => state.avatar.savedAvatars);
   const userAvatarUri = avatars.length > 0 ? avatars[0].imageUri : 'https://i.pravatar.cc/150?img=11';
 
+  const createdLeagues = useSelector((state: RootState) => state.league.leagues);
+  const mockLeagues = [
+    { id: 'mock-1', name: '2026 Final cheer' },
+    { id: 'mock-2', name: '2026 Final cheer' },
+  ];
+  const allLeagues = [...createdLeagues, ...mockLeagues];
+
   return (
     <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
       {/* Header */}
@@ -70,27 +77,24 @@ export default function HomeScreen() {
         <View style={styles.fantasySection}>
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Fantasy</Text>
-            <TouchableOpacity>
+            <TouchableOpacity onPress={() => navigation.navigate('FantasyLeague')}>
               <Text style={styles.seeAllText}>See all</Text>
             </TouchableOpacity>
           </View>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.horizontalScroll}>
-            {/* Card 1 */}
-            <View style={styles.fantasyCard}>
-              <View style={styles.cardLogoPlaceholder} />
-              <View>
-                <Text style={styles.cardTitle}>2026 Final cheer</Text>
-                <Text style={styles.cardSubtext}>Fantasy Cheerleading</Text>
+            {allLeagues.map(league => (
+              <View key={league.id} style={styles.fantasyCard}>
+                {league.logoUri ? (
+                  <Image source={{ uri: league.logoUri }} style={styles.cardLogoPlaceholder} />
+                ) : (
+                  <View style={styles.cardLogoPlaceholder} />
+                )}
+                <View>
+                  <Text style={styles.cardTitle}>{league.name}</Text>
+                  <Text style={styles.cardSubtext}>Fantasy Cheerleading</Text>
+                </View>
               </View>
-            </View>
-            {/* Card 2 */}
-            <View style={styles.fantasyCard}>
-              <View style={styles.cardLogoPlaceholder} />
-              <View>
-                <Text style={styles.cardTitle}>2026 Final cheer</Text>
-                <Text style={styles.cardSubtext}>Fantasy Cheerleading</Text>
-              </View>
-            </View>
+            ))}
           </ScrollView>
           <View style={styles.paginationDots}>
             <View style={[styles.dot, styles.activeDot]} />
