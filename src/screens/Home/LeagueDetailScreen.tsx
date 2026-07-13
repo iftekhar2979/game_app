@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, Image, TouchableOpacity, ScrollView, TextInput } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ChevronLeft, MoreVertical } from 'lucide-react-native';
@@ -25,6 +25,37 @@ export default function LeagueDetailScreen() {
   // Retrieve league data
   const createdLeagues = useSelector((state: RootState) => state.league.leagues);
   const league: any = createdLeagues.find(l => l.id === leagueId) || MOCK_LEAGUES.find(l => l.id === leagueId) || MOCK_LEAGUES[0];
+
+  const [timeLeft, setTimeLeft] = useState<{ days: number; hours: number; minutes: number; seconds: number } | null>(null);
+
+  useEffect(() => {
+    if (!league?.draftDate || !league?.draftTime) return;
+
+    const dDate = new Date(league.draftDate);
+    const tTime = new Date(league.draftTime);
+    dDate.setHours(tTime.getHours(), tTime.getMinutes(), 0, 0);
+    const targetTime = dDate.getTime();
+
+    const calculateTime = () => {
+      const diff = targetTime - Date.now();
+      if (diff <= 0) {
+        setTimeLeft({ days: 0, hours: 0, minutes: 0, seconds: 0 });
+        return;
+      }
+      
+      const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+      const hours = Math.floor((diff / (1000 * 60 * 60)) % 24);
+      const minutes = Math.floor((diff / 1000 / 60) % 60);
+      const seconds = Math.floor((diff / 1000) % 60);
+      
+      setTimeLeft({ days, hours, minutes, seconds });
+    };
+
+    calculateTime();
+    const intervalId = setInterval(calculateTime, 1000);
+
+    return () => clearInterval(intervalId);
+  }, [league?.draftDate, league?.draftTime]);
 
   return (
     <SafeAreaView className="flex-1 bg-black" edges={['top', 'bottom']}>
@@ -82,30 +113,40 @@ export default function LeagueDetailScreen() {
         {/* Draftboard Card */}
         <View className="bg-[#FFB84D] rounded-[24px] p-5 mb-8">
           <Text className="text-black text-center text-[16px] font-medium mb-1">Draftboard</Text>
-          <Text className="text-black text-center text-[12px] opacity-80 mb-6">Saturday June 27 7:30 PM ( GMT+6 )</Text>
+          <Text className="text-black text-center text-[12px] opacity-80 mb-6">
+            {league?.draftDate && league?.draftTime 
+              ? `${new Date(league.draftDate).toDateString()} ${new Date(league.draftTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
+              : 'Draft time not scheduled'}
+          </Text>
           
           {/* Countdown */}
-          <View className="flex-row justify-center items-center mb-6">
-            <View className="items-center mx-1 flex-row">
-              <Text className="text-black text-[20px] font-bold mr-1">1</Text>
-              <Text className="text-black text-[10px] mt-1 mr-2 opacity-80">Day</Text>
-              <Text className="text-black text-[18px] font-bold mr-2">:</Text>
+          {timeLeft ? (
+            <View className="flex-row justify-center items-center mb-6">
+              <View className="items-center mx-1 flex-row">
+                <Text className="text-black text-[20px] font-bold mr-1">{timeLeft.days}</Text>
+                <Text className="text-black text-[10px] mt-1 mr-2 opacity-80">Day</Text>
+                <Text className="text-black text-[18px] font-bold mr-2">:</Text>
+              </View>
+              <View className="items-center mx-1 flex-row">
+                <Text className="text-black text-[20px] font-bold mr-1">{timeLeft.hours}</Text>
+                <Text className="text-black text-[10px] mt-1 mr-2 opacity-80">Hours</Text>
+                <Text className="text-black text-[18px] font-bold mr-2">:</Text>
+              </View>
+              <View className="items-center mx-1 flex-row">
+                <Text className="text-black text-[20px] font-bold mr-1">{timeLeft.minutes}</Text>
+                <Text className="text-black text-[10px] mt-1 mr-2 opacity-80">Min</Text>
+                <Text className="text-black text-[18px] font-bold mr-2">:</Text>
+              </View>
+              <View className="items-center mx-1 flex-row">
+                <Text className="text-black text-[20px] font-bold mr-1">{timeLeft.seconds}</Text>
+                <Text className="text-black text-[10px] mt-1 opacity-80">sec</Text>
+              </View>
             </View>
-            <View className="items-center mx-1 flex-row">
-              <Text className="text-black text-[20px] font-bold mr-1">6</Text>
-              <Text className="text-black text-[10px] mt-1 mr-2 opacity-80">Hours</Text>
-              <Text className="text-black text-[18px] font-bold mr-2">:</Text>
+          ) : (
+            <View className="flex-row justify-center items-center mb-6 h-[40px]">
+              <Text className="text-black text-[16px] font-bold opacity-70">00 : 00 : 00 : 00</Text>
             </View>
-            <View className="items-center mx-1 flex-row">
-              <Text className="text-black text-[20px] font-bold mr-1">47</Text>
-              <Text className="text-black text-[10px] mt-1 mr-2 opacity-80">Min</Text>
-              <Text className="text-black text-[18px] font-bold mr-2">:</Text>
-            </View>
-            <View className="items-center mx-1 flex-row">
-              <Text className="text-black text-[20px] font-bold mr-1">32</Text>
-              <Text className="text-black text-[10px] mt-1 opacity-80">sec</Text>
-            </View>
-          </View>
+          )}
 
           <TouchableOpacity 
             className="bg-[#8B3DFF] rounded-full h-[50px] justify-center items-center mx-8"

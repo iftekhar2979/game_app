@@ -2,11 +2,14 @@ import React, { useState } from 'react';
 import { View, Text, Image, TouchableOpacity, ScrollView, Modal, FlatList } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ChevronLeft } from 'lucide-react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../../../App';
+import { useSelector } from 'react-redux';
+import { RootState } from '../../store';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList, 'DraftRoom'>;
+type RouteProps = RouteProp<RootStackParamList, 'DraftRoom'>;
 
 const MOCK_USERS = [
   { id: '1', name: 'Okafor', avatarUri: 'https://i.pravatar.cc/150?img=1' },
@@ -24,9 +27,15 @@ const MOCK_PLAYERS = [
 
 export default function DraftRoomScreen() {
   const navigation = useNavigation<NavigationProp>();
+  const route = useRoute<RouteProps>();
+  const leagueId = route.params?.leagueId;
+  const league = useSelector((state: RootState) => state.league.leagues.find(l => l.id === leagueId));
+
   const [modalVisible, setModalVisible] = useState(false);
   const [modalMode, setModalMode] = useState<'empty' | 'filled'>('filled');
   const [setPlayerModalVisible, setSetPlayerModalVisible] = useState(false);
+  const [draftedPlayers, setDraftedPlayers] = useState<Record<string, typeof MOCK_PLAYERS[0]>>({});
+  const [selectedCell, setSelectedCell] = useState<string | null>(null);
 
   // Generate 6x4 grid (6 rows, 4 columns)
   const gridRows = [1, 2, 3, 4, 5, 6];
@@ -36,14 +45,18 @@ export default function DraftRoomScreen() {
     <SafeAreaView className="flex-1 bg-black" edges={['top', 'bottom']}>
       {/* Header */}
       <View className="flex-row items-center px-5 pt-2.5 pb-4">
-        <TouchableOpacity 
+        <TouchableOpacity
           className="w-11 h-11 rounded-xl border border-[#333] justify-center items-center mr-4"
           onPress={() => navigation.goBack()}
           activeOpacity={0.8}
         >
           <ChevronLeft color="#fff" size={24} />
         </TouchableOpacity>
-        <Text className="text-white text-[22px] font-semibold">Waiting to start</Text>
+        <Text className="text-white text-[22px] font-semibold">
+          {league?.draftDate && league?.draftTime
+            ? `Draft on ${new Date(league.draftDate).toLocaleDateString()} ${new Date(league.draftTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
+            : 'Waiting to start'}
+        </Text>
       </View>
 
       <ScrollView className="flex-1" showsVerticalScrollIndicator={false}>
@@ -61,19 +74,32 @@ export default function DraftRoomScreen() {
         <View className="px-5 mb-4">
           {gridRows.map((row) => (
             <View key={`row-${row}`} className="flex-row justify-between mb-2">
-              {gridCols.map((col) => (
-                <TouchableOpacity 
-                  key={`cell-${row}-${col}`} 
-                  className="flex-1 h-16 border border-[#333] rounded-xl bg-[#0a0a0a] justify-end items-end p-2 mx-1"
-                  activeOpacity={0.7}
-                  onPress={() => {
-                    setModalMode(row === 1 ? 'filled' : 'empty');
-                    setModalVisible(true);
-                  }}
-                >
-                  <Text className="text-[#666] text-[10px]">{row}.{col}</Text>
-                </TouchableOpacity>
-              ))}
+              {gridCols.map((col) => {
+                const cellId = `${row}.${col}`;
+                const draftedPlayer = draftedPlayers[cellId];
+
+                return (
+                  <TouchableOpacity
+                    key={`cell-${cellId}`}
+                    className="flex-1 h-16 border border-[#333] rounded-xl bg-[#0a0a0a] justify-end p-2 mx-1 relative overflow-hidden"
+                    activeOpacity={0.7}
+                    onPress={() => {
+                      setSelectedCell(cellId);
+                      setModalMode(draftedPlayer ? 'filled' : 'empty');
+                      setModalVisible(true);
+                    }}
+                  >
+                    {draftedPlayer && (
+                      <View className="absolute inset-0 justify-center items-center">
+                        <Image source={{ uri: draftedPlayer.avatarUri }} className="w-8 h-8 rounded-full mb-2" />
+                      </View>
+                    )}
+                    <View className="absolute bottom-1 right-2">
+                      <Text className="text-[#666] text-[10px]">{row}.{col}</Text>
+                    </View>
+                  </TouchableOpacity>
+                );
+              })}
             </View>
           ))}
         </View>
@@ -88,17 +114,17 @@ export default function DraftRoomScreen() {
         {/* Players Section */}
         <View className="px-5 pb-10">
           <Text className="text-white text-[18px] font-medium mb-4">Players</Text>
-          
+
           {/* Player Tabs */}
           <ScrollView horizontal showsHorizontalScrollIndicator={false} className="mb-6">
             <TouchableOpacity className="border border-[#E0B566] rounded-full px-4 py-1.5 mr-3">
               <Text className="text-[#E0B566] text-[13px] font-medium">New</Text>
             </TouchableOpacity>
-            {['All', 'Add here', 'Add here', 'Add here', 'Add here'].map((tab, idx) => (
+            {/* {['All'].map((tab, idx) => (
               <TouchableOpacity key={idx} className="px-4 py-1.5 mr-1">
                 <Text className="text-gray-400 text-[13px] font-medium">{tab}</Text>
               </TouchableOpacity>
-            ))}
+            ))} */}
           </ScrollView>
 
           {/* Player List */}
@@ -129,9 +155,9 @@ export default function DraftRoomScreen() {
         <View className="flex-1 justify-center items-center bg-black/80 px-5">
           <View className="w-full bg-[#1e1e1e] border border-[#333] rounded-[32px] p-6 items-center">
             <Text className="text-white text-[18px] font-medium mb-8 mt-2">Draft setting</Text>
-            
+
             {modalMode === 'empty' ? (
-              <TouchableOpacity 
+              <TouchableOpacity
                 className="w-full border border-gray-400 rounded-full h-[52px] justify-center items-center mb-4"
                 activeOpacity={0.8}
                 onPress={() => {
@@ -143,7 +169,7 @@ export default function DraftRoomScreen() {
               </TouchableOpacity>
             ) : (
               <>
-                <TouchableOpacity 
+                <TouchableOpacity
                   className="w-full border border-gray-400 rounded-full h-[52px] justify-center items-center mb-4"
                   activeOpacity={0.8}
                   onPress={() => {
@@ -154,17 +180,24 @@ export default function DraftRoomScreen() {
                   <Text className="text-gray-300 text-[15px]">Change player</Text>
                 </TouchableOpacity>
 
-                <TouchableOpacity 
+                <TouchableOpacity
                   className="w-full border border-gray-400 rounded-full h-[52px] justify-center items-center mb-4"
                   activeOpacity={0.8}
-                  onPress={() => setModalVisible(false)}
+                  onPress={() => {
+                    if (selectedCell) {
+                      const updated = { ...draftedPlayers };
+                      delete updated[selectedCell];
+                      setDraftedPlayers(updated);
+                    }
+                    setModalVisible(false);
+                  }}
                 >
                   <Text className="text-gray-300 text-[15px]">Remove player</Text>
                 </TouchableOpacity>
               </>
             )}
 
-            <TouchableOpacity 
+            <TouchableOpacity
               className="w-full border border-gray-400 rounded-full h-[52px] justify-center items-center mb-2"
               activeOpacity={0.8}
               onPress={() => setModalVisible(false)}
@@ -183,11 +216,11 @@ export default function DraftRoomScreen() {
       >
         <View className="flex-1 justify-center items-center bg-black/80 px-4">
           <View className="w-full h-[75%] bg-[#3a3a3a] border border-[#555] rounded-[32px] p-6">
-            
+
             {/* Modal Header */}
             <View className="items-center mb-6 relative">
               <Text className="text-white text-[20px] font-semibold">Set player</Text>
-              <TouchableOpacity 
+              <TouchableOpacity
                 className="absolute right-0"
                 onPress={() => setSetPlayerModalVisible(false)}
               >
@@ -196,23 +229,33 @@ export default function DraftRoomScreen() {
             </View>
 
             <Text className="text-white text-[18px] font-medium mb-4">Players</Text>
-            
+
             {/* Player Tabs */}
             <ScrollView horizontal showsHorizontalScrollIndicator={false} className="mb-6 flex-grow-0 min-h-[30px]">
               <TouchableOpacity className="border border-[#E0B566] rounded-full px-4 py-1 mr-3 h-[30px] justify-center">
                 <Text className="text-[#E0B566] text-[13px] font-medium">New</Text>
               </TouchableOpacity>
-              {['All', 'Add here', 'Add here', 'Add here'].map((tab, idx) => (
+              {/* {['All', 'Add here', 'Add here', 'Add here'].map((tab, idx) => (
                 <TouchableOpacity key={idx} className="px-4 py-1 mr-1 h-[30px] justify-center">
                   <Text className="text-gray-400 text-[13px] font-medium">{tab}</Text>
                 </TouchableOpacity>
-              ))}
+              ))} */}
             </ScrollView>
 
             {/* Player List */}
             <ScrollView showsVerticalScrollIndicator={false} className="flex-1">
               {MOCK_PLAYERS.map((player) => (
-                <View key={player.id} className="flex-row items-center justify-between border-b border-[#555] pb-4 mb-4">
+                <TouchableOpacity
+                  key={player.id}
+                  className="flex-row items-center justify-between border-b border-[#555] pb-4 mb-4"
+                  activeOpacity={0.7}
+                  onPress={() => {
+                    if (selectedCell) {
+                      setDraftedPlayers(prev => ({ ...prev, [selectedCell]: player }));
+                    }
+                    setSetPlayerModalVisible(false);
+                  }}
+                >
                   <View className="flex-row items-center">
                     <Image source={{ uri: player.avatarUri }} className="w-12 h-12 rounded-full bg-white mr-4" />
                     <View>
@@ -224,7 +267,7 @@ export default function DraftRoomScreen() {
                     <Text className="text-[#E0B566] text-[16px] font-medium mb-1">{player.points}</Text>
                     <View className="w-10 h-[2px] bg-[#E0B566]" />
                   </View>
-                </View>
+                </TouchableOpacity>
               ))}
             </ScrollView>
           </View>
