@@ -5,6 +5,8 @@ export interface League {
   name: string;
   membersCount: number;
   logoUri?: string;
+  draftDate?: string;
+  draftTime?: string;
   createdAt: number;
 }
 
