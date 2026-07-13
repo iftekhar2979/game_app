@@ -20,6 +20,8 @@ import ResetPasswordScreen from './src/screens/Auth/ResetPasswordScreen';
 import ExploreAvatarScreen from './src/screens/Avatar/ExploreAvatarScreen';
 import GenerateAvatarScreen from './src/screens/Avatar/GenerateAvatarScreen';
 import HomeScreen from './src/screens/Home/HomeScreen';
+import FantasyLeagueScreen from './src/screens/Home/FantasyLeagueScreen';
+import CreateLeagueScreen from './src/screens/Home/CreateLeagueScreen';
 import { Provider } from 'react-redux';
 import { store } from './src/store';
 
@@ -34,6 +36,8 @@ export type RootStackParamList = {
   ExploreAvatar: undefined;
   GenerateAvatar: { baseImage: any; isFullbody?: boolean; target?: 'female' | 'male'; avatarCategory?: number };
   Home: undefined;
+  FantasyLeague: undefined;
+  CreateLeague: undefined;
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -57,6 +61,8 @@ function App() {
             <Stack.Screen name="ExploreAvatar" component={ExploreAvatarScreen} />
             <Stack.Screen name="GenerateAvatar" component={GenerateAvatarScreen} />
             <Stack.Screen name="Home" component={HomeScreen} />
+            <Stack.Screen name="FantasyLeague" component={FantasyLeagueScreen} />
+            <Stack.Screen name="CreateLeague" component={CreateLeagueScreen} />
           </Stack.Navigator>
         </NavigationContainer>
       </SafeAreaProvider>
