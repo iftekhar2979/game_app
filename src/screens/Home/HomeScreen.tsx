@@ -42,8 +42,8 @@ export default function HomeScreen() {
 
   const createdLeagues = useSelector((state: RootState) => state.league.leagues);
   const mockLeagues = [
-    { id: 'mock-1', name: '2026 Final cheer' },
-    { id: 'mock-2', name: '2026 Final cheer' },
+    { id: 'mock-1', name: '2026 Final cheer', logoUri: undefined },
+    { id: 'mock-2', name: '2026 Final cheer', logoUri: undefined },
   ];
   const allLeagues = [...createdLeagues, ...mockLeagues];
 
@@ -83,7 +83,12 @@ export default function HomeScreen() {
           </View>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.horizontalScroll}>
             {allLeagues.map(league => (
-              <View key={league.id} style={styles.fantasyCard}>
+              <TouchableOpacity 
+                key={league.id} 
+                style={styles.fantasyCard}
+                activeOpacity={0.8}
+                onPress={() => navigation.navigate('LeagueDetail', { leagueId: league.id })}
+              >
                 {league.logoUri ? (
                   <Image source={{ uri: league.logoUri }} style={styles.cardLogoPlaceholder} />
                 ) : (
@@ -93,7 +98,7 @@ export default function HomeScreen() {
                   <Text style={styles.cardTitle}>{league.name}</Text>
                   <Text style={styles.cardSubtext}>Fantasy Cheerleading</Text>
                 </View>
-              </View>
+              </TouchableOpacity>
             ))}
           </ScrollView>
           <View style={styles.paginationDots}>
