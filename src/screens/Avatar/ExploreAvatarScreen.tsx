@@ -150,9 +150,9 @@ const ExploreAvatarScreen = () => {
 
       <ScrollView className="flex-1" showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 100 }}>
         {/* Section Title */}
-        <View className="px-6 mb-4">
+        {/* <View className="px-6 mb-4">
           <Text className="text-white text-lg font-medium">Half body avatar</Text>
-        </View>
+        </View> */}
 
         {/* Grid List - Half Body */}
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: 24 }}>

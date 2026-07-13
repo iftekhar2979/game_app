@@ -398,7 +398,7 @@ const GenerateAvatarScreen = () => {
                     <View className="w-[72px] h-[90px] rounded-xl border border-[#5B1F7D] bg-[#1A0B2E] overflow-hidden justify-end pb-6">
                       <Image
                         source={hair.source}
-                        className="w-[120%] h-[120%] absolute top-[-10%] left-[-10%]"
+                        className="w-[180%] h-[180%] absolute top-[-40%] left-[-40%]"
                         resizeMode="cover"
                       />
                     </View>
