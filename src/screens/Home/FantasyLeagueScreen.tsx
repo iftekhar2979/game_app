@@ -34,7 +34,11 @@ export default function FantasyLeagueScreen() {
   ];
 
   const renderItem = ({ item }: { item: any }) => (
-    <View className="flex-row items-center justify-between bg-[#0a0a0a] border border-[#333] rounded-2xl p-4 mb-3">
+    <TouchableOpacity 
+      className="flex-row items-center justify-between bg-[#0a0a0a] border border-[#333] rounded-2xl p-4 mb-3"
+      activeOpacity={0.8}
+      onPress={() => navigation.navigate('LeagueDetail', { leagueId: item.id })}
+    >
       <View className="flex-row items-center">
         <Image 
           source={{ uri: item.logoUri || 'https://images.unsplash.com/photo-1614680376593-902f74cf0d41?q=80&w=150&auto=format&fit=crop' }} 
@@ -49,11 +53,11 @@ export default function FantasyLeagueScreen() {
       {item.status === 'Draft' ? (
         <Text className="text-[#E0B566] text-sm font-medium">{item.status}</Text>
       ) : (
-        <TouchableOpacity className="border border-[#E0B566] rounded-full py-1.5 px-4" activeOpacity={0.8}>
+        <View className="border border-[#E0B566] rounded-full py-1.5 px-4">
           <Text className="text-[#E0B566] text-sm font-medium">{item.status}</Text>
-        </TouchableOpacity>
+        </View>
       )}
-    </View>
+    </TouchableOpacity>
   );
 
   return (

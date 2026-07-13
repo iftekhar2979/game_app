@@ -22,6 +22,8 @@ import GenerateAvatarScreen from './src/screens/Avatar/GenerateAvatarScreen';
 import HomeScreen from './src/screens/Home/HomeScreen';
 import FantasyLeagueScreen from './src/screens/Home/FantasyLeagueScreen';
 import CreateLeagueScreen from './src/screens/Home/CreateLeagueScreen';
+import LeagueDetailScreen from './src/screens/Home/LeagueDetailScreen';
+import DraftRoomScreen from './src/screens/Home/DraftRoomScreen';
 import { Provider } from 'react-redux';
 import { store } from './src/store';
 
@@ -38,6 +40,8 @@ export type RootStackParamList = {
   Home: undefined;
   FantasyLeague: undefined;
   CreateLeague: undefined;
+  LeagueDetail: { leagueId: string };
+  DraftRoom: { leagueId: string };
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -63,6 +67,8 @@ function App() {
             <Stack.Screen name="Home" component={HomeScreen} />
             <Stack.Screen name="FantasyLeague" component={FantasyLeagueScreen} />
             <Stack.Screen name="CreateLeague" component={CreateLeagueScreen} />
+            <Stack.Screen name="LeagueDetail" component={LeagueDetailScreen} />
+            <Stack.Screen name="DraftRoom" component={DraftRoomScreen} />
           </Stack.Navigator>
         </NavigationContainer>
       </SafeAreaProvider>

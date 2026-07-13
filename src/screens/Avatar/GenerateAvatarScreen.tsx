@@ -129,7 +129,7 @@ const GenerateAvatarScreen = () => {
   const route = useRoute<GenerateAvatarRouteProp>();
   const insets = useSafeAreaInsets();
   const dispatch = useDispatch();
-  const viewShotRef = useRef<ViewShot>(null);
+  const viewShotRef = useRef<any>(null);
 
   const target = route.params?.target || 'female';
   const avatarCategory = route.params?.avatarCategory || 1;
