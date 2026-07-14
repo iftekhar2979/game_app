@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, Image, TouchableOpacity, ScrollView, Modal, FlatList } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ChevronLeft } from 'lucide-react-native';
@@ -36,6 +36,29 @@ export default function DraftRoomScreen() {
   const [setPlayerModalVisible, setSetPlayerModalVisible] = useState(false);
   const [draftedPlayers, setDraftedPlayers] = useState<Record<string, typeof MOCK_PLAYERS[0]>>({});
   const [selectedCell, setSelectedCell] = useState<string | null>(null);
+  const [isDraftStarted, setIsDraftStarted] = useState(false);
+
+  useEffect(() => {
+    if (!league?.draftDate || !league?.draftTime) return;
+
+    const dDate = new Date(league.draftDate);
+    const tTime = new Date(league.draftTime);
+    dDate.setHours(tTime.getHours(), tTime.getMinutes(), 0, 0);
+    const targetTime = dDate.getTime();
+
+    const checkTime = () => {
+      if (Date.now() >= targetTime) {
+        setIsDraftStarted(true);
+      } else {
+        setIsDraftStarted(false);
+      }
+    };
+
+    checkTime();
+    const intervalId = setInterval(checkTime, 1000);
+
+    return () => clearInterval(intervalId);
+  }, [league?.draftDate, league?.draftTime]);
 
   // Generate 6x4 grid (6 rows, 4 columns)
   const gridRows = [1, 2, 3, 4, 5, 6];
@@ -53,7 +76,9 @@ export default function DraftRoomScreen() {
           <ChevronLeft color="#fff" size={24} />
         </TouchableOpacity>
         <Text className="text-white text-[22px] font-semibold">
-          {league?.draftDate && league?.draftTime
+          {isDraftStarted
+            ? 'Game started'
+            : league?.draftDate && league?.draftTime
             ? `Draft on ${new Date(league.draftDate).toLocaleDateString()} ${new Date(league.draftTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
             : 'Waiting to start'}
         </Text>
