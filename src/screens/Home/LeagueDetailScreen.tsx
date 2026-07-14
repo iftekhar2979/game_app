@@ -40,6 +40,13 @@ const MOCK_PLAYERS_LIST = [
   { id: 'p4', name: '2026 Final cheer', rostered: '1%', points: '+3', progress: 1, avatarUri: 'https://i.pravatar.cc/150?img=15' },
 ];
 
+const MOCK_LEAGUE_STANDINGS = [
+  { id: 'l1', name: 'Team FSD', handle: '@fsd', points: '+10.9', progress: 100 },
+  { id: 'l2', name: 'Team Cheerleading', handle: '@cheerleading', points: '+9', progress: 80 },
+  { id: 'l3', name: 'Team Rubel', handle: '@rubel', points: '+5', progress: 50 },
+  { id: 'l4', name: 'Team alex', handle: '@alex', points: '+3', progress: 30 },
+];
+
 export default function LeagueDetailScreen() {
   const navigation = useNavigation<NavigationProp>();
   const route = useRoute<RouteProps>();
@@ -340,6 +347,32 @@ export default function LeagueDetailScreen() {
                   </View>
                 </View>
               </TouchableOpacity>
+            ))}
+          </View>
+        )}
+
+        {/* League Tab Content */}
+        {activeTab === 'League' && (
+          <View className="mb-4 mt-2">
+            {MOCK_LEAGUE_STANDINGS.map((team) => (
+              <View key={team.id} className="flex-row items-center justify-between border-b border-[#222] pb-4 mb-4">
+                <View className="flex-row items-center">
+                  <View className="w-12 h-12 rounded-full border border-[#333] justify-center items-center bg-black mr-4">
+                    <Text className="text-[#8B3DFF] text-[10px] font-bold">CHEER</Text>
+                  </View>
+                  <View>
+                    <Text className="text-white text-[15px] mb-1">{team.name}</Text>
+                    <Text className="text-[#FFB84D] text-[13px]">{team.handle}</Text>
+                  </View>
+                </View>
+                
+                <View className="items-end justify-center w-[60px]">
+                  <Text className="text-[#FFB84D] text-[14px] font-medium mb-1.5">{team.points}</Text>
+                  <View className="w-full h-1 bg-[#333] rounded-full overflow-hidden">
+                    <View className="h-full bg-[#FFB84D]" style={{ width: `${team.progress}%` }} />
+                  </View>
+                </View>
+              </View>
             ))}
           </View>
         )}
