@@ -8,7 +8,7 @@ import { RootStackParamList } from '../../../App';
 import { useSelector } from 'react-redux';
 import { RootState } from '../../store';
 import { DraftTab, TeamTab, PlayersTab, LeagueTab } from '../../components/LeagueDetail/LeagueDetailTabs';
-import { AddTeamModal, PlayerDetailModal, LeagueSettingsModal } from '../../components/LeagueDetail/LeagueDetailModals';
+import { AddTeamModal, PlayerDetailModal, LeagueSettingsModal, LeagueSettingsSubModal, RosterSettingsSubModal, MemberSettingsSubModal, GiveCommissionerAccessModal, LockRosterModal, DeleteLeagueModal } from '../../components/LeagueDetail/LeagueDetailModals';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList, 'LeagueDetail'>;
 type RouteProps = RouteProp<RootStackParamList, 'LeagueDetail'>;
@@ -75,6 +75,29 @@ export default function LeagueDetailScreen() {
   const [isPlayerModalVisible, setIsPlayerModalVisible] = useState(false);
   const [selectedPlayer, setSelectedPlayer] = useState<any>(null);
   const [isSettingsModalVisible, setIsSettingsModalVisible] = useState(false);
+  const [isLeagueSettingsSubModalVisible, setIsLeagueSettingsSubModalVisible] = useState(false);
+  const [isRosterSettingsSubModalVisible, setIsRosterSettingsSubModalVisible] = useState(false);
+  const [isMemberSettingsSubModalVisible, setIsMemberSettingsSubModalVisible] = useState(false);
+  const [isCommissionerModalVisible, setIsCommissionerModalVisible] = useState(false);
+  const [isLockRosterModalVisible, setIsLockRosterModalVisible] = useState(false);
+  const [isDeleteLeagueModalVisible, setIsDeleteLeagueModalVisible] = useState(false);
+
+  const handleSettingsOptionSelect = (optionTitle: string) => {
+    if (optionTitle === 'League settings') {
+      setIsLeagueSettingsSubModalVisible(true);
+    } else if (optionTitle === 'Roster settings') {
+      setIsRosterSettingsSubModalVisible(true);
+    } else if (optionTitle === 'Member settings') {
+      setIsMemberSettingsSubModalVisible(true);
+    } else if (optionTitle === 'Commissioner control') {
+      setIsCommissionerModalVisible(true);
+    } else if (optionTitle === 'Team settings') {
+      // Wiring team settings to lock roster for now as requested design
+      setIsLockRosterModalVisible(true);
+    } else if (optionTitle === 'Delete league') {
+      setIsDeleteLeagueModalVisible(true);
+    }
+  };
 
   const handleAddTeam = (team: TeamMember) => {
     if (selectedSlotIndex !== null) {
@@ -234,6 +257,41 @@ export default function LeagueDetailScreen() {
       <LeagueSettingsModal 
         isVisible={isSettingsModalVisible}
         onClose={() => setIsSettingsModalVisible(false)}
+        onOptionSelect={handleSettingsOptionSelect}
+      />
+
+      <LeagueSettingsSubModal 
+        isVisible={isLeagueSettingsSubModalVisible}
+        onClose={() => setIsLeagueSettingsSubModalVisible(false)}
+      />
+
+      <RosterSettingsSubModal 
+        isVisible={isRosterSettingsSubModalVisible}
+        onClose={() => setIsRosterSettingsSubModalVisible(false)}
+      />
+
+      <MemberSettingsSubModal 
+        isVisible={isMemberSettingsSubModalVisible}
+        onClose={() => setIsMemberSettingsSubModalVisible(false)}
+      />
+
+      <GiveCommissionerAccessModal 
+        isVisible={isCommissionerModalVisible}
+        onClose={() => setIsCommissionerModalVisible(false)}
+      />
+
+      <LockRosterModal 
+        isVisible={isLockRosterModalVisible}
+        onClose={() => setIsLockRosterModalVisible(false)}
+      />
+
+      <DeleteLeagueModal 
+        isVisible={isDeleteLeagueModalVisible}
+        onClose={() => setIsDeleteLeagueModalVisible(false)}
+        onDelete={() => {
+          setIsDeleteLeagueModalVisible(false);
+          navigation.goBack();
+        }}
       />
     </SafeAreaView>
   );

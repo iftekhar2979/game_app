@@ -1,8 +1,8 @@
 import React from 'react';
 import { View, Text, Image, TouchableOpacity, ScrollView, Modal, Pressable } from 'react-native';
-import { ChevronLeft } from 'lucide-react-native';
+import { ChevronLeft, ChevronDown, Upload, User, Users, Plus, Minus, Unlock } from 'lucide-react-native';
 
-export const LeagueSettingsModal = ({ isVisible, onClose }: any) => {
+export const LeagueSettingsModal = ({ isVisible, onClose, onOptionSelect }: any) => {
   const SETTINGS_OPTIONS = [
     { id: '1', title: 'League settings' },
     { id: '2', title: 'Team settings' },
@@ -31,7 +31,10 @@ export const LeagueSettingsModal = ({ isVisible, onClose }: any) => {
               key={option.id}
               className={`p-4 ${index !== SETTINGS_OPTIONS.length - 1 ? 'border-b border-[#333]' : ''}`}
               activeOpacity={0.7}
-              onPress={onClose}
+              onPress={() => {
+                onClose();
+                if (onOptionSelect) onOptionSelect(option.title);
+              }}
             >
               <Text className={`${option.isDanger ? 'text-[#ff4444]' : 'text-white'} text-[16px]`}>
                 {option.title}
@@ -40,6 +43,140 @@ export const LeagueSettingsModal = ({ isVisible, onClose }: any) => {
           ))}
         </Pressable>
       </Pressable>
+    </Modal>
+  );
+};
+
+export const LeagueSettingsSubModal = ({ isVisible, onClose }: any) => {
+  return (
+    <Modal visible={isVisible} transparent={true} animationType="slide" onRequestClose={onClose}>
+      <View className="flex-1 bg-black pt-12 px-5">
+        <View className="flex-row items-center mb-10">
+          <TouchableOpacity onPress={onClose} className="w-10 h-10 border border-[#333] rounded-xl justify-center items-center mr-4">
+            <ChevronLeft color="#fff" size={24} />
+          </TouchableOpacity>
+          <Text className="text-white text-[20px] font-medium">League settings</Text>
+        </View>
+
+        <TouchableOpacity className="border border-[#8B3DFF] rounded-[16px] py-10 mb-6 items-center justify-center">
+           <View className="w-10 h-10 border border-gray-400 rounded-full items-center justify-center mb-3">
+             <Upload color="#ccc" size={18} />
+           </View>
+           <Text className="text-gray-300 text-[14px]">Upload league logo</Text>
+        </TouchableOpacity>
+
+        <View className="border border-[#8B3DFF] rounded-[16px] flex-row items-center px-4 h-[56px] mb-4">
+          <User color="#ccc" size={18} className="mr-3" />
+          <Text className="text-gray-400 text-[14px]">League name</Text>
+        </View>
+
+        <View className="border border-[#8B3DFF] rounded-[16px] flex-row items-center justify-between px-4 h-[56px] mb-8">
+          <View className="flex-row items-center">
+            <Users color="#ccc" size={18} className="mr-3" />
+            <Text className="text-gray-400 text-[14px]">Member of teams</Text>
+          </View>
+          <ChevronDown color="#ccc" size={20} />
+        </View>
+        
+        <View className="flex-1 justify-end pb-8">
+          <TouchableOpacity className="bg-[#8B3DFF] rounded-full h-[56px] justify-center items-center" onPress={onClose}>
+            <Text className="text-white text-[16px] font-medium">Save changes</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    </Modal>
+  );
+};
+
+export const RosterSettingsSubModal = ({ isVisible, onClose }: any) => {
+  const ROSTER_POSITIONS = [
+    'QUARTERBACK (QB)',
+    'RUNNINGBACK (RB)',
+    'WIDERECEIVER (WD)',
+    'TIGHTEND (TE)',
+    'FLEX (W/R/T)',
+    'FLEX (W/R/T)',
+    'KICKER (K)',
+    'DEFENSE (DEF)',
+    'DL',
+    'LB'
+  ];
+
+  return (
+    <Modal visible={isVisible} transparent={true} animationType="slide" onRequestClose={onClose}>
+      <View className="flex-1 bg-black pt-12 px-5">
+        <View className="flex-row items-center mb-8">
+          <TouchableOpacity onPress={onClose} className="w-10 h-10 border border-[#333] rounded-xl justify-center items-center mr-4">
+            <ChevronLeft color="#fff" size={24} />
+          </TouchableOpacity>
+          <Text className="text-white text-[20px] font-medium">Roster settings</Text>
+        </View>
+
+        <ScrollView showsVerticalScrollIndicator={false} className="flex-1">
+          {ROSTER_POSITIONS.map((pos, index) => (
+            <View key={index} className="flex-row items-center mb-4">
+              <View className="flex-row items-center bg-[#333] rounded-full px-2 py-1.5 mr-4 w-[110px] justify-between">
+                <TouchableOpacity className="bg-[#e0e0e0] w-6 h-6 rounded-full items-center justify-center">
+                  <Minus color="#000" size={16} />
+                </TouchableOpacity>
+                <Text className="text-white mx-2 font-medium">1</Text>
+                <TouchableOpacity className="bg-[#e0e0e0] w-6 h-6 rounded-full items-center justify-center">
+                  <Plus color="#000" size={16} />
+                </TouchableOpacity>
+              </View>
+              <View className="w-9 h-9 rounded-full bg-[#444] mr-4" />
+              <Text className="text-white text-[13px]">{pos}</Text>
+            </View>
+          ))}
+        </ScrollView>
+
+        <View className="py-8 bg-black">
+          <TouchableOpacity className="bg-[#8B3DFF] rounded-full h-[56px] justify-center items-center" onPress={onClose}>
+            <Text className="text-white text-[16px] font-medium">Save changes</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    </Modal>
+  );
+};
+
+export const MemberSettingsSubModal = ({ isVisible, onClose }: any) => {
+  const MEMBERS = [
+    { id: '1', name: 'Diana', avatarUri: 'https://i.pravatar.cc/150?img=5' },
+    { id: '2', name: 'Isabella', avatarUri: 'https://i.pravatar.cc/150?img=9' },
+    { id: '3', name: 'Loris', avatarUri: 'https://i.pravatar.cc/150?img=12' },
+    { id: '4', name: 'Savis', avatarUri: 'https://i.pravatar.cc/150?img=16' },
+  ];
+
+  return (
+    <Modal visible={isVisible} transparent={true} animationType="slide" onRequestClose={onClose}>
+      <View className="flex-1 bg-black pt-12 px-5">
+        <View className="flex-row items-center mb-8">
+          <TouchableOpacity onPress={onClose} className="w-10 h-10 border border-[#333] rounded-xl justify-center items-center mr-4">
+            <ChevronLeft color="#fff" size={24} />
+          </TouchableOpacity>
+          <Text className="text-white text-[22px] font-medium">Member settings</Text>
+        </View>
+
+        <Text className="text-white text-[18px] font-medium mb-4">Member</Text>
+
+        <ScrollView showsVerticalScrollIndicator={false} className="flex-1">
+          {MEMBERS.map((member, index) => (
+            <View 
+              key={member.id} 
+              className={`flex-row items-center justify-between py-4 ${index !== MEMBERS.length - 1 ? 'border-b border-[#333]' : 'border-b border-[#333]'}`}
+            >
+              <View className="flex-row items-center">
+                <Image source={{ uri: member.avatarUri }} className="w-11 h-11 rounded-full mr-3" />
+                <Text className="text-white text-[15px]">{member.name}</Text>
+              </View>
+              <TouchableOpacity>
+                <Text className="text-[#E0B566] text-[13px] font-medium">Remove</Text>
+              </TouchableOpacity>
+            </View>
+          ))}
+        </ScrollView>
+      </View>
     </Modal>
   );
 };
@@ -203,6 +340,125 @@ export const PlayerDetailModal = ({ isVisible, onClose, selectedPlayer }: any) =
           </View>
         </View>
       </View>
+    </Modal>
+  );
+};
+
+export const GiveCommissionerAccessModal = ({ isVisible, onClose }: any) => {
+  const MEMBERS = [
+    { id: '1', name: 'Diana', avatarUri: 'https://i.pravatar.cc/150?img=5' },
+    { id: '2', name: 'Isabella', avatarUri: 'https://i.pravatar.cc/150?img=9' },
+    { id: '3', name: 'Loris', avatarUri: 'https://i.pravatar.cc/150?img=12' },
+    { id: '4', name: 'Savis', avatarUri: 'https://i.pravatar.cc/150?img=16' },
+  ];
+
+  return (
+    <Modal visible={isVisible} transparent={true} animationType="fade" onRequestClose={onClose}>
+      <TouchableOpacity 
+        className="flex-1 bg-black/50 justify-center items-center px-6" 
+        activeOpacity={1} 
+        onPress={onClose}
+      >
+        <TouchableOpacity activeOpacity={1} className="w-full bg-[#1e1e1e] rounded-[32px] border-[3px] border-white p-6 pb-8">
+          <Text className="text-white text-[20px] font-medium text-center mb-6 leading-7">Give commissioner{"\n"}access</Text>
+          <View>
+            {MEMBERS.map((member, index) => (
+              <View 
+                key={member.id} 
+                className={`flex-row items-center justify-between py-4 ${index !== MEMBERS.length - 1 ? 'border-b border-[#333]' : ''}`}
+              >
+                <View className="flex-row items-center">
+                  <Image source={{ uri: member.avatarUri }} className="w-11 h-11 rounded-full mr-4" />
+                  <Text className="text-white text-[15px]">{member.name}</Text>
+                </View>
+                <TouchableOpacity>
+                  <Text className="text-[#E0B566] text-[13px] font-medium">Give access</Text>
+                </TouchableOpacity>
+              </View>
+            ))}
+          </View>
+        </TouchableOpacity>
+      </TouchableOpacity>
+    </Modal>
+  );
+};
+
+export const LockRosterModal = ({ isVisible, onClose }: any) => {
+  const MEMBERS = [
+    { id: '1', name: 'Diana', avatarUri: 'https://i.pravatar.cc/150?img=5' },
+    { id: '2', name: 'Isabella', avatarUri: 'https://i.pravatar.cc/150?img=9' },
+    { id: '3', name: 'Loris', avatarUri: 'https://i.pravatar.cc/150?img=12' },
+    { id: '4', name: 'Savis', avatarUri: 'https://i.pravatar.cc/150?img=16' },
+  ];
+
+  return (
+    <Modal visible={isVisible} transparent={true} animationType="fade" onRequestClose={onClose}>
+      <TouchableOpacity 
+        className="flex-1 bg-black/50 justify-center items-center px-6" 
+        activeOpacity={1} 
+        onPress={onClose}
+      >
+        <TouchableOpacity activeOpacity={1} className="w-full bg-[#1e1e1e] rounded-[32px] border-[3px] border-white p-6 pb-6">
+          <Text className="text-white text-[20px] font-medium text-center mb-6">Lock roster</Text>
+          <View>
+            {MEMBERS.map((member, index) => (
+              <View 
+                key={member.id} 
+                className={`flex-row items-center justify-between py-4 ${index !== MEMBERS.length - 1 ? 'border-b border-[#333]' : 'border-b border-[#333]'}`}
+              >
+                <View className="flex-row items-center">
+                  <Image source={{ uri: member.avatarUri }} className="w-11 h-11 rounded-full mr-4" />
+                  <Text className="text-white text-[15px]">{member.name}</Text>
+                </View>
+                <TouchableOpacity>
+                  <Unlock color="#fff" size={20} strokeWidth={1.5} />
+                </TouchableOpacity>
+              </View>
+            ))}
+          </View>
+          <TouchableOpacity 
+            className="bg-[#8B3DFF] rounded-full h-[52px] justify-center items-center mt-8 mx-2" 
+            onPress={onClose}
+          >
+            <Text className="text-white text-[15px] font-medium">Save changes</Text>
+          </TouchableOpacity>
+        </TouchableOpacity>
+      </TouchableOpacity>
+    </Modal>
+  );
+};
+
+export const DeleteLeagueModal = ({ isVisible, onClose, onDelete }: any) => {
+  return (
+    <Modal visible={isVisible} transparent={true} animationType="fade" onRequestClose={onClose}>
+      <TouchableOpacity 
+        className="flex-1 bg-black/60 justify-center items-center px-8" 
+        activeOpacity={1} 
+        onPress={onClose}
+      >
+        <TouchableOpacity activeOpacity={1} className="w-full bg-[#2a2a2a] rounded-[24px] border border-white/20 p-6 py-8 items-center">
+          <Text className="text-white text-[16px] font-medium mb-3">Delete league</Text>
+          <Text className="text-gray-300 text-[12px] text-center mb-6 leading-5 px-2">
+            Are you want to sure delete league now. If you delete now your all league data will be deleted
+          </Text>
+          
+          <View className="flex-row justify-center w-full gap-4 px-2">
+            <TouchableOpacity 
+              className="flex-1 h-[40px] rounded-full border border-white/40 justify-center items-center" 
+              onPress={onClose}
+            >
+              <Text className="text-white text-[13px]">Cancel</Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity 
+              className="flex-1 h-[40px] rounded-full bg-[#d33b3b] justify-center items-center" 
+              onPress={onDelete}
+            >
+              <Text className="text-white text-[13px] font-medium">Delete</Text>
+            </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
+      </TouchableOpacity>
     </Modal>
   );
 };
