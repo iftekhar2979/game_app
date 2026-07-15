@@ -43,10 +43,22 @@ const MOCK_PLAYERS_LIST = [
 ];
 
 const MOCK_LEAGUE_STANDINGS = [
-  { id: 'l1', name: 'Team FSD', handle: '@fsd', points: '+10.9', progress: 100 },
-  { id: 'l2', name: 'Team Cheerleading', handle: '@cheerleading', points: '+9', progress: 80 },
-  { id: 'l3', name: 'Team Rubel', handle: '@rubel', points: '+5', progress: 50 },
-  { id: 'l4', name: 'Team alex', handle: '@alex', points: '+3', progress: 30 },
+  { id: 'l1', name: 'Team Cheerleading', handle: '@cheerleading', score: '0 - 0' },
+  { id: 'l2', name: 'Team Cheerleading', handle: '@cheerleading', score: '0 - 0' },
+  { id: 'l3', name: 'Team Cheerleading', handle: '@cheerleading', score: '0 - 0' },
+];
+
+const MOCK_MATCHUPS = [
+  {
+    id: 'm1',
+    team1: { name: 'Team david', handle: '@david', percentage: '50 %', score: '0 - 0' },
+    team2: { name: 'Team david', handle: '@david', percentage: '50 %', score: '0 - 0' },
+  },
+  {
+    id: 'm2',
+    team1: { name: 'Team david', handle: '@david', percentage: '50 %', score: '0 - 0' },
+    team2: { name: 'Team david', handle: '@david', percentage: '50 %', score: '0 - 0' },
+  },
 ];
 
 export default function LeagueDetailScreen() {
@@ -234,7 +246,7 @@ export default function LeagueDetailScreen() {
 
         {/* League Tab Content */}
         {activeTab === 'League' && (
-          <LeagueTab leagueStandings={MOCK_LEAGUE_STANDINGS} />
+          <LeagueTab leagueStandings={MOCK_LEAGUE_STANDINGS} matchups={MOCK_MATCHUPS} />
         )}
       </ScrollView>
 
