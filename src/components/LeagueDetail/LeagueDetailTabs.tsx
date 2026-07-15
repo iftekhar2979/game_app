@@ -178,29 +178,81 @@ export const PlayersTab = ({ playersList, setSelectedPlayer, setIsPlayerModalVis
   );
 };
 
-export const LeagueTab = ({ leagueStandings }: any) => {
+export const LeagueTab = ({ leagueStandings, matchups }: any) => {
   return (
     <View className="mb-4 mt-2">
-      {leagueStandings.map((team: any) => (
-        <View key={team.id} className="flex-row items-center justify-between border-b border-[#222] pb-4 mb-4">
-          <View className="flex-row items-center">
-            <View className="w-12 h-12 rounded-full border border-[#333] justify-center items-center bg-black mr-4">
-              <Text className="text-[#8B3DFF] text-[10px] font-bold">CHEER</Text>
+      {/* Matchups Section */}
+      <Text className="text-white text-[18px] font-semibold mb-4">Matchups</Text>
+      <View className="mb-8">
+        {matchups?.map((matchup: any) => (
+          <View key={matchup.id} className="border border-[#E0B566] rounded-[24px] mb-4 p-1 relative overflow-hidden">
+            <View className="flex-row">
+              {/* Left Team */}
+              <View className="flex-1 border border-[#333] rounded-[20px] bg-[#0a0a0a] p-4 mr-0.5">
+                <View className="w-10 h-10 rounded-full border border-[#333] justify-center items-center bg-black mb-3">
+                  <Text className="text-[#8B3DFF] text-[8px] font-bold">CHEER</Text>
+                </View>
+                <Text className="text-[#E0B566] text-[12px] mb-1">{matchup.team1.handle}</Text>
+                <Text className="text-white text-[14px] mb-3">{matchup.team1.name}</Text>
+                
+                <View className="w-full h-1 bg-[#333] rounded-full overflow-hidden mb-2">
+                  <View className="h-full bg-[#8B3DFF]" style={{ width: '50%' }} />
+                </View>
+                
+                <View className="flex-row justify-between items-center">
+                  <Text className="text-gray-400 text-[10px]">{matchup.team1.percentage}</Text>
+                  <Text className="text-white text-[12px] font-medium">{matchup.team1.score}</Text>
+                </View>
+              </View>
+
+              {/* Right Team */}
+              <View className="flex-1 border border-[#333] rounded-[20px] bg-[#0a0a0a] p-4 ml-0.5">
+                <View className="w-10 h-10 rounded-full border border-[#333] justify-center items-center bg-black mb-3">
+                  <Text className="text-[#8B3DFF] text-[8px] font-bold">CHEER</Text>
+                </View>
+                <Text className="text-[#E0B566] text-[12px] mb-1">{matchup.team2.handle}</Text>
+                <Text className="text-white text-[14px] mb-3">{matchup.team2.name}</Text>
+                
+                <View className="w-full h-1 bg-[#333] rounded-full overflow-hidden mb-2">
+                  <View className="h-full bg-[#8B3DFF]" style={{ width: '50%' }} />
+                </View>
+                
+                <View className="flex-row justify-between items-center">
+                  <Text className="text-gray-400 text-[10px]">{matchup.team2.percentage}</Text>
+                  <Text className="text-white text-[12px] font-medium">{matchup.team2.score}</Text>
+                </View>
+              </View>
             </View>
-            <View>
-              <Text className="text-white text-[15px] mb-1">{team.name}</Text>
-              <Text className="text-[#FFB84D] text-[13px]">{team.handle}</Text>
+
+            {/* VS Badge */}
+            <View className="absolute top-[42%] left-1/2 w-8 h-8 bg-white rounded-full justify-center items-center -ml-4 z-10 shadow-sm">
+              <Text className="text-black text-[12px] font-semibold">VS</Text>
             </View>
           </View>
-          
-          <View className="items-end justify-center w-[60px]">
-            <Text className="text-[#FFB84D] text-[14px] font-medium mb-1.5">{team.points}</Text>
-            <View className="w-full h-1 bg-[#333] rounded-full overflow-hidden">
-              <View className="h-full bg-[#FFB84D]" style={{ width: `${team.progress}%` }} />
+        ))}
+      </View>
+
+      {/* Standings Section */}
+      <Text className="text-white text-[18px] font-semibold mb-4">Standings</Text>
+      <View>
+        {leagueStandings?.map((team: any, index: number) => (
+          <View key={team.id} className="flex-row items-center justify-between border-b border-[#222] pb-4 mb-4">
+            <View className="flex-row items-center">
+              <View className="w-10 h-10 rounded-full border border-[#444] justify-center items-center bg-black mr-4">
+                <Text className="text-white text-[14px]">{index + 1}</Text>
+              </View>
+              <View>
+                <Text className="text-white text-[15px] mb-1">{team.name}</Text>
+                <Text className="text-[#E0B566] text-[13px]">{team.handle}</Text>
+              </View>
+            </View>
+            
+            <View className="items-end justify-center">
+              <Text className="text-[#E0B566] text-[15px] font-medium">{team.score}</Text>
             </View>
           </View>
-        </View>
-      ))}
+        ))}
+      </View>
     </View>
   );
 };
