@@ -162,7 +162,7 @@ export default function ProfileScreen() {
         <View className="px-5">
           <View className="flex-row justify-between items-center mb-4">
             <Text className="text-white text-[18px] font-semibold">Post</Text>
-            <TouchableOpacity>
+            <TouchableOpacity onPress={() => navigation.navigate('AllPosts')}>
               <Text className="text-gray-400 text-[13px]">See all</Text>
             </TouchableOpacity>
           </View>
