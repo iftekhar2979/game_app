@@ -56,11 +56,17 @@ export default function HomeScreen() {
           >
             <ChevronLeft color="#fff" size={24} />
           </TouchableOpacity>
-          <Image source={{ uri: userAvatarUri }} style={styles.userAvatar} />
-          <View style={styles.userInfo}>
-            <Text style={styles.userName}>David !</Text>
-            <Text style={styles.userSubtext}>Welcome to CHEERBATTLE</Text>
-          </View>
+          <TouchableOpacity 
+            style={{ flexDirection: 'row', alignItems: 'center' }} 
+            onPress={() => navigation.navigate('Profile')}
+            activeOpacity={0.8}
+          >
+            <Image source={{ uri: userAvatarUri }} style={styles.userAvatar} />
+            <View style={styles.userInfo}>
+              <Text style={styles.userName}>David !</Text>
+              <Text style={styles.userSubtext}>Welcome to CHEERBATTLE</Text>
+            </View>
+          </TouchableOpacity>
         </View>
         <TouchableOpacity style={styles.bellButton}>
           <Bell color="#999" size={22} />

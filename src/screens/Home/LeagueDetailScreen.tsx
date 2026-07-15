@@ -7,7 +7,7 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../../../App';
 import { useSelector } from 'react-redux';
 import { RootState } from '../../store';
-import { DraftTab, TeamTab, PlayersTab, LeagueTab } from '../../components/LeagueDetail/LeagueDetailTabs';
+import { MatchupTab, DraftTab, TeamTab, PlayersTab, LeagueTab } from '../../components/LeagueDetail/LeagueDetailTabs';
 import { AddTeamModal, PlayerDetailModal, LeagueSettingsModal, LeagueSettingsSubModal, RosterSettingsSubModal, MemberSettingsSubModal, GiveCommissionerAccessModal, LockRosterModal, DeleteLeagueModal } from '../../components/LeagueDetail/LeagueDetailModals';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList, 'LeagueDetail'>;
@@ -52,13 +52,21 @@ const MOCK_MATCHUPS = [
   {
     id: 'm1',
     team1: { name: 'Team david', handle: '@david', percentage: '50 %', score: '0 - 0' },
-    team2: { name: 'Team david', handle: '@david', percentage: '50 %', score: '0 - 0' },
+    team2: { name: 'Team thomas', handle: '@thomas', percentage: '50 %', score: '0 - 0' },
   },
-  {
-    id: 'm2',
-    team1: { name: 'Team david', handle: '@david', percentage: '50 %', score: '0 - 0' },
-    team2: { name: 'Team david', handle: '@david', percentage: '50 %', score: '0 - 0' },
-  },
+];
+
+const MOCK_STARTERS = [
+  { id: 's1', name: 'Diana', points: '34.0', time: 'Mon 11:00 AM', avatarUri: 'https://i.pravatar.cc/150?img=1' },
+  { id: 's2', name: 'Alvela', points: '34.0', time: 'Mon 11:00 AM', avatarUri: 'https://i.pravatar.cc/150?img=2' },
+  { id: 's3', name: 'Isabella', points: '34.0', time: 'Mon 11:00 AM', avatarUri: 'https://i.pravatar.cc/150?img=3' },
+  { id: 's4', name: 'Siko', points: '34.0', time: 'Mon 11:00 AM', avatarUri: 'https://i.pravatar.cc/150?img=4' },
+  { id: 's5', name: 'Loria', points: '34.0', time: 'Mon 11:00 AM', avatarUri: 'https://i.pravatar.cc/150?img=5' },
+  { id: 's6', name: 'Ukio', points: '34.0', time: 'Mon 11:00 AM', avatarUri: 'https://i.pravatar.cc/150?img=6' },
+  { id: 's7', name: 'Petra', points: '34.0', time: 'Mon 11:00 AM', avatarUri: 'https://i.pravatar.cc/150?img=7' },
+  { id: 's8', name: 'Levoe', points: '34.0', time: 'Mon 11:00 AM', avatarUri: 'https://i.pravatar.cc/150?img=8' },
+  { id: 's9', name: 'Savia', points: '34.0', time: 'Mon 11:00 AM', avatarUri: 'https://i.pravatar.cc/150?img=9' },
+  { id: 's10', name: 'Oranius', points: '34.0', time: 'Mon 11:00 AM', avatarUri: 'https://i.pravatar.cc/150?img=10' },
 ];
 
 export default function LeagueDetailScreen() {
@@ -70,9 +78,10 @@ export default function LeagueDetailScreen() {
   const createdLeagues = useSelector((state: RootState) => state.league.leagues);
   const league: any = createdLeagues.find(l => l.id === leagueId) || MOCK_LEAGUES.find(l => l.id === leagueId) || MOCK_LEAGUES[0];
 
+  const [currentLeagueStatus, setCurrentLeagueStatus] = useState(league?.status);
   const [timeLeft, setTimeLeft] = useState<{ days: number; hours: number; minutes: number; seconds: number } | null>(null);
   const [isDraftStarted, setIsDraftStarted] = useState(false);
-  const [activeTab, setActiveTab] = useState<'Draft' | 'Team' | 'Players' | 'League'>('Draft');
+  const [activeTab, setActiveTab] = useState<'Matchup' | 'Draft' | 'Team' | 'Players' | 'League'>(currentLeagueStatus === 'Play' ? 'Matchup' : 'Draft');
 
   const [teamSlots, setTeamSlots] = useState<(TeamMember | null)[]>(() => {
     const slots = new Array(league?.membersCount || 8).fill(null);
@@ -83,7 +92,7 @@ export default function LeagueDetailScreen() {
 
   const [isAddTeamModalVisible, setIsAddTeamModalVisible] = useState(false);
   const [selectedSlotIndex, setSelectedSlotIndex] = useState<number | null>(null);
-  
+
   const [isPlayerModalVisible, setIsPlayerModalVisible] = useState(false);
   const [selectedPlayer, setSelectedPlayer] = useState<any>(null);
   const [isSettingsModalVisible, setIsSettingsModalVisible] = useState(false);
@@ -133,6 +142,10 @@ export default function LeagueDetailScreen() {
       if (diff <= 0) {
         setTimeLeft({ days: 0, hours: 0, minutes: 0, seconds: 0 });
         setIsDraftStarted(true);
+        if (currentLeagueStatus !== 'Play') {
+          setCurrentLeagueStatus('Play');
+          setActiveTab('Matchup');
+        }
         return;
       }
 
@@ -190,12 +203,21 @@ export default function LeagueDetailScreen() {
 
         {/* Tabs */}
         <View className="flex-row justify-between items-center mb-6 px-1">
-          <TouchableOpacity
-            className={`${activeTab === 'Draft' ? 'bg-[#FFB84D]' : 'bg-transparent'} px-5 py-2 rounded-xl`}
-            onPress={() => setActiveTab('Draft')}
-          >
-            <Text className={`${activeTab === 'Draft' ? 'text-white' : 'text-gray-400'} text-[15px] font-semibold`}>Draft</Text>
-          </TouchableOpacity>
+          {currentLeagueStatus === 'Play' ? (
+            <TouchableOpacity
+              className={`${activeTab === 'Matchup' ? 'bg-[#FFB84D]' : 'bg-transparent'} px-5 py-2 rounded-xl`}
+              onPress={() => setActiveTab('Matchup')}
+            >
+              <Text className={`${activeTab === 'Matchup' ? 'text-white' : 'text-gray-400'} text-[15px] font-semibold`}>Matchup</Text>
+            </TouchableOpacity>
+          ) : (
+            <TouchableOpacity
+              className={`${activeTab === 'Draft' ? 'bg-[#FFB84D]' : 'bg-transparent'} px-5 py-2 rounded-xl`}
+              onPress={() => setActiveTab('Draft')}
+            >
+              <Text className={`${activeTab === 'Draft' ? 'text-white' : 'text-gray-400'} text-[15px] font-semibold`}>Draft</Text>
+            </TouchableOpacity>
+          )}
           <TouchableOpacity
             className={`${activeTab === 'Team' ? 'bg-[#FFB84D]' : 'bg-transparent'} px-5 py-2 rounded-xl`}
             onPress={() => setActiveTab('Team')}
@@ -216,31 +238,39 @@ export default function LeagueDetailScreen() {
           </TouchableOpacity>
         </View>
 
+        {/* Matchup Tab Content */}
+        {activeTab === 'Matchup' && currentLeagueStatus === 'Play' && (
+          <MatchupTab
+            matchup={MOCK_MATCHUPS[0]}
+            starters={MOCK_STARTERS}
+          />
+        )}
+
         {/* Draft Tab Content */}
-        {activeTab === 'Draft' && (
-          <DraftTab 
-            isDraftStarted={isDraftStarted} 
-            timeLeft={timeLeft} 
-            league={league} 
-            navigation={navigation} 
+        {activeTab === 'Draft' && currentLeagueStatus !== 'Play' && (
+          <DraftTab
+            isDraftStarted={isDraftStarted}
+            timeLeft={timeLeft}
+            league={league}
+            navigation={navigation}
           />
         )}
 
         {/* Team Tab Content */}
         {activeTab === 'Team' && (
-          <TeamTab 
-            teamSlots={teamSlots} 
-            setSelectedSlotIndex={setSelectedSlotIndex} 
-            setIsAddTeamModalVisible={setIsAddTeamModalVisible} 
+          <TeamTab
+            teamSlots={teamSlots}
+            setSelectedSlotIndex={setSelectedSlotIndex}
+            setIsAddTeamModalVisible={setIsAddTeamModalVisible}
           />
         )}
 
         {/* Players Tab Content */}
         {activeTab === 'Players' && (
-          <PlayersTab 
-            playersList={MOCK_PLAYERS_LIST} 
-            setSelectedPlayer={setSelectedPlayer} 
-            setIsPlayerModalVisible={setIsPlayerModalVisible} 
+          <PlayersTab
+            playersList={MOCK_PLAYERS_LIST}
+            setSelectedPlayer={setSelectedPlayer}
+            setIsPlayerModalVisible={setIsPlayerModalVisible}
           />
         )}
 
@@ -251,7 +281,7 @@ export default function LeagueDetailScreen() {
       </ScrollView>
 
       {/* Add Team Modal */}
-      <AddTeamModal 
+      <AddTeamModal
         isVisible={isAddTeamModalVisible}
         onClose={() => setIsAddTeamModalVisible(false)}
         teamMembers={MOCK_TEAM_MEMBERS}
@@ -259,45 +289,45 @@ export default function LeagueDetailScreen() {
       />
 
       {/* Player Detail Modal */}
-      <PlayerDetailModal 
+      <PlayerDetailModal
         isVisible={isPlayerModalVisible}
         onClose={() => setIsPlayerModalVisible(false)}
         selectedPlayer={selectedPlayer}
       />
 
       {/* Settings Modal */}
-      <LeagueSettingsModal 
+      <LeagueSettingsModal
         isVisible={isSettingsModalVisible}
         onClose={() => setIsSettingsModalVisible(false)}
         onOptionSelect={handleSettingsOptionSelect}
       />
 
-      <LeagueSettingsSubModal 
+      <LeagueSettingsSubModal
         isVisible={isLeagueSettingsSubModalVisible}
         onClose={() => setIsLeagueSettingsSubModalVisible(false)}
       />
 
-      <RosterSettingsSubModal 
+      <RosterSettingsSubModal
         isVisible={isRosterSettingsSubModalVisible}
         onClose={() => setIsRosterSettingsSubModalVisible(false)}
       />
 
-      <MemberSettingsSubModal 
+      <MemberSettingsSubModal
         isVisible={isMemberSettingsSubModalVisible}
         onClose={() => setIsMemberSettingsSubModalVisible(false)}
       />
 
-      <GiveCommissionerAccessModal 
+      <GiveCommissionerAccessModal
         isVisible={isCommissionerModalVisible}
         onClose={() => setIsCommissionerModalVisible(false)}
       />
 
-      <LockRosterModal 
+      <LockRosterModal
         isVisible={isLockRosterModalVisible}
         onClose={() => setIsLockRosterModalVisible(false)}
       />
 
-      <DeleteLeagueModal 
+      <DeleteLeagueModal
         isVisible={isDeleteLeagueModalVisible}
         onClose={() => setIsDeleteLeagueModalVisible(false)}
         onDelete={() => {
