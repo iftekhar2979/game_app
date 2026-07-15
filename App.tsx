@@ -26,6 +26,7 @@ import LeagueDetailScreen from './src/screens/Home/LeagueDetailScreen';
 import DraftRoomScreen from './src/screens/Home/DraftRoomScreen';
 import CreatePostScreen from './src/screens/Home/CreatePostScreen';
 import ProfileScreen from './src/screens/Profile/ProfileScreen';
+import CoinStoreScreen from './src/screens/Profile/CoinStoreScreen';
 import { Provider } from 'react-redux';
 import { store } from './src/store';
 
@@ -46,6 +47,7 @@ export type RootStackParamList = {
   DraftRoom: { leagueId: string };
   CreatePost: undefined;
   Profile: undefined;
+  CoinStore: undefined;
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -75,6 +77,7 @@ function App() {
             <Stack.Screen name="DraftRoom" component={DraftRoomScreen} />
             <Stack.Screen name="CreatePost" component={CreatePostScreen} />
             <Stack.Screen name="Profile" component={ProfileScreen} />
+            <Stack.Screen name="CoinStore" component={CoinStoreScreen} />
           </Stack.Navigator>
         </NavigationContainer>
       </SafeAreaProvider>

@@ -66,9 +66,12 @@ export default function ProfileScreen() {
           <Text className="text-white text-[20px] font-bold mb-1">David thomas097</Text>
           <Text className="text-gray-400 text-[13px] mb-4">Member since - June 2028, Texas</Text>
 
-          <TouchableOpacity className="flex-row items-center border border-[#FFB84D] rounded-full px-4 py-1.5 mb-8">
+          <TouchableOpacity
+            className="flex-row items-center border border-[#FFB84D] rounded-full px-4 py-1.5 mb-8"
+            onPress={() => navigation.navigate('CoinStore')}
+          >
             <Text className="text-[14px] mr-1">🪙</Text>
-            <Text className="text-gray-300 text-[14px] font-medium mr-2">Coin: 224</Text>
+            <Text className="text-gray-300 text-[14px] font-medium mr-2">Coin: 0</Text>
             <ArrowRight color="#999" size={14} />
           </TouchableOpacity>
         </View>
@@ -136,7 +139,7 @@ export default function ProfileScreen() {
         </View>
 
         {/* Favorite Teams Scroll */}
-        <View className="px-5 mb-8">
+        {/* <View className="px-5 mb-8">
           <View className="flex-row items-center mb-4">
             <Text className="text-white text-[18px] font-semibold mr-2">Favorite Team</Text>
             <Edit2 color="#FFB84D" size={14} />
@@ -153,7 +156,7 @@ export default function ProfileScreen() {
             </ScrollView>
             <ChevronRight color="#fff" size={20} className="ml-2 opacity-50" />
           </View>
-        </View>
+        </View> */}
 
         {/* Posts Section */}
         <View className="px-5">
