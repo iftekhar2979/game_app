@@ -1,51 +1,39 @@
 import React from 'react';
 import { View, Text, StyleSheet, Image, TouchableOpacity, ScrollView, FlatList } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { ChevronLeft, Bell, MessageSquare, PlusSquare } from 'lucide-react-native';
+import { ChevronLeft, Bell, MessageSquare, PlusSquare, ThumbsUp } from 'lucide-react-native';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../../../App';
 import { useSelector } from 'react-redux';
 import { RootState } from '../../store';
+import { CommentsModal } from '../../components/Home/CommentsModal';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
-const POSTS = [
-  {
-    id: '1',
-    authorName: 'Real Madrid',
-    authorHandle: 'Davidthomas097',
-    timeAgo: '1d',
-    caption: 'The Grizzlies lineup is TUFF',
-    // We'll use a placeholder URL representing a 3D animated group since we don't have the exact image
-    imageUri: 'https://images.unsplash.com/photo-1511629091441-ee46146481b6?q=80&w=2070&auto=format&fit=crop',
-    likesCount: 231,
-    commentsCount: 17,
-  },
-  {
-    id: '2',
-    authorName: 'Arsenal community',
-    authorHandle: 'Davidthomas097',
-    timeAgo: '1d',
-    caption: 'Great atmosphere today!',
-    imageUri: 'https://images.unsplash.com/photo-1522071820081-009f0129c71c?q=80&w=2070&auto=format&fit=crop',
-    likesCount: 154,
-    commentsCount: 12,
-  },
-];
+
 
 export default function HomeScreen() {
   const navigation = useNavigation<NavigationProp>();
+  const POSTS = useSelector((state: RootState) => state.post.posts);
   // If the user has generated an avatar, we can use it for their profile picture, otherwise a placeholder
   const avatars = useSelector((state: RootState) => state.avatar.savedAvatars);
   const userAvatarUri = avatars.length > 0 ? avatars[0].imageUri : 'https://i.pravatar.cc/150?img=11';
 
   const createdLeagues = useSelector((state: RootState) => state.league.leagues);
   const mockLeagues = [
-    { id: 'mock-1', name: '2026 Final cheer', logoUri: undefined },
-    { id: 'mock-2', name: '2026 Final cheer', logoUri: undefined },
+    { id: 'mock-1', name: '2026 Final cheer', logoUri: 'https://upload.wikimedia.org/wikipedia/en/thumb/0/0c/Liverpool_FC.svg/150px-Liverpool_FC.svg.png' },
+    { id: 'mock-2', name: '2026 Final cheer', logoUri: 'https://upload.wikimedia.org/wikipedia/en/thumb/0/0c/Liverpool_FC.svg/150px-Liverpool_FC.svg.png' },
   ];
   const allLeagues = [...createdLeagues, ...mockLeagues];
+
+  const [isCommentsModalVisible, setIsCommentsModalVisible] = React.useState(false);
+  const [activeCommentCount, setActiveCommentCount] = React.useState(0);
+
+  const openComments = (commentCount: number) => {
+    setActiveCommentCount(commentCount);
+    setIsCommentsModalVisible(true);
+  };
 
   return (
     <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
@@ -113,23 +101,36 @@ export default function HomeScreen() {
           {POSTS.map(post => (
             <View key={post.id} style={styles.postCard}>
               <View style={styles.postHeader}>
-                <View style={styles.postAuthorAvatar} />
+                {post.authorAvatarUri ? (
+                  <Image source={{ uri: post.authorAvatarUri }} style={styles.postAuthorAvatar} />
+                ) : (
+                  <View style={styles.postAuthorAvatar} />
+                )}
                 <View style={styles.postAuthorInfo}>
                   <Text style={styles.postAuthorName}>{post.authorName}</Text>
-                  <Text style={styles.postAuthorHandle}>{post.authorHandle} <Text style={{color:'#666'}}>→</Text> {post.timeAgo}</Text>
+                  <Text style={styles.postAuthorHandle}>{post.authorHandle} → {post.timeAgo}</Text>
                 </View>
               </View>
               <Text style={styles.postCaption}>{post.caption}</Text>
               <Image source={{ uri: post.imageUri }} style={styles.postImage} />
               <View style={styles.postFooter}>
                 <View style={styles.reactionGroup}>
-                  <Text style={styles.emojis}>😂 👍 🤯 ❤️</Text>
+                  <ThumbsUp color="#E0B566" size={18} style={{ marginRight: 6 }} />
+                  <View style={styles.emojiStack}>
+                    <View style={[styles.stackedEmojiContainer, { zIndex: 4 }]}><Text style={styles.stackedEmoji}>😂</Text></View>
+                    <View style={[styles.stackedEmojiContainer, { zIndex: 3, marginLeft: -6 }]}><Text style={styles.stackedEmoji}>👍</Text></View>
+                    <View style={[styles.stackedEmojiContainer, { zIndex: 2, marginLeft: -6 }]}><Text style={styles.stackedEmoji}>🤯</Text></View>
+                    <View style={[styles.stackedEmojiContainer, { zIndex: 1, marginLeft: -6 }]}><Text style={styles.stackedEmoji}>❤️</Text></View>
+                  </View>
                   <Text style={styles.reactionCount}>{post.likesCount}</Text>
                 </View>
-                <View style={styles.commentGroup}>
+                <TouchableOpacity 
+                  style={styles.commentGroup} 
+                  onPress={() => openComments(post.commentsCount)}
+                >
+                  <Text style={styles.commentCount}>{post.commentsCount} Comments</Text>
                   <MessageSquare color="#999" size={20} />
-                  <Text style={styles.commentCount}>{post.commentsCount}</Text>
-                </View>
+                </TouchableOpacity>
               </View>
             </View>
           ))}
@@ -137,9 +138,18 @@ export default function HomeScreen() {
       </ScrollView>
 
       {/* Floating Action Button */}
-      <TouchableOpacity style={styles.fab}>
+      <TouchableOpacity 
+        style={styles.fab}
+        onPress={() => navigation.navigate('CreatePost')}
+      >
         <PlusSquare color="#fff" size={24} />
       </TouchableOpacity>
+
+      <CommentsModal 
+        isVisible={isCommentsModalVisible} 
+        onClose={() => setIsCommentsModalVisible(false)} 
+        commentCount={activeCommentCount}
+      />
     </SafeAreaView>
   );
 }
@@ -335,22 +345,35 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
   },
-  emojis: {
-    fontSize: 18,
-    marginRight: 8,
+  emojiStack: {
+    flexDirection: 'row',
+    marginRight: 10,
+  },
+  stackedEmojiContainer: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: '#fff',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1.5,
+    borderColor: '#0a0a0a',
+  },
+  stackedEmoji: {
+    fontSize: 12,
   },
   reactionCount: {
-    color: '#999',
+    color: '#fff',
     fontSize: 14,
   },
   commentGroup: {
-    flexDirection: 'column',
+    flexDirection: 'row',
     alignItems: 'center',
   },
   commentCount: {
-    color: '#999',
-    fontSize: 12,
-    marginTop: 4,
+    color: '#ccc',
+    fontSize: 13,
+    marginRight: 8,
   },
   fab: {
     position: 'absolute',

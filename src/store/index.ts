@@ -3,6 +3,7 @@ import { baseApi } from './api/baseApi';
 import authReducer from './slices/authSlice';
 import avatarReducer from './slices/avatarSlice';
 import leagueReducer from './slices/leagueSlice';
+import postReducer from './slices/postSlice';
 
 export const store = configureStore({
   reducer: {
@@ -10,6 +11,7 @@ export const store = configureStore({
     auth: authReducer,
     avatar: avatarReducer,
     league: leagueReducer,
+    post: postReducer,
   },
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware().concat(baseApi.middleware),
