@@ -1,5 +1,125 @@
-import React from 'react';
-import { View, Text, Image, TouchableOpacity, ScrollView } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, Image, TouchableOpacity, ScrollView, Modal } from 'react-native';
+import { Repeat } from 'lucide-react-native';
+
+export const MatchupTab = ({ matchup, starters }: any) => {
+  const [isWeekModalVisible, setIsWeekModalVisible] = useState(false);
+  const [selectedWeek, setSelectedWeek] = useState('Week 1');
+  const weeks = Array.from({ length: 18 }, (_, i) => `Week ${i + 1}`);
+
+  return (
+    <View className="mb-4 mt-2">
+      {/* Matchups Header */}
+      <View className="flex-row justify-between items-center mb-4">
+        <Text className="text-white text-[18px] font-semibold">Matchups</Text>
+        <TouchableOpacity 
+          className="flex-row items-center p-2"
+          onPress={() => setIsWeekModalVisible(true)}
+        >
+          <Text className="text-gray-400 text-[12px] mr-2">{selectedWeek}</Text>
+          <Repeat color="#999" size={14} />
+        </TouchableOpacity>
+      </View>
+
+      {/* Matchup Card */}
+      <View className="border border-[#E0B566] rounded-[24px] mb-8 p-1 relative overflow-hidden">
+        <View className="flex-row">
+          {/* Left Team */}
+          <View className="flex-1 border border-[#333] rounded-[20px] bg-[#0a0a0a] p-4 mr-0.5">
+            <View className="w-10 h-10 rounded-full border border-[#333] justify-center items-center bg-black mb-3">
+              <Text className="text-[#8B3DFF] text-[8px] font-bold">CHEER</Text>
+            </View>
+            <Text className="text-[#E0B566] text-[12px] mb-1">{matchup.team1.handle}</Text>
+            <Text className="text-white text-[14px] mb-3">{matchup.team1.name}</Text>
+            
+            <View className="w-full h-1 bg-[#333] rounded-full overflow-hidden mb-2">
+              <View className="h-full bg-[#8B3DFF]" style={{ width: '50%' }} />
+            </View>
+            
+            <View className="flex-row justify-between items-center">
+              <Text className="text-gray-400 text-[10px]">{matchup.team1.percentage}</Text>
+              <Text className="text-white text-[12px] font-medium">{matchup.team1.score}</Text>
+            </View>
+          </View>
+
+          {/* Right Team */}
+          <View className="flex-1 border border-[#333] rounded-[20px] bg-[#0a0a0a] p-4 ml-0.5">
+            <View className="w-10 h-10 rounded-full border border-[#333] justify-center items-center bg-black mb-3">
+              <Text className="text-[#8B3DFF] text-[8px] font-bold">CHEER</Text>
+            </View>
+            <Text className="text-[#E0B566] text-[12px] mb-1">{matchup.team2.handle}</Text>
+            <Text className="text-white text-[14px] mb-3">{matchup.team2.name}</Text>
+            
+            <View className="w-full h-1 bg-[#333] rounded-full overflow-hidden mb-2">
+              <View className="h-full bg-[#8B3DFF]" style={{ width: '50%' }} />
+            </View>
+            
+            <View className="flex-row justify-between items-center">
+              <Text className="text-gray-400 text-[10px]">{matchup.team2.percentage}</Text>
+              <Text className="text-white text-[12px] font-medium">{matchup.team2.score}</Text>
+            </View>
+          </View>
+        </View>
+
+        {/* VS Badge */}
+        <View className="absolute top-[42%] left-1/2 w-8 h-8 bg-white rounded-full justify-center items-center -ml-4 z-10 shadow-sm">
+          <Text className="text-black text-[12px] font-semibold">VS</Text>
+        </View>
+      </View>
+
+      {/* Starters Section */}
+      <Text className="text-white text-[18px] font-semibold mb-4">Starters</Text>
+      <View className="flex-row flex-wrap justify-between">
+        {starters?.map((starter: any) => (
+          <View key={starter.id} className="w-[48%] flex-row items-center border-b border-[#222] pb-3 mb-3">
+            <Image source={{ uri: starter.avatarUri }} className="w-10 h-10 rounded-full bg-[#333] mr-3" />
+            <View className="flex-1">
+              <View className="flex-row justify-between items-center mb-0.5">
+                <Text className="text-white text-[14px]" numberOfLines={1}>{starter.name}</Text>
+                <Text className="text-[#E0B566] text-[10px] font-medium">{starter.points}</Text>
+              </View>
+              <Text className="text-[#E0B566] text-[10px]">{starter.time}</Text>
+            </View>
+          </View>
+        ))}
+      </View>
+
+      {/* Week Selection Modal */}
+      <Modal
+        visible={isWeekModalVisible}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setIsWeekModalVisible(false)}
+      >
+        <TouchableOpacity 
+          className="flex-1 justify-center items-center bg-black/80 px-6"
+          activeOpacity={1}
+          onPress={() => setIsWeekModalVisible(false)}
+        >
+          <TouchableOpacity 
+            activeOpacity={1}
+            className="w-full bg-[#1e1e1e] rounded-[32px] border-2 border-white p-6 pt-8 items-center shadow-lg shadow-black"
+          >
+            <View className="flex-row flex-wrap justify-between w-full">
+              {weeks.map((week, index) => (
+                <TouchableOpacity
+                  key={index}
+                  className={`w-[31%] border ${selectedWeek === week ? 'border-[#FFB84D]' : 'border-gray-400'} rounded-[12px] py-2 mb-4 justify-center items-center`}
+                  onPress={() => {
+                    setSelectedWeek(week);
+                    setIsWeekModalVisible(false);
+                  }}
+                >
+                  <Text className={`${selectedWeek === week ? 'text-[#FFB84D]' : 'text-white'} text-[13px]`}>{week}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </TouchableOpacity>
+        </TouchableOpacity>
+      </Modal>
+    </View>
+  );
+};
 
 export const DraftTab = ({ isDraftStarted, timeLeft, league, navigation }: any) => {
   return (
