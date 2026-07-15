@@ -5,9 +5,10 @@ import { ChevronLeft, Bell, MessageSquare, PlusSquare, ThumbsUp } from 'lucide-r
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../../../App';
-import { useSelector } from 'react-redux';
+import { useSelector, useDispatch } from 'react-redux';
 import { RootState } from '../../store';
 import { CommentsModal } from '../../components/Home/CommentsModal';
+import { addReaction, ReactionType } from '../../store/slices/postSlice';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
@@ -15,6 +16,7 @@ type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
 export default function HomeScreen() {
   const navigation = useNavigation<NavigationProp>();
+  const dispatch = useDispatch();
   const POSTS = useSelector((state: RootState) => state.post.posts);
   // If the user has generated an avatar, we can use it for their profile picture, otherwise a placeholder
   const avatars = useSelector((state: RootState) => state.avatar.savedAvatars);
@@ -29,10 +31,18 @@ export default function HomeScreen() {
 
   const [isCommentsModalVisible, setIsCommentsModalVisible] = React.useState(false);
   const [activeCommentCount, setActiveCommentCount] = React.useState(0);
+  const [activeCommentPostId, setActiveCommentPostId] = React.useState<string | null>(null);
+  const [activeTooltipPostId, setActiveTooltipPostId] = React.useState<string | null>(null);
 
-  const openComments = (commentCount: number) => {
+  const openComments = (commentCount: number, postId: string) => {
     setActiveCommentCount(commentCount);
+    setActiveCommentPostId(postId);
     setIsCommentsModalVisible(true);
+  };
+
+  const handleReaction = (postId: string, reaction: ReactionType) => {
+    dispatch(addReaction({ postId, reaction }));
+    setActiveTooltipPostId(null);
   };
 
   return (
@@ -98,7 +108,9 @@ export default function HomeScreen() {
 
         {/* Feed Section */}
         <View style={styles.feedSection}>
-          {POSTS.map(post => (
+          {POSTS.map(post => {
+            const totalReactions = Object.values(post.reactions).reduce((sum, count) => sum + count, 0);
+            return (
             <View key={post.id} style={styles.postCard}>
               <View style={styles.postHeader}>
                 {post.authorAvatarUri ? (
@@ -115,25 +127,41 @@ export default function HomeScreen() {
               <Image source={{ uri: post.imageUri }} style={styles.postImage} />
               <View style={styles.postFooter}>
                 <View style={styles.reactionGroup}>
-                  <ThumbsUp color="#E0B566" size={18} style={{ marginRight: 6 }} />
-                  <View style={styles.emojiStack}>
-                    <View style={[styles.stackedEmojiContainer, { zIndex: 4 }]}><Text style={styles.stackedEmoji}>😂</Text></View>
-                    <View style={[styles.stackedEmojiContainer, { zIndex: 3, marginLeft: -6 }]}><Text style={styles.stackedEmoji}>👍</Text></View>
-                    <View style={[styles.stackedEmojiContainer, { zIndex: 2, marginLeft: -6 }]}><Text style={styles.stackedEmoji}>🤯</Text></View>
-                    <View style={[styles.stackedEmojiContainer, { zIndex: 1, marginLeft: -6 }]}><Text style={styles.stackedEmoji}>❤️</Text></View>
-                  </View>
-                  <Text style={styles.reactionCount}>{post.likesCount}</Text>
+                  <TouchableOpacity 
+                    onPress={() => handleReaction(post.id, 'like')}
+                    onLongPress={() => setActiveTooltipPostId(activeTooltipPostId === post.id ? null : post.id)}
+                    style={{ flexDirection: 'row', alignItems: 'center' }}
+                  >
+                    <ThumbsUp color={post.userReaction === 'like' ? "#E0B566" : "#999"} size={18} style={{ marginRight: 6 }} />
+                    <View style={styles.emojiStack}>
+                      {post.reactions.haha > 0 && <View style={[styles.stackedEmojiContainer, { zIndex: 4 }]}><Text style={styles.stackedEmoji}>😂</Text></View>}
+                      {post.reactions.like > 0 && <View style={[styles.stackedEmojiContainer, { zIndex: 3, marginLeft: -6 }]}><Text style={styles.stackedEmoji}>👍</Text></View>}
+                      {post.reactions.angry > 0 && <View style={[styles.stackedEmojiContainer, { zIndex: 2, marginLeft: -6 }]}><Text style={styles.stackedEmoji}>😡</Text></View>}
+                      {post.reactions.love > 0 && <View style={[styles.stackedEmojiContainer, { zIndex: 1, marginLeft: -6 }]}><Text style={styles.stackedEmoji}>❤️</Text></View>}
+                    </View>
+                    <Text style={styles.reactionCount}>{totalReactions}</Text>
+                  </TouchableOpacity>
+
+                  {/* Tooltip for reactions */}
+                  {activeTooltipPostId === post.id && (
+                    <View style={styles.reactionsTooltip}>
+                      <TouchableOpacity onPress={() => handleReaction(post.id, 'like')}><Text style={styles.tooltipEmoji}>👍</Text></TouchableOpacity>
+                      <TouchableOpacity onPress={() => handleReaction(post.id, 'love')}><Text style={styles.tooltipEmoji}>❤️</Text></TouchableOpacity>
+                      <TouchableOpacity onPress={() => handleReaction(post.id, 'haha')}><Text style={styles.tooltipEmoji}>😂</Text></TouchableOpacity>
+                      <TouchableOpacity onPress={() => handleReaction(post.id, 'angry')}><Text style={styles.tooltipEmoji}>😡</Text></TouchableOpacity>
+                    </View>
+                  )}
                 </View>
                 <TouchableOpacity 
                   style={styles.commentGroup} 
-                  onPress={() => openComments(post.commentsCount)}
+                  onPress={() => openComments(post.commentsCount, post.id)}
                 >
                   <Text style={styles.commentCount}>{post.commentsCount} Comments</Text>
                   <MessageSquare color="#999" size={20} />
                 </TouchableOpacity>
               </View>
             </View>
-          ))}
+          )})}
         </View>
       </ScrollView>
 
@@ -149,6 +177,7 @@ export default function HomeScreen() {
         isVisible={isCommentsModalVisible} 
         onClose={() => setIsCommentsModalVisible(false)} 
         commentCount={activeCommentCount}
+        postId={activeCommentPostId}
       />
     </SafeAreaView>
   );
@@ -344,6 +373,26 @@ const styles = StyleSheet.create({
   reactionGroup: {
     flexDirection: 'row',
     alignItems: 'center',
+    position: 'relative',
+  },
+  reactionsTooltip: {
+    position: 'absolute',
+    bottom: 30,
+    left: 0,
+    flexDirection: 'row',
+    backgroundColor: '#fff',
+    borderRadius: 20,
+    padding: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
+    zIndex: 100,
+  },
+  tooltipEmoji: {
+    fontSize: 24,
+    marginHorizontal: 4,
   },
   emojiStack: {
     flexDirection: 'row',

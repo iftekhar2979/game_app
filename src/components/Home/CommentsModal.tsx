@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, Image, TouchableOpacity, ScrollView, Modal, TextInput, KeyboardAvoidingView, Platform } from 'react-native';
+import { useDispatch } from 'react-redux';
+import { incrementCommentCount } from '../../store/slices/postSlice';
 
 const INITIAL_COMMENTS = [
   { id: '1', author: 'Thomas', time: 'Sun,12:40pm', content: 'Absolutely crushed it! What an amazing performance!', avatarBg: '#ffe5a0', avatarUri: 'https://i.pravatar.cc/150?img=11' },
@@ -9,24 +11,28 @@ const INITIAL_COMMENTS = [
   { id: '5', author: 'Isabella', time: 'Tue,10:58pm', content: 'Wow! That routine deserved a standing ovation!', avatarBg: '#ffb3c6', avatarUri: 'https://i.pravatar.cc/150?img=9' },
 ];
 
-export const CommentsModal = ({ isVisible, onClose, commentCount }: any) => {
+export const CommentsModal = ({ isVisible, onClose, commentCount, postId }: any) => {
   const [comments, setComments] = useState(INITIAL_COMMENTS);
   const [newComment, setNewComment] = useState('');
+  const dispatch = useDispatch();
 
   const handleAddComment = () => {
     if (!newComment.trim()) return;
 
     const comment = {
       id: Date.now().toString(),
-      author: 'David', 
+      author: 'David',
       time: 'Just now',
       content: newComment,
       avatarBg: '#d9d1d0',
-      avatarUri: 'https://i.pravatar.cc/150?img=11' 
+      avatarUri: 'https://i.pravatar.cc/150?img=11'
     };
 
     setComments([comment, ...comments]);
     setNewComment('');
+    if (postId) {
+      dispatch(incrementCommentCount(postId));
+    }
   };
 
   return (
@@ -36,17 +42,17 @@ export const CommentsModal = ({ isVisible, onClose, commentCount }: any) => {
       animationType="slide"
       onRequestClose={onClose}
     >
-      <TouchableOpacity 
-        className="flex-1 bg-black/60 justify-end" 
-        activeOpacity={1} 
+      <TouchableOpacity
+        className="flex-1 bg-black/60 justify-end"
+        activeOpacity={1}
         onPress={onClose}
       >
-        <KeyboardAvoidingView 
+        <KeyboardAvoidingView
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
           className="w-full"
         >
-          <TouchableOpacity 
-            activeOpacity={1} 
+          <TouchableOpacity
+            activeOpacity={1}
             className="w-full bg-white rounded-t-[32px] pt-4 pb-8 px-6"
             style={{ maxHeight: 600 }}
           >
@@ -78,7 +84,7 @@ export const CommentsModal = ({ isVisible, onClose, commentCount }: any) => {
 
             {/* Input Field */}
             <View className="border border-gray-300 rounded-full px-5 mt-2 flex-row items-center">
-              <TextInput 
+              <TextInput
                 placeholder="Add your comments"
                 placeholderTextColor="#666"
                 className="text-black text-[14px] h-[44px] flex-1"
