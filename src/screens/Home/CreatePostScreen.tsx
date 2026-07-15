@@ -43,7 +43,7 @@ export default function CreatePostScreen() {
       authorAvatarUri: userAvatarUri,
       caption: description,
       imageUri: imageUri || undefined,
-      likesCount: 0,
+      reactions: { like: 0, love: 0, haha: 0, angry: 0 },
       commentsCount: 0,
     }));
     
