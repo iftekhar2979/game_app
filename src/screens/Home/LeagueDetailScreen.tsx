@@ -130,11 +130,11 @@ export default function LeagueDetailScreen() {
   };
 
   useEffect(() => {
-    if (!league?.draftDate || !league?.draftTime) return;
+    // If draftDate or draftTime is missing, we simulate it as 15 seconds from now for testing
+    const dDate = league?.draftDate ? new Date(league.draftDate) : new Date();
+    const tTime = league?.draftTime ? new Date(league.draftTime) : new Date(Date.now() + 15000);
 
-    const dDate = new Date(league.draftDate);
-    const tTime = new Date(league.draftTime);
-    dDate.setHours(tTime.getHours(), tTime.getMinutes(), 0, 0);
+    dDate.setHours(tTime.getHours(), tTime.getMinutes(), tTime.getSeconds(), 0);
     const targetTime = dDate.getTime();
 
     const calculateTime = () => {
@@ -162,7 +162,7 @@ export default function LeagueDetailScreen() {
     const intervalId = setInterval(calculateTime, 1000);
 
     return () => clearInterval(intervalId);
-  }, [league?.draftDate, league?.draftTime]);
+  }, [league?.draftDate, league?.draftTime, currentLeagueStatus]);
 
   return (
     <SafeAreaView className="flex-1 bg-black" edges={['top', 'bottom']}>
