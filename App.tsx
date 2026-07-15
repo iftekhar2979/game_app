@@ -24,6 +24,7 @@ import FantasyLeagueScreen from './src/screens/Home/FantasyLeagueScreen';
 import CreateLeagueScreen from './src/screens/Home/CreateLeagueScreen';
 import LeagueDetailScreen from './src/screens/Home/LeagueDetailScreen';
 import DraftRoomScreen from './src/screens/Home/DraftRoomScreen';
+import CreatePostScreen from './src/screens/Home/CreatePostScreen';
 import { Provider } from 'react-redux';
 import { store } from './src/store';
 
@@ -42,6 +43,7 @@ export type RootStackParamList = {
   CreateLeague: undefined;
   LeagueDetail: { leagueId: string };
   DraftRoom: { leagueId: string };
+  CreatePost: undefined;
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -69,6 +71,7 @@ function App() {
             <Stack.Screen name="CreateLeague" component={CreateLeagueScreen} />
             <Stack.Screen name="LeagueDetail" component={LeagueDetailScreen} />
             <Stack.Screen name="DraftRoom" component={DraftRoomScreen} />
+            <Stack.Screen name="CreatePost" component={CreatePostScreen} />
           </Stack.Navigator>
         </NavigationContainer>
       </SafeAreaProvider>
