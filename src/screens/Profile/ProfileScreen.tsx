@@ -5,6 +5,8 @@ import { ChevronLeft, Settings, Edit2, ArrowRight, Dumbbell, Trophy, Medal, BarC
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../../../App';
+import { useSelector } from 'react-redux';
+import { RootState } from '../../store';
 
 const { width } = Dimensions.get('window');
 
@@ -12,6 +14,8 @@ type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
 export default function ProfileScreen() {
   const navigation = useNavigation<NavigationProp>();
+  const avatars = useSelector((state: RootState) => state.avatar.savedAvatars);
+  const userAvatarUri = avatars.length > 0 ? avatars[0].imageUri : 'https://i.pravatar.cc/150?img=11';
 
   const MOCK_TEAMS = [
     { id: '1', name: 'Manchester City', logo: 'https://upload.wikimedia.org/wikipedia/en/thumb/e/eb/Manchester_City_FC_badge.svg/150px-Manchester_City_FC_badge.svg.png' },
@@ -23,23 +27,23 @@ export default function ProfileScreen() {
   return (
     <View className="flex-1 bg-black">
       <ScrollView contentContainerStyle={{ paddingBottom: 50 }} showsVerticalScrollIndicator={false}>
-        
+
         {/* Banner Section */}
         <View className="relative w-full h-[200px]">
-          <ImageBackground 
-            source={{ uri: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=2564&auto=format&fit=crop' }} 
+          <ImageBackground
+            source={{ uri: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=2564&auto=format&fit=crop' }}
             className="w-full h-full rounded-b-[40px] overflow-hidden opacity-90"
           />
-          
+
           {/* Header Buttons over Banner */}
           <SafeAreaView edges={['top']} className="absolute top-0 w-full flex-row justify-between px-5 pt-2">
-            <TouchableOpacity 
+            <TouchableOpacity
               className="w-10 h-10 rounded-[12px] border border-white/30 justify-center items-center bg-black/40"
               onPress={() => navigation.goBack()}
             >
               <ChevronLeft color="#fff" size={24} />
             </TouchableOpacity>
-            <TouchableOpacity 
+            <TouchableOpacity
               className="w-10 h-10 rounded-[12px] border border-white/30 justify-center items-center bg-black/40"
             >
               <Settings color="#fff" size={20} />
@@ -49,7 +53,7 @@ export default function ProfileScreen() {
           {/* Avatar over the Banner edge */}
           <View className="absolute -bottom-12 left-1/2 -ml-[50px] items-center justify-center z-10">
             <View className="w-[100px] h-[100px] rounded-full border-[4px] border-black overflow-hidden relative">
-              <Image source={{ uri: 'https://i.pravatar.cc/150?img=11' }} className="w-full h-full" />
+              <Image source={{ uri: userAvatarUri }} className="w-full h-full" />
             </View>
             <TouchableOpacity className="absolute bottom-1 right-1 w-7 h-7 bg-[#FFB84D] rounded-full justify-center items-center border-[2px] border-black">
               <Edit2 color="#000" size={12} />
@@ -178,7 +182,7 @@ export default function ProfileScreen() {
             <Text className="text-gray-300 text-[14px] mb-4 leading-[20px]">
               The Grizzlies lineup is TUFF
             </Text>
-            
+
             <View className="flex-row justify-between items-center mt-2 border-t border-[#222] pt-4">
               <View className="flex-row items-center">
                 <View className="flex-row mr-2 relative w-[45px]">
@@ -214,7 +218,7 @@ export default function ProfileScreen() {
             <Text className="text-gray-300 text-[14px] mb-4 leading-[20px]">
               The Grizzlies lineup is TUFF
             </Text>
-            
+
             <View className="flex-row justify-between items-center mt-2 border-t border-[#222] pt-4">
               <View className="flex-row items-center">
                 <View className="flex-row mr-2 relative w-[45px]">
@@ -231,7 +235,7 @@ export default function ProfileScreen() {
               </View>
             </View>
           </View>
-          
+
         </View>
       </ScrollView>
     </View>
