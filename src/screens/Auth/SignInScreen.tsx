@@ -34,7 +34,7 @@ const SignInScreen = () => {
 
   const onSubmit = (data: SignInFormValues) => {
     console.log('Sign in pressed', data);
-    navigation.navigate('ExploreAvatar')
+    navigation.navigate('Home')
     // Dispatch RTK action here
   };
 

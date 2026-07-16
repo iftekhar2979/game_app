@@ -87,7 +87,7 @@ const OTPVerificationScreen = () => {
           title="Verify" 
           onPress={() => {
             console.log('Verify pressed with OTP:', otp);
-            navigation.navigate('ResetPassword');
+            navigation.navigate('ExploreAvatar' as never);
           }}
         />
       </View>
