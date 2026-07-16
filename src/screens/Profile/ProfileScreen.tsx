@@ -31,9 +31,11 @@ export default function ProfileScreen() {
         {/* Banner Section */}
         <View className="relative w-full h-[200px]">
           <ImageBackground
-            source={{ uri: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=2564&auto=format&fit=crop' }}
+            source={require('../../assets/images/utils/image 75.png')}
             className="w-full h-full rounded-b-[40px] overflow-hidden opacity-90"
-          />
+          >
+            <View className="absolute inset-0 bg-black/20" />
+          </ImageBackground>
 
           {/* Header Buttons over Banner */}
           <SafeAreaView edges={['top']} className="absolute top-0 w-full flex-row justify-between px-5 pt-2">
@@ -55,7 +57,10 @@ export default function ProfileScreen() {
             <View className="w-[100px] h-[100px] rounded-full border-[4px] border-black overflow-hidden relative">
               <Image source={{ uri: userAvatarUri }} className="w-full h-full" />
             </View>
-            <TouchableOpacity className="absolute bottom-1 right-1 w-7 h-7 bg-[#FFB84D] rounded-full justify-center items-center border-[2px] border-black">
+            <TouchableOpacity 
+              className="absolute bottom-1 right-1 w-7 h-7 bg-[#FFB84D] rounded-full justify-center items-center border-[2px] border-black"
+              onPress={() => navigation.navigate('EditProfile')}
+            >
               <Edit2 color="#000" size={12} />
             </TouchableOpacity>
           </View>
