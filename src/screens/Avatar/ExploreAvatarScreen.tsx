@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, Image, StyleSheet, FlatList, Dimensions, ScrollView } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { ChevronLeft, Edit2 } from 'lucide-react-native';
 import { RootStackParamList } from '../../../App';
@@ -99,7 +99,9 @@ const fullBodyAvatars = AVATARS.filter(a => a.isFullbody);
 
 const ExploreAvatarScreen = () => {
   const navigation = useNavigation<NavigationProp>();
+  const route = useRoute<RouteProp<RootStackParamList, 'ExploreAvatar'>>();
   const insets = useSafeAreaInsets();
+  const returnTo = route.params?.returnTo;
 
   const renderItem = ({ item, index }: { item: { id: number; image: any; isFullbody?: boolean; randomSkirt?: any; randomShoes?: any; randomUpperbody?: any; randomHair?: any; target?: string; avatarCategory?: number }, index: number }) => (
     <TouchableOpacity
@@ -111,7 +113,7 @@ const ExploreAvatarScreen = () => {
         marginBottom: 12,
         marginRight: (index % 3 !== 2) ? 12 : 0,
       }}
-      onPress={() => navigation.navigate('GenerateAvatar', { baseImage: item.image, isFullbody: item.isFullbody, target: item.target as any, avatarCategory: item.avatarCategory })}
+      onPress={() => navigation.navigate('GenerateAvatar', { baseImage: item.image, isFullbody: item.isFullbody, target: item.target as any, avatarCategory: item.avatarCategory, returnTo })}
     >
       <View className="flex-1 rounded-2xl border-2 border-[#5B1F7D] overflow-hidden bg-[#1A0B2E]">
         <Image

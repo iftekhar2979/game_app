@@ -40,8 +40,8 @@ export type RootStackParamList = {
   EmailVerification: undefined;
   OTPVerification: undefined;
   ResetPassword: undefined;
-  ExploreAvatar: undefined;
-  GenerateAvatar: { baseImage: any; isFullbody?: boolean; target?: 'female' | 'male'; avatarCategory?: number };
+  ExploreAvatar: { returnTo?: keyof RootStackParamList } | undefined;
+  GenerateAvatar: { baseImage: any; isFullbody?: boolean; target?: 'female' | 'male'; avatarCategory?: number; returnTo?: keyof RootStackParamList };
   Home: undefined;
   FantasyLeague: undefined;
   CreateLeague: undefined;
