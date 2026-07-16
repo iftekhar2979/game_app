@@ -48,7 +48,10 @@ export default function EditProfileScreen() {
             <View className="w-[120px] h-[120px] rounded-full border-[4px] border-black overflow-hidden relative">
               <Image source={{ uri: userAvatarUri }} className="w-full h-full" />
             </View>
-            <TouchableOpacity className="absolute bottom-1 right-2 w-8 h-8 bg-black rounded-full justify-center items-center border-[2px] border-[#FFB84D]">
+            <TouchableOpacity 
+              className="absolute bottom-1 right-2 w-8 h-8 bg-black rounded-full justify-center items-center border-[2px] border-[#FFB84D]"
+              onPress={() => navigation.navigate('ExploreAvatar', { returnTo: 'EditProfile' })}
+            >
               <Edit2 color="#FFB84D" size={12} />
             </TouchableOpacity>
           </View>

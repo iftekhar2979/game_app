@@ -641,8 +641,12 @@ const GenerateAvatarScreen = () => {
                     createdAt: Date.now(),
                   })
                 );
-                // Navigate to the Home Feed screen
-                navigation.navigate('Home');
+                // Navigate to the correct screen
+                if (route.params?.returnTo) {
+                  navigation.navigate(route.params.returnTo as any);
+                } else {
+                  navigation.navigate('Home');
+                }
               } catch (error) {
                 console.error('Failed to capture avatar', error);
               }
