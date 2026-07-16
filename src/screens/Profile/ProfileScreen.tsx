@@ -47,8 +47,10 @@ export default function ProfileScreen() {
             </TouchableOpacity>
             <TouchableOpacity
               className="w-10 h-10 rounded-[12px] border border-white/30 justify-center items-center bg-black/40"
+              onPress={() => navigation.navigate('Settings' as never)}
             >
               <Settings color="#fff" size={20} />
+
             </TouchableOpacity>
           </SafeAreaView>
 
@@ -57,7 +59,7 @@ export default function ProfileScreen() {
             <View className="w-[100px] h-[100px] rounded-full border-[4px] border-black overflow-hidden relative">
               <Image source={{ uri: userAvatarUri }} className="w-full h-full" />
             </View>
-            <TouchableOpacity 
+            <TouchableOpacity
               className="absolute bottom-1 right-1 w-7 h-7 bg-[#FFB84D] rounded-full justify-center items-center border-[2px] border-black"
               onPress={() => navigation.navigate('EditProfile')}
             >

@@ -32,6 +32,7 @@ export default function EditProfileScreen() {
               </TouchableOpacity>
               <TouchableOpacity 
                 className="w-10 h-10 rounded-[12px] border border-white/30 justify-center items-center bg-black/40"
+                onPress={() => navigation.navigate('Settings' as never)}
               >
                 <Settings color="#fff" size={20} />
               </TouchableOpacity>
@@ -50,7 +51,7 @@ export default function EditProfileScreen() {
             </View>
             <TouchableOpacity 
               className="absolute bottom-1 right-2 w-8 h-8 bg-black rounded-full justify-center items-center border-[2px] border-[#FFB84D]"
-              onPress={() => navigation.navigate('ExploreAvatar', { returnTo: 'EditProfile' })}
+              onPress={() => (navigation as any).navigate('ExploreAvatar', { returnTo: 'EditProfile' })}
             >
               <Edit2 color="#FFB84D" size={12} />
             </TouchableOpacity>
