@@ -73,7 +73,7 @@ const CreateAccountScreen = () => {
   const onSubmit = (data: SignUpFormValues) => {
     console.log('Create account pressed', data);
     showToast('Success', 'Account created successfully!', 'success');
-    // Handle registration here
+    navigation.navigate('CreateUsername' as never);
   };
 
   const handleTermsToggle = () => {
