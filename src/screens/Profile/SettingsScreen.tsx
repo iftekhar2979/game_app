@@ -119,13 +119,16 @@ export default function SettingsScreen() {
             <Text className="text-gray-300 font-medium">Cancel</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity
+          <TouchableOpacity 
             className="flex-1 bg-[#D32F2F] py-3 rounded-full ml-2 items-center shadow-md shadow-red-900/50"
             onPress={() => {
               setIsLogoutModalVisible(false);
-              // Handle actual logout logic here later
+              navigation.reset({
+                index: 0,
+                routes: [{ name: 'SignIn' as never }],
+              });
             }}
-          >
+          >          
             <Text className="text-white font-medium">Yes</Text>
           </TouchableOpacity>
         </View>
