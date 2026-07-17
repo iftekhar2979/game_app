@@ -6,6 +6,8 @@ import { RootStackParamList } from '../../../App';
 import { ChevronLeft, User, Mail, Calendar, KeyRound, Check } from 'lucide-react-native';
 import DatePicker from 'react-native-date-picker';
 import AuthLayout from '../../components/Layout/AuthLayout';
+import { useDispatch } from 'react-redux';
+import { updateUser } from '../../store/slices/authSlice';
 import AuthInput from '../../components/Input/AuthInput';
 import PrimaryButton from '../../components/Button/PrimaryButton';
 import { useForm, Controller } from 'react-hook-form';
@@ -30,6 +32,7 @@ type SignUpFormValues = z.infer<typeof signUpSchema>;
 
 const CreateAccountScreen = () => {
   const navigation = useNavigation<NavigationProp>();
+  const dispatch = useDispatch();
   const [agreed, setAgreed] = useState(false);
 
   const [toastVisible, setToastVisible] = useState(false);
@@ -72,6 +75,7 @@ const CreateAccountScreen = () => {
 
   const onSubmit = (data: SignUpFormValues) => {
     console.log('Create account pressed', data);
+    dispatch(updateUser({ email: data.email, name: data.name, dateOfBirth: data.dateOfBirth }));
     showToast('Success', 'Account created successfully!', 'success');
     navigation.navigate('CreateUsername' as never);
   };

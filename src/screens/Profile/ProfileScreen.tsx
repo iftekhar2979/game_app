@@ -14,6 +14,7 @@ type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
 export default function ProfileScreen() {
   const navigation = useNavigation<NavigationProp>();
+  const user = useSelector((state: RootState) => state.auth.user);
   const avatars = useSelector((state: RootState) => state.avatar.savedAvatars);
   const userAvatarUri = avatars.length > 0 ? avatars[0].imageUri : 'https://i.pravatar.cc/150?img=11';
 
@@ -70,8 +71,12 @@ export default function ProfileScreen() {
 
         {/* Profile Info */}
         <View className="mt-16 items-center px-5">
-          <Text className="text-white text-[20px] font-bold mb-1">David thomas097</Text>
-          <Text className="text-gray-400 text-[13px] mb-4">Member since - June 2028, Texas</Text>
+          <Text className="text-white text-[20px] font-bold mb-1">
+            {user?.username || 'David thomas097'}
+          </Text>
+          <Text className="text-gray-400 text-[13px] mb-4">
+            {user?.email || 'Member since - June 2028, Texas'}
+          </Text>
 
           <TouchableOpacity
             className="flex-row items-center border border-[#FFB84D] rounded-full px-4 py-1.5 mb-8"

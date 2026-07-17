@@ -1,14 +1,19 @@
 import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, TextInput } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
+import { useDispatch } from 'react-redux';
 import AuthLayout from '../../components/Layout/AuthLayout';
 import { ChevronLeft, User } from 'lucide-react-native';
+import { updateUser } from '../../store/slices/authSlice';
 
 export default function CreateUsernameScreen() {
   const navigation = useNavigation();
+  const dispatch = useDispatch();
   const [username, setUsername] = useState('');
 
   const handleNext = () => {
+    // Save username in redux
+    dispatch(updateUser({ username: username.startsWith('@') ? username : `@${username}` }));
     // Navigate to OTP Verification screen
     navigation.navigate('OTPVerification' as never);
   };
