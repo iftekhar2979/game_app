@@ -124,6 +124,10 @@ const ALL_SHOES: AvatarAsset[] = [
   { id: 4, target: 'female', avatarCategories: [4, 5, 6], source: require('../../assets/images/avatar/fullbody/shoes/shoe_1.png') },
 ];
 
+const ALL_BODY_COLORS: AvatarAsset[] = [
+  { id: 1, target: 'male', avatarCategories: [1], source: require('../../assets/images/avatar/fullbody/body_color/brown_yellow.png') },
+];
+
 const GenerateAvatarScreen = () => {
   const navigation = useNavigation<NavigationProp>();
   const route = useRoute<GenerateAvatarRouteProp>();
@@ -140,6 +144,7 @@ const GenerateAvatarScreen = () => {
   const FULLBODY_SKIRTS = ALL_FULLBODY_SKIRTS.filter(a => a.target === target && a.avatarCategories && a.avatarCategories.includes(avatarCategory));
   const FULLBODY_OUTFITS = ALL_FULLBODY_OUTFITS.filter(a => a.target === target && a.avatarCategories && a.avatarCategories.includes(avatarCategory));
   const SHOES = ALL_SHOES.filter(a => a.target === target && a.avatarCategories && a.avatarCategories.includes(avatarCategory));
+  const BODY_COLORS = ALL_BODY_COLORS.filter(a => a.target === target && a.avatarCategories && a.avatarCategories.includes(avatarCategory));
 
   const baseImage = route.params?.baseImage || require('../../assets/images/avatar/base/base_avatar_3.png');
   const isFullbody = route.params?.isFullbody === true;
@@ -167,6 +172,7 @@ const GenerateAvatarScreen = () => {
 
   // Shared state
   const [selectedHairColor, setSelectedHairColor] = useState<string | null>(null);
+  const [selectedBodyColor, setSelectedBodyColor] = useState<number | null>(avatarCategory === 1 ? 0 : null);
 
   // Half body state
   const [selectedHair, setSelectedHair] = useState<number | null>(!isFullbody ? 0 : null);
@@ -259,6 +265,15 @@ const GenerateAvatarScreen = () => {
                 className="absolute w-full h-full"
                 resizeMode="contain"
               />
+
+              {/* Body Color Layer (Conditional for avatarCategory === 1) */}
+              {avatarCategory === 1 && selectedBodyColor !== null && BODY_COLORS[selectedBodyColor] && (
+                <Image
+                  source={BODY_COLORS[selectedBodyColor].source}
+                  className="absolute w-full h-full"
+                  resizeMode="contain"
+                />
+              )}
 
               {/* Eye Blinking Animation Overlay - Opacity toggled to prevent load lag */}
               <Image
@@ -471,6 +486,37 @@ const GenerateAvatarScreen = () => {
                 ))}
               </ScrollView>
             </View>
+
+            {/* Body Color (Half Body) */}
+            {BODY_COLORS.length > 0 && (
+              <View className="mb-6">
+                <Text className="text-white text-base font-medium px-6 mb-4">Body color</Text>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 24 }}>
+                  {BODY_COLORS.map((bodyColor, index) => (
+                    <TouchableOpacity
+                      key={`half-body-color-${index}`}
+                      activeOpacity={0.8}
+                      className="mr-3 items-center"
+                      onPress={() => setSelectedBodyColor(selectedBodyColor === index ? null : index)}
+                    >
+                      <View
+                        className={`w-[72px] h-[90px] rounded-xl border-2 ${selectedBodyColor === index ? 'border-[#B366FF]' : 'border-[#5B1F7D]'} bg-[#1A0B2E] overflow-hidden items-center justify-center`}
+                      >
+                        <Image
+                          source={bodyColor.source}
+                          className="w-full h-full"
+                          resizeMode="contain"
+                        />
+                      </View>
+                      <View className="absolute bottom-0 bg-[#B366FF] px-2 py-1 rounded-full flex-row items-center border border-[#3A144E]">
+                        <Text className="text-xs">🪙</Text>
+                        <Text className="text-white text-[10px] font-bold ml-1">224</Text>
+                      </View>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+              </View>
+            )}
           </>
         ) : (
           <>
@@ -526,6 +572,37 @@ const GenerateAvatarScreen = () => {
                 ))}
               </ScrollView>
             </View>
+
+            {/* Body Color (Full Body) */}
+            {BODY_COLORS.length > 0 && (
+              <View className="mb-6">
+                <Text className="text-white text-base font-medium px-6 mb-4">Body color</Text>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 24 }}>
+                  {BODY_COLORS.map((bodyColor, index) => (
+                    <TouchableOpacity
+                      key={`fb-body-color-${index}`}
+                      activeOpacity={0.8}
+                      className="mr-3 items-center"
+                      onPress={() => setSelectedBodyColor(selectedBodyColor === index ? null : index)}
+                    >
+                      <View
+                        className={`w-[72px] h-[90px] rounded-xl border-2 ${selectedBodyColor === index ? 'border-[#B366FF]' : 'border-[#5B1F7D]'} bg-[#1A0B2E] overflow-hidden items-center justify-center`}
+                      >
+                        <Image
+                          source={bodyColor.source}
+                          className="w-full h-full"
+                          resizeMode="contain"
+                        />
+                      </View>
+                      <View className="absolute bottom-0 bg-[#B366FF] px-2 py-1 rounded-full flex-row items-center border border-[#3A144E]">
+                        <Text className="text-xs">🪙</Text>
+                        <Text className="text-white text-[10px] font-bold ml-1">224</Text>
+                      </View>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+              </View>
+            )}
 
             <View className="mb-6">
               <Text className="text-white text-base font-medium px-6 mb-4">Skirt</Text>
@@ -632,6 +709,7 @@ const GenerateAvatarScreen = () => {
                         selectedHair,
                         selectedHairColor,
                         selectedBody,
+                        selectedBodyColor,
                         selectedFullbodyHair,
                         selectedFullbodySkirt,
                         selectedFullbodyOutfit,
