@@ -250,156 +250,156 @@ const GenerateAvatarScreen = () => {
             <View
               style={[styles.previewContainer, { height: previewHeight }]}
             >
-            {/* The glow effect behind avatar */}
-            <View className="absolute top-10 w-48 h-48 rounded-full bg-[#B366FF] opacity-20 blur-3xl" />
+              {/* The glow effect behind avatar */}
+              <View className="absolute top-10 w-48 h-48 rounded-full bg-[#B366FF] opacity-20 blur-3xl" />
 
-            <Animated.View
-              style={[
-                isFullbody ? styles.fullbodyStage : styles.avatarStage,
-                { transform: [{ scaleX: breatheScaleX }, { scaleY: breatheScaleY }], transformOrigin: 'bottom center' as any }
-              ]}
-            >
-              {/* Base Head / Base Body */}
-              <Image
-                source={baseImage}
-                className="absolute w-full h-full"
-                resizeMode="contain"
-              />
-
-              {/* Body Color Layer (Conditional for avatarCategory === 1) */}
-              {avatarCategory === 1 && selectedBodyColor !== null && BODY_COLORS[selectedBodyColor] && (
+              <Animated.View
+                style={[
+                  isFullbody ? styles.fullbodyStage : styles.avatarStage,
+                  { transform: [{ scaleX: breatheScaleX }, { scaleY: breatheScaleY }], transformOrigin: 'bottom center' as any }
+                ]}
+              >
+                {/* Base Head / Base Body */}
                 <Image
-                  source={BODY_COLORS[selectedBodyColor].source}
+                  source={baseImage}
                   className="absolute w-full h-full"
                   resizeMode="contain"
                 />
-              )}
 
-              {/* Eye Blinking Animation Overlay - Opacity toggled to prevent load lag */}
-              <Image
-                source={getHalfClosedEyeSource()}
-                className="absolute w-full h-full"
-                resizeMode="contain"
-                style={{ opacity: eyeState === 'half_closed' ? 1 : 0 }}
-              />
-              <Image
-                source={getFullClosedEyeSource()}
-                className="absolute w-full h-full"
-                resizeMode="contain"
-                style={{ opacity: eyeState === 'closed' ? 1 : 0 }}
-              />
+                {/* Body Color Layer (Conditional for avatarCategory === 1) */}
+                {avatarCategory === 1 && selectedBodyColor !== null && BODY_COLORS[selectedBodyColor] && (
+                  <Image
+                    source={BODY_COLORS[selectedBodyColor].source}
+                    className="absolute w-full h-full"
+                    resizeMode="contain"
+                  />
+                )}
 
-              {/* --- HALF BODY LAYERS --- */}
-              {!isFullbody && selectedBody !== null && BLAZERS[selectedBody] && (
+                {/* Eye Blinking Animation Overlay - Opacity toggled to prevent load lag */}
                 <Image
-                  source={BLAZERS[selectedBody].source}
+                  source={getHalfClosedEyeSource()}
                   className="absolute w-full h-full"
                   resizeMode="contain"
+                  style={{ opacity: eyeState === 'half_closed' ? 1 : 0 }}
                 />
-              )}
+                <Image
+                  source={getFullClosedEyeSource()}
+                  className="absolute w-full h-full"
+                  resizeMode="contain"
+                  style={{ opacity: eyeState === 'closed' ? 1 : 0 }}
+                />
 
-              {!isFullbody && selectedHair !== null && HAIR_STYLES[selectedHair] && (
-                <View className="absolute w-full h-full scale-[1.03] top-[-1%]">
-                  {selectedHairColor ? (
-                    <Svg width="100%" height="100%">
-                      <Defs>
-                        <Filter id="hairColorFilter">
-                          <FeColorMatrix
-                            type="matrix"
-                            values={hexToTintMatrix(selectedHairColor)}
-                          />
-                        </Filter>
-                      </Defs>
-                      <SvgImage
-                        width="100%"
-                        height="100%"
-                        preserveAspectRatio="xMidYMid meet"
-                        href={HAIR_STYLES[selectedHair].source}
-                        filter="url(#hairColorFilter)"
+                {/* --- HALF BODY LAYERS --- */}
+                {!isFullbody && selectedBody !== null && BLAZERS[selectedBody] && (
+                  <Image
+                    source={BLAZERS[selectedBody].source}
+                    className="absolute w-full h-full"
+                    resizeMode="contain"
+                  />
+                )}
+
+                {!isFullbody && selectedHair !== null && HAIR_STYLES[selectedHair] && (
+                  <View className="absolute w-full h-full scale-[1.03] top-[-1%]">
+                    {selectedHairColor ? (
+                      <Svg width="100%" height="100%">
+                        <Defs>
+                          <Filter id="hairColorFilter">
+                            <FeColorMatrix
+                              type="matrix"
+                              values={hexToTintMatrix(selectedHairColor)}
+                            />
+                          </Filter>
+                        </Defs>
+                        <SvgImage
+                          width="100%"
+                          height="100%"
+                          preserveAspectRatio="xMidYMid meet"
+                          href={HAIR_STYLES[selectedHair].source}
+                          filter="url(#hairColorFilter)"
+                        />
+                      </Svg>
+                    ) : (
+                      <Image
+                        source={HAIR_STYLES[selectedHair].source}
+                        className="absolute w-full h-full"
+                        resizeMode="contain"
                       />
-                    </Svg>
-                  ) : (
-                    <Image
-                      source={HAIR_STYLES[selectedHair].source}
-                      className="absolute w-full h-full"
-                      resizeMode="contain"
-                    />
-                  )}
-                </View>
-              )}
+                    )}
+                  </View>
+                )}
 
-              {/* --- FULL BODY LAYERS --- */}
-              {isFullbody && selectedFullbodySkirt !== null && FULLBODY_SKIRTS[selectedFullbodySkirt] && (
-                <Image
-                  source={FULLBODY_SKIRTS[selectedFullbodySkirt].source}
-                  className="absolute w-full h-full"
-                  resizeMode="contain"
-                />
-              )}
+                {/* --- FULL BODY LAYERS --- */}
+                {isFullbody && selectedFullbodySkirt !== null && FULLBODY_SKIRTS[selectedFullbodySkirt] && (
+                  <Image
+                    source={FULLBODY_SKIRTS[selectedFullbodySkirt].source}
+                    className="absolute w-full h-full"
+                    resizeMode="contain"
+                  />
+                )}
 
-              {isFullbody && selectedShoes !== null && SHOES[selectedShoes] && (
-                <Image
-                  source={SHOES[selectedShoes].source}
-                  className="absolute w-full h-full"
-                  resizeMode="contain"
-                />
-              )}
+                {isFullbody && selectedShoes !== null && SHOES[selectedShoes] && (
+                  <Image
+                    source={SHOES[selectedShoes].source}
+                    className="absolute w-full h-full"
+                    resizeMode="contain"
+                  />
+                )}
 
-              {isFullbody && selectedFullbodyOutfit !== null && FULLBODY_OUTFITS[selectedFullbodyOutfit] && (
-                <Image
-                  source={FULLBODY_OUTFITS[selectedFullbodyOutfit].source}
-                  className="absolute w-full h-full"
-                  resizeMode="contain"
-                />
-              )}
+                {isFullbody && selectedFullbodyOutfit !== null && FULLBODY_OUTFITS[selectedFullbodyOutfit] && (
+                  <Image
+                    source={FULLBODY_OUTFITS[selectedFullbodyOutfit].source}
+                    className="absolute w-full h-full"
+                    resizeMode="contain"
+                  />
+                )}
 
 
 
-              {isFullbody && selectedFullbodyHair !== null && FULLBODY_HAIR[selectedFullbodyHair] && (
-                <View className="absolute w-full h-full">
-                  {selectedHairColor ? (
-                    <Svg width="100%" height="100%">
-                      <Defs>
-                        <Filter id="fullbodyHairColorFilter">
-                          <FeColorMatrix
-                            type="matrix"
-                            values={hexToTintMatrix(selectedHairColor)}
-                          />
-                        </Filter>
-                      </Defs>
-                      <SvgImage
-                        width="100%"
-                        height="100%"
-                        preserveAspectRatio="xMidYMid meet"
-                        href={FULLBODY_HAIR[selectedFullbodyHair].source}
-                        filter="url(#fullbodyHairColorFilter)"
+                {isFullbody && selectedFullbodyHair !== null && FULLBODY_HAIR[selectedFullbodyHair] && (
+                  <View className="absolute w-full h-full">
+                    {selectedHairColor ? (
+                      <Svg width="100%" height="100%">
+                        <Defs>
+                          <Filter id="fullbodyHairColorFilter">
+                            <FeColorMatrix
+                              type="matrix"
+                              values={hexToTintMatrix(selectedHairColor)}
+                            />
+                          </Filter>
+                        </Defs>
+                        <SvgImage
+                          width="100%"
+                          height="100%"
+                          preserveAspectRatio="xMidYMid meet"
+                          href={FULLBODY_HAIR[selectedFullbodyHair].source}
+                          filter="url(#fullbodyHairColorFilter)"
+                        />
+                      </Svg>
+                    ) : (
+                      <Image
+                        source={FULLBODY_HAIR[selectedFullbodyHair].source}
+                        className="absolute w-full h-full"
+                        resizeMode="contain"
                       />
-                    </Svg>
-                  ) : (
-                    <Image
-                      source={FULLBODY_HAIR[selectedFullbodyHair].source}
-                      className="absolute w-full h-full"
-                      resizeMode="contain"
-                    />
-                  )}
-                </View>
-              )}
+                    )}
+                  </View>
+                )}
 
-            </Animated.View>
+              </Animated.View>
 
-            {/* Gradient Overlay to hide edge artifacts */}
-            <View className="absolute bottom-0 w-full h-24 pointer-events-none">
-              <Svg height="100%" width="100%">
-                <Defs>
-                  <LinearGradient id="grad" x1="0" y1="0" x2="0" y2="1">
-                    <Stop offset="0" stopColor="#1A0B2E" stopOpacity="0" />
-                    <Stop offset="1" stopColor="#1A0B2E" stopOpacity="1" />
-                  </LinearGradient>
-                </Defs>
-                <Rect width="100%" height="100%" fill="url(#grad)" />
-              </Svg>
+              {/* Gradient Overlay to hide edge artifacts */}
+              <View className="absolute bottom-0 w-full h-24 pointer-events-none">
+                <Svg height="100%" width="100%">
+                  <Defs>
+                    <LinearGradient id="grad" x1="0" y1="0" x2="0" y2="1">
+                      <Stop offset="0" stopColor="#1A0B2E" stopOpacity="0" />
+                      <Stop offset="1" stopColor="#1A0B2E" stopOpacity="1" />
+                    </LinearGradient>
+                  </Defs>
+                  <Rect width="100%" height="100%" fill="url(#grad)" />
+                </Svg>
+              </View>
             </View>
-          </View>
           </ViewShot>
         </View>
 
