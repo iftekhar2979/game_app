@@ -10,6 +10,9 @@ import PrimaryButton from '../../components/Button/PrimaryButton';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
+import { useDispatch } from 'react-redux';
+import { setCredentials } from '../../store/slices/authSlice';
+import { useLoginMutation } from '../../store/api/authApi';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList, 'SignIn'>;
 
@@ -22,6 +25,8 @@ type SignInFormValues = z.infer<typeof signInSchema>;
 
 const SignInScreen = () => {
   const navigation = useNavigation<NavigationProp>();
+  const dispatch = useDispatch();
+  const [login, { isLoading }] = useLoginMutation();
 
   const { control, handleSubmit, formState: { errors } } = useForm<SignInFormValues>({
     resolver: zodResolver(signInSchema),
@@ -32,10 +37,35 @@ const SignInScreen = () => {
     },
   });
 
-  const onSubmit = (data: SignInFormValues) => {
-    console.log('Sign in pressed', data);
-    navigation.navigate('Home')
-    // Dispatch RTK action here
+  const onSubmit = async (data: SignInFormValues) => {
+    try {
+      const response = await login(data).unwrap();
+      
+      const token = response?.data?.accessToken;
+      const isEmailVerified = response?.data?.isEmailVerified;
+      const user = response?.data?.user;
+
+      if (token) {
+        if (isEmailVerified === false) {
+          // Store token to allow verification requests
+          dispatch(setCredentials({ 
+            user: { email: data.email },
+            token 
+          }));
+          navigation.navigate('OTPVerification' as never);
+        } else {
+          // Successful full login
+          dispatch(setCredentials({ 
+            user: { email: user?.email, name: user?.fullName },
+            token 
+          }));
+          navigation.navigate('Home' as never);
+        }
+      }
+    } catch (error: any) {
+      console.error('Login failed:', error);
+      Alert.alert('Error', error?.data?.message || 'Login failed. Please check your credentials.');
+    }
   };
 
   return (
@@ -106,7 +136,8 @@ const SignInScreen = () => {
       {/* Bottom Actions */}
       <View className="px-6 pb-6">
         <PrimaryButton
-          title="Sign in"
+          title={isLoading ? "Signing in..." : "Sign in"}
+          disabled={isLoading}
           onPress={handleSubmit(onSubmit, (errors) => {
             console.log('Validation errors:', errors);
             Alert.alert('Validation Error', 'Please check the form inputs.');

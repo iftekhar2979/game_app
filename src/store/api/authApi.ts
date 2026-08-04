@@ -28,6 +28,7 @@ export interface VerifyEmailResponse {
 }
 
 export const authApi = baseApi.injectEndpoints({
+  overrideExisting: true,
   endpoints: (builder) => ({
     register: builder.mutation<RegisterResponse, RegisterRequest>({
       query: (credentials) => ({
@@ -49,7 +50,14 @@ export const authApi = baseApi.injectEndpoints({
         method: 'POST',
       }),
     }),
+    login: builder.mutation<any, any>({
+      query: (credentials) => ({
+        url: '/auth/login',
+        method: 'POST',
+        body: credentials,
+      }),
+    }),
   }),
 });
 
-export const { useRegisterMutation, useVerifyEmailMutation, useResendOtpMutation } = authApi;
+export const { useRegisterMutation, useVerifyEmailMutation, useResendOtpMutation, useLoginMutation } = authApi;
