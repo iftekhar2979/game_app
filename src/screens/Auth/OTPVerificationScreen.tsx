@@ -7,7 +7,7 @@ import { ChevronLeft } from 'lucide-react-native';
 import AuthLayout from '../../components/Layout/AuthLayout';
 import OTPInput from '../../components/Input/OTPInput';
 import PrimaryButton from '../../components/Button/PrimaryButton';
-import { useVerifyEmailMutation } from '../../store/api/authApi';
+import { useVerifyEmailMutation, useResendOtpMutation } from '../../store/api/authApi';
 import { Alert } from 'react-native';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList, 'OTPVerification'>;
@@ -17,6 +17,7 @@ const OTPVerificationScreen = () => {
   const [otp, setOtp] = useState('');
   const [timeLeft, setTimeLeft] = useState(83); // 01:23 = 83 seconds
   const [verifyEmail, { isLoading }] = useVerifyEmailMutation();
+  const [resendOtp, { isLoading: isResending }] = useResendOtpMutation();
 
   useEffect(() => {
     if (timeLeft <= 0) return;
@@ -34,10 +35,16 @@ const OTPVerificationScreen = () => {
     return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')} s`;
   };
 
-  const handleResend = () => {
-    if (timeLeft === 0) {
-      setTimeLeft(83);
-      // Trigger resend API logic here
+  const handleResend = async () => {
+    if (timeLeft === 0 && !isResending) {
+      try {
+        await resendOtp().unwrap();
+        setTimeLeft(83);
+        Alert.alert('Success', 'A new verification code has been sent to your email.');
+      } catch (error: any) {
+        console.error('Resend OTP failed:', error);
+        Alert.alert('Error', error?.data?.message || 'Failed to resend verification code');
+      }
     }
   };
 
@@ -68,16 +75,18 @@ const OTPVerificationScreen = () => {
 
       {/* Resend Timer */}
       <View className="px-6 flex-row justify-between items-center">
-        <Text className="text-white text-sm">Didn't got the code?</Text>
+        <Text className="text-white text-sm">Didn't get the code?</Text>
         <View className="flex-row items-center">
           <TouchableOpacity onPress={handleResend} disabled={timeLeft > 0}>
             <Text className={`text-sm font-medium ${timeLeft > 0 ? 'text-[#FF4A4A]/80' : 'text-[#FF4A4A]'}`}>
-              Resend in
+              {timeLeft > 0 ? 'Resend in' : 'Resend Code'}
             </Text>
           </TouchableOpacity>
-          <Text className="text-white text-sm ml-1 font-medium">
-            {formatTime(timeLeft)}
-          </Text>
+          {timeLeft > 0 && (
+            <Text className="text-white text-sm ml-1 font-medium">
+              {formatTime(timeLeft)}
+            </Text>
+          )}
         </View>
       </View>
 
