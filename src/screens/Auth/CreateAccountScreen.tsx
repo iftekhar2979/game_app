@@ -7,12 +7,13 @@ import { ChevronLeft, User, Mail, Calendar, KeyRound, Check } from 'lucide-react
 import DatePicker from 'react-native-date-picker';
 import AuthLayout from '../../components/Layout/AuthLayout';
 import { useDispatch } from 'react-redux';
-import { updateUser } from '../../store/slices/authSlice';
+import { setCredentials, updateUser } from '../../store/slices/authSlice';
 import AuthInput from '../../components/Input/AuthInput';
 import PrimaryButton from '../../components/Button/PrimaryButton';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
+import { useRegisterMutation } from '../../store/api/authApi';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList, 'CreateAccount'>;
 
@@ -73,11 +74,37 @@ const CreateAccountScreen = () => {
     },
   });
 
-  const onSubmit = (data: SignUpFormValues) => {
+  const [register, { isLoading }] = useRegisterMutation();
+
+  const onSubmit = async (data: SignUpFormValues) => {
     console.log('Create account pressed', data);
-    dispatch(updateUser({ email: data.email, name: data.name, dateOfBirth: data.dateOfBirth }));
-    showToast('Success', 'Account created successfully!', 'success');
-    navigation.navigate('CreateUsername' as never);
+
+    console.log('Create account pressed', data);
+    try {
+      const response = await register({
+        fullName: data.name,
+        email: data.email,
+        password: data.password,
+        dateOfBirth: data.dateOfBirth,
+        isTcPpAccepted: data.terms,
+      }).unwrap();
+
+      const token = response?.data?.accessToken;
+      if (token) {
+        dispatch(setCredentials({
+          user: { email: data.email, name: data.name, dateOfBirth: data.dateOfBirth },
+          token
+        }));
+      } else {
+        dispatch(updateUser({ email: data.email, name: data.name, dateOfBirth: data.dateOfBirth }));
+      }
+
+      showToast('Success', 'Account created successfully!', 'success');
+      navigation.navigate('CreateUsername' as never);
+    } catch (error: any) {
+      console.error('Registration failed full error:', JSON.stringify(error, null, 2));
+      showToast('Error', error?.data?.message || error?.error || 'Failed to create account', 'error');
+    }
   };
 
   const handleTermsToggle = () => {
@@ -161,7 +188,7 @@ const CreateAccountScreen = () => {
                     {errors.dateOfBirth.message}
                   </Text>
                 )}
-                
+
                 <DatePicker
                   modal
                   open={isCalendarVisible}
@@ -262,7 +289,8 @@ const CreateAccountScreen = () => {
         {/* Bottom Actions */}
         <View className="px-6 pb-8">
           <PrimaryButton
-            title="Register"
+            title={isLoading ? "Registering..." : "Register"}
+            disabled={isLoading}
             onPress={handleSubmit(onSubmit, (errors) => {
               console.log('Validation errors:', errors);
               showToast('Validation Error', 'Please check the form inputs.', 'error');
