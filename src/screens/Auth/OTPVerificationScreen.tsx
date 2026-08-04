@@ -7,6 +7,8 @@ import { ChevronLeft } from 'lucide-react-native';
 import AuthLayout from '../../components/Layout/AuthLayout';
 import OTPInput from '../../components/Input/OTPInput';
 import PrimaryButton from '../../components/Button/PrimaryButton';
+import { useVerifyEmailMutation } from '../../store/api/authApi';
+import { Alert } from 'react-native';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList, 'OTPVerification'>;
 
@@ -14,6 +16,7 @@ const OTPVerificationScreen = () => {
   const navigation = useNavigation<NavigationProp>();
   const [otp, setOtp] = useState('');
   const [timeLeft, setTimeLeft] = useState(83); // 01:23 = 83 seconds
+  const [verifyEmail, { isLoading }] = useVerifyEmailMutation();
 
   useEffect(() => {
     if (timeLeft <= 0) return;
@@ -84,10 +87,17 @@ const OTPVerificationScreen = () => {
       {/* Bottom Actions */}
       <View className="px-6 pb-6">
         <PrimaryButton 
-          title="Verify" 
-          onPress={() => {
+          title={isLoading ? "Verifying..." : "Verify"} 
+          disabled={isLoading || otp.length < 6}
+          onPress={async () => {
             console.log('Verify pressed with OTP:', otp);
-            navigation.navigate('ExploreAvatar' as never);
+            try {
+              await verifyEmail({ code: otp }).unwrap();
+              navigation.navigate('ExploreAvatar' as never);
+            } catch (error: any) {
+              console.error('Verify failed:', error);
+              Alert.alert('Error', error?.data?.message || 'Invalid or expired verification code');
+            }
           }}
         />
       </View>
