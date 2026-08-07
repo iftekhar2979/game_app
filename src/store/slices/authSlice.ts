@@ -5,6 +5,8 @@ export interface UserProfile {
   email?: string;
   dateOfBirth?: string;
   name?: string;
+  fullName?: string;
+  avatarUrl?: string;
 }
 
 interface AuthState {

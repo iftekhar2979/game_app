@@ -9,6 +9,7 @@ import { saveAvatar } from '../../store/slices/avatarSlice';
 import ViewShot from 'react-native-view-shot';
 import { RootStackParamList } from '../../../App';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useUpdateMeMutation, useLazyGetPreSignedUrlQuery } from '../../store/api/usersApi';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList, 'GenerateAvatar'>;
 type GenerateAvatarRouteProp = RouteProp<RootStackParamList, 'GenerateAvatar'>;
@@ -134,6 +135,9 @@ const GenerateAvatarScreen = () => {
   const insets = useSafeAreaInsets();
   const dispatch = useDispatch();
   const viewShotRef = useRef<any>(null);
+
+  const [updateMe, { isLoading: isUpdating }] = useUpdateMeMutation();
+  const [getPreSignedUrl] = useLazyGetPreSignedUrlQuery();
 
   const target = route.params?.target || 'female';
   const avatarCategory = route.params?.avatarCategory || 1;
@@ -693,32 +697,68 @@ const GenerateAvatarScreen = () => {
         <TouchableOpacity
           className="w-full bg-black/60 border border-[#B366FF] py-4 rounded-full items-center justify-center backdrop-blur-md"
           activeOpacity={0.8}
+          disabled={isUpdating}
           onPress={async () => {
             if (viewShotRef.current && viewShotRef.current.capture) {
               try {
                 const uri = await viewShotRef.current.capture();
+                const config = {
+                  target,
+                  avatarCategory,
+                  isFullbody,
+                  details: {
+                    selectedHair,
+                    selectedHairColor,
+                    selectedBody,
+                    selectedBodyColor,
+                    selectedFullbodyHair,
+                    selectedFullbodySkirt,
+                    selectedFullbodyOutfit,
+                    selectedShoes,
+                  },
+                };
+
+                // 1. Get Pre-signed URL
+                const fileName = `avatar_${Date.now()}.png`;
+                const { data: preSignedData } = await getPreSignedUrl({
+                  fileName,
+                  primaryPath: 'Avatars',
+                  expiresIn: '900'
+                }).unwrap();
+                
+                if (preSignedData && preSignedData.url) {
+                  // 2. Upload to S3
+                  const response = await fetch(uri);
+                  const blob = await response.blob();
+                  
+                  await fetch(preSignedData.url, {
+                    method: 'PUT',
+                    body: blob,
+                    headers: {
+                      'Content-Type': 'image/png',
+                    },
+                  });
+
+                  // 3. Extract the final S3 URL (without the query params)
+                  const avatarUrl = preSignedData.url.split('?')[0];
+
+                  // 4. Save to Backend
+                  await updateMe({
+                    avatarUrl,
+                    avatarConfig: config
+                  }).unwrap();
+                }
+
+                // 5. Save locally in Redux (Optional but good for immediate state)
                 dispatch(
                   saveAvatar({
                     id: Date.now().toString(),
                     imageUri: uri,
-                    configuration: {
-                      target,
-                      avatarCategory,
-                      isFullbody,
-                      details: {
-                        selectedHair,
-                        selectedHairColor,
-                        selectedBody,
-                        selectedBodyColor,
-                        selectedFullbodyHair,
-                        selectedFullbodySkirt,
-                        selectedFullbodyOutfit,
-                        selectedShoes,
-                      },
-                    },
+                    configuration: config,
                     createdAt: Date.now(),
                   })
                 );
+
                 // Navigate to the correct screen
                 if (route.params?.returnTo) {
                   navigation.navigate(route.params.returnTo as any);
@@ -726,12 +766,12 @@ const GenerateAvatarScreen = () => {
                   navigation.navigate('Home');
                 }
               } catch (error) {
-                console.error('Failed to capture avatar', error);
+                console.error('Failed to capture and upload avatar', error);
               }
             }
           }}
         >
-          <Text className="text-white font-semibold text-base">Create avatar</Text>
+          <Text className="text-white font-semibold text-base">{isUpdating ? 'Saving...' : 'Create avatar'}</Text>
         </TouchableOpacity>
       </View>
     </View>
