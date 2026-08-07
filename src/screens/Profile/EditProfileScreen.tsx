@@ -1,15 +1,57 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, TextInput, ImageBackground, Image, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ChevronLeft, Settings, Edit2, User, MapPin, Users, ChevronDown, Home } from 'lucide-react-native';
 import { useNavigation } from '@react-navigation/native';
-import { useSelector } from 'react-redux';
+import { useSelector, useDispatch } from 'react-redux';
 import { RootState } from '../../store';
+import { updateUser } from '../../store/slices/authSlice';
+import { useGetMeQuery, useUpdateMeMutation } from '../../store/api/usersApi';
+import { ActivityIndicator, Alert } from 'react-native';
 
 export default function EditProfileScreen() {
   const navigation = useNavigation();
+  const dispatch = useDispatch();
   const avatars = useSelector((state: RootState) => state.avatar.savedAvatars);
-  const userAvatarUri = avatars.length > 0 ? avatars[0].imageUri : 'https://i.pravatar.cc/150?img=11';
+  const authUser = useSelector((state: RootState) => state.auth.user);
+
+  const { data: userData, isLoading: isFetchingMe } = useGetMeQuery();
+  const [updateMe, { isLoading: isUpdating }] = useUpdateMeMutation();
+
+  const [fullName, setFullName] = useState('');
+  const [username, setUsername] = useState('');
+
+  useEffect(() => {
+    if (userData) {
+      const user = userData.data || userData;
+      setFullName(user.fullName || authUser?.fullName || '');
+      setUsername(user.username || authUser?.username || '');
+    }
+  }, [userData, authUser?.fullName, authUser?.username]);
+
+  const userAvatarUri = avatars.length > 0
+    ? avatars[0].imageUri
+    : (userData?.data?.avatarUrl || userData?.avatarUrl || authUser?.avatarUrl || 'https://i.pravatar.cc/150?img=11');
+
+  const handleSave = async () => {
+    try {
+      await updateMe({ fullName, username }).unwrap();
+      // Sync saved changes to global auth state
+      dispatch(updateUser({ fullName, username, avatarUrl: userAvatarUri }));
+      Alert.alert('Success', 'Profile updated successfully');
+      navigation.goBack();
+    } catch (error: any) {
+      Alert.alert('Error', error?.data?.message || 'Failed to update profile');
+    }
+  };
+
+  if (isFetchingMe) {
+    return (
+      <View className="flex-1 bg-black justify-center items-center">
+        <ActivityIndicator size="large" color="#FFB84D" />
+      </View>
+    );
+  }
 
   return (
     <View className="flex-1 bg-black">
@@ -70,7 +112,8 @@ export default function EditProfileScreen() {
               className="flex-1 text-white text-[15px] p-0 m-0"
               placeholder="Name"
               placeholderTextColor="#666"
-              defaultValue="David"
+              value={fullName}
+              onChangeText={setFullName}
             />
           </View>
 
@@ -81,7 +124,8 @@ export default function EditProfileScreen() {
               className="flex-1 text-white text-[15px] p-0 m-0"
               placeholder="User name"
               placeholderTextColor="#666"
-              defaultValue="thomas097"
+              value={username}
+              onChangeText={setUsername}
             />
           </View>
 
@@ -104,9 +148,14 @@ export default function EditProfileScreen() {
         <View className="px-5 mt-auto pt-8">
           <TouchableOpacity 
             className="w-full bg-[#8B3DFF] py-4 rounded-[24px] items-center"
-            onPress={() => navigation.goBack()}
+            onPress={handleSave}
+            disabled={isUpdating}
           >
-            <Text className="text-white text-[16px] font-bold">Save changes</Text>
+            {isUpdating ? (
+              <ActivityIndicator color="#fff" />
+            ) : (
+              <Text className="text-white text-[16px] font-bold">Save changes</Text>
+            )}
           </TouchableOpacity>
         </View>
       </ScrollView>
