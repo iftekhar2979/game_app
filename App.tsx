@@ -38,6 +38,7 @@ import PrivacyPolicyScreen from './src/screens/Profile/PrivacyPolicyScreen';
 import TermsOfServiceScreen from './src/screens/Profile/TermsOfServiceScreen';
 import AdminSupportScreen from './src/screens/Profile/AdminSupportScreen';
 import CreateUsernameScreen from './src/screens/Auth/CreateUsernameScreen';
+import { ToastContainer } from './src/components/common/Toast';
 // import SettingsScreen from './src/screens/Profile/SettingsScreen';
 // import AboutUsScreen from './src/screens/Profile/AboutUsScreen';
 // import PrivacyPolicyScreen from './src/screens/Profile/PrivacyPolicyScreen';
@@ -110,6 +111,7 @@ function App() {
             <Stack.Screen name="AdminSupport" component={AdminSupportScreen} />
           </Stack.Navigator>
         </NavigationContainer>
+        <ToastContainer />
       </SafeAreaProvider>
     </Provider>
   );

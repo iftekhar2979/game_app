@@ -7,6 +7,7 @@ import { useSelector, useDispatch } from 'react-redux';
 import { RootState } from '../../store';
 import { updateUser } from '../../store/slices/authSlice';
 import { useGetMeQuery, useUpdateMeMutation } from '../../store/api/usersApi';
+import { showToast } from '../../utils/toast';
 import { ActivityIndicator, Alert } from 'react-native';
 
 export default function EditProfileScreen() {
@@ -38,10 +39,10 @@ export default function EditProfileScreen() {
       await updateMe({ fullName, username }).unwrap();
       // Sync saved changes to global auth state
       dispatch(updateUser({ fullName, username, avatarUrl: userAvatarUri }));
-      Alert.alert('Success', 'Profile updated successfully');
+      showToast.success('Success', 'Profile updated successfully');
       navigation.goBack();
     } catch (error: any) {
-      Alert.alert('Error', error?.data?.message || 'Failed to update profile');
+      showToast.error('Error', error?.data?.message || 'Failed to update profile');
     }
   };
 
