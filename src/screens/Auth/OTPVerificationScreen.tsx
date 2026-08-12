@@ -8,6 +8,7 @@ import AuthLayout from '../../components/Layout/AuthLayout';
 import OTPInput from '../../components/Input/OTPInput';
 import PrimaryButton from '../../components/Button/PrimaryButton';
 import { useVerifyEmailMutation, useResendOtpMutation } from '../../store/api/authApi';
+import { showToast } from '../../utils/toast';
 import { Alert } from 'react-native';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList, 'OTPVerification'>;
@@ -40,10 +41,9 @@ const OTPVerificationScreen = () => {
       try {
         await resendOtp().unwrap();
         setTimeLeft(83);
-        Alert.alert('Success', 'A new verification code has been sent to your email.');
+        showToast.success('Success', 'A new verification code has been sent to your email.');
       } catch (error: any) {
-        console.error('Resend OTP failed:', error);
-        Alert.alert('Error', error?.data?.message || 'Failed to resend verification code');
+        showToast.error('Error', error?.data?.message || 'Failed to resend verification code');
       }
     }
   };

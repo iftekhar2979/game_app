@@ -13,6 +13,7 @@ import { z } from 'zod';
 import { useDispatch } from 'react-redux';
 import { setCredentials } from '../../store/slices/authSlice';
 import { useLoginMutation } from '../../store/api/authApi';
+import { showToast } from '../../utils/toast';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList, 'SignIn'>;
 
@@ -64,7 +65,7 @@ const SignInScreen = () => {
       }
     } catch (error: any) {
       console.error('Login failed:', error);
-      Alert.alert('Error', error?.data?.message || 'Login failed. Please check your credentials.');
+      showToast.error('Login Failed', error?.data?.message || 'Please check your credentials.');
     }
   };
 

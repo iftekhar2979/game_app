@@ -4,6 +4,9 @@ import authReducer from './slices/authSlice';
 import avatarReducer from './slices/avatarSlice';
 import leagueReducer from './slices/leagueSlice';
 import postReducer from './slices/postSlice';
+// Import injected APIs just so they attach to baseApi
+import './api/seasonApi';
+import './api/leagueApi';
 
 export const store = configureStore({
   reducer: {
