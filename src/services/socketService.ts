@@ -1,4 +1,5 @@
-import { io, Socket } from 'socket.io-client';
+// @ts-ignore
+import { io, Socket } from 'socket.io-client/dist/socket.io.js';
 import { API_URL } from '../config';
 
 export const getSocketBaseUrl = (): string => {
@@ -30,16 +31,17 @@ export const getSocket = (): Socket => {
       console.log('[SocketService] Connected! Socket ID:', socketInstance?.id);
     });
 
-    socketInstance.on('connect_error', (err) => {
-      console.warn('[SocketService] Socket connection error:', err.message);
+    socketInstance.on('connect_error', (err: any) => {
+      console.warn('[SocketService] Socket connection error:', err?.message || err);
     });
 
-    socketInstance.on('disconnect', (reason) => {
+    socketInstance.on('disconnect', (reason: any) => {
       console.log('[SocketService] Disconnected:', reason);
     });
   }
   return socketInstance;
 };
+
 
 export const joinLeagueRoom = (leagueId: string) => {
   if (!leagueId) return;

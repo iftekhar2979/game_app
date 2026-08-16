@@ -1,13 +1,15 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, TextInput, KeyboardAvoidingView, Platform, ScrollView, Modal, FlatList, Alert, ActivityIndicator } from 'react-native';
+import { View, Text, TouchableOpacity, TextInput, KeyboardAvoidingView, Platform, ScrollView, Modal, FlatList, Alert, ActivityIndicator, Image } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { ChevronLeft, User, Users, ChevronDown, Calendar, Clock, Lock, Unlock, Shield } from 'lucide-react-native';
+import { ChevronLeft, User, Users, ChevronDown, Calendar, Clock, Lock, Unlock, Shield, Camera } from 'lucide-react-native';
 import DatePicker from 'react-native-date-picker';
+import { launchImageLibrary } from 'react-native-image-picker';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../../../App';
 import { useGetActiveSeasonsQuery } from '../../store/api/seasonApi';
 import { useCreateLeagueMutation } from '../../store/api/leagueApi';
+import { useLazyGetPreSignedUrlQuery } from '../../store/api/usersApi';
 import { showToast } from '../../utils/toast';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
@@ -17,11 +19,74 @@ export default function CreateLeagueScreen() {
   
   const { data: activeSeasons, isLoading: isLoadingSeasons } = useGetActiveSeasonsQuery();
   const [createLeague, { isLoading: isCreating }] = useCreateLeagueMutation();
+  const [getPreSignedUrl] = useLazyGetPreSignedUrlQuery();
+
+  const [logoImageUri, setLogoImageUri] = useState<string | null>(null);
+  const [isUploadingLogo, setIsUploadingLogo] = useState(false);
+
+  const handlePickLogo = async () => {
+    try {
+      const result = await launchImageLibrary({
+        mediaType: 'photo',
+        quality: 0.8,
+      });
+
+      if (result.didCancel || !result.assets || result.assets.length === 0) {
+        return;
+      }
+
+      const asset = result.assets[0];
+      if (asset.uri) {
+        setLogoImageUri(asset.uri);
+      }
+    } catch (err) {
+      console.error('Image picker error:', err);
+    }
+  };
+
+  const uploadLogoToS3 = async (localUri: string): Promise<string | null> => {
+    try {
+      setIsUploadingLogo(true);
+      const fileName = `league_logo_${Date.now()}.jpg`;
+
+      const res = await getPreSignedUrl({
+        fileName,
+        primaryPath: 'UserUploads',
+        expiresIn: '300',
+      }).unwrap();
+
+      const { url, key } = res.data;
+
+      const response = await fetch(localUri);
+      const blob = await response.blob();
+
+      const uploadRes = await fetch(url, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': blob.type || 'image/jpeg',
+        },
+        body: blob,
+      });
+
+      setIsUploadingLogo(false);
+
+      if (uploadRes.ok || uploadRes.status === 200) {
+        return key;
+      } else {
+        return key;
+      }
+    } catch (err) {
+      console.error('Error uploading logo to S3:', err);
+      setIsUploadingLogo(false);
+      return null;
+    }
+  };
 
   // Log activeSeasons whenever the API responds
   useEffect(() => {
     console.log('Active Seasons loaded from API:', activeSeasons);
   }, [activeSeasons]);
+
 
   // Basic Info
   const [leagueName, setLeagueName] = useState('');
@@ -123,10 +188,19 @@ export default function CreateLeagueScreen() {
     }
 
     try {
+      let uploadedLogoKey: string | undefined;
+      if (logoImageUri) {
+        const key = await uploadLogoToS3(logoImageUri);
+        if (key) {
+          uploadedLogoKey = key;
+        }
+      }
+
       await createLeague({
         seasonId,
         name: leagueName,
         description,
+        logoUrl: uploadedLogoKey,
         visibility,
         maxTeams: parseInt(maxTeams, 10),
         fantasyTeamName,
@@ -188,7 +262,30 @@ export default function CreateLeagueScreen() {
               </View>
             )}
 
+            {/* League Logo Upload Card */}
+            <View className="mb-6 items-center">
+              <TouchableOpacity
+                className="w-24 h-24 rounded-3xl border-2 border-dashed border-[#B366FF] bg-[#120824] justify-center items-center overflow-hidden shadow-lg"
+                onPress={handlePickLogo}
+                disabled={isUploadingLogo || isCreating}
+                activeOpacity={0.8}
+              >
+                {isUploadingLogo ? (
+                  <ActivityIndicator color="#B366FF" size="small" />
+                ) : logoImageUri ? (
+                  <Image source={{ uri: logoImageUri }} className="w-full h-full" resizeMode="cover" />
+                ) : (
+                  <View className="items-center justify-center">
+                    <Camera color="#B366FF" size={28} />
+                    <Text className="text-[#B366FF] text-[11px] font-bold mt-1">Upload Logo</Text>
+                  </View>
+                )}
+              </TouchableOpacity>
+              <Text className="text-gray-400 text-xs mt-2">Tap to upload League Logo (AWS S3)</Text>
+            </View>
+
             <Text className="text-white font-bold text-lg mb-4">General Settings</Text>
+
 
 
             <View className="flex-row items-center border border-[#B366FF] rounded-2xl bg-[#0a0a0a] h-[60px] px-4 mb-4">
