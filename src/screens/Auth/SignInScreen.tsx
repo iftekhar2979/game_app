@@ -3,7 +3,7 @@ import { View, Text, TouchableOpacity, Alert } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../../../App';
-import { ChevronLeft, Mail, KeyRound } from 'lucide-react-native';
+import { Mail, KeyRound } from 'lucide-react-native';
 import AuthLayout from '../../components/Layout/AuthLayout';
 import AuthInput from '../../components/Input/AuthInput';
 import PrimaryButton from '../../components/Button/PrimaryButton';
@@ -14,6 +14,8 @@ import { useDispatch } from 'react-redux';
 import { setCredentials } from '../../store/slices/authSlice';
 import { useLoginMutation } from '../../store/api/authApi';
 import { showToast } from '../../utils/toast';
+
+import { authService } from '../../services/authService';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList, 'SignIn'>;
 
@@ -42,24 +44,19 @@ const SignInScreen = () => {
     try {
       const response = await login(data).unwrap();
       
-      const token = response?.data?.accessToken;
-      const isEmailVerified = response?.data?.isEmailVerified;
-      const user = response?.data?.user;
+      const resData = response?.data || response;
+      const accessToken = resData?.accessToken;
+      const refreshToken = resData?.refreshToken;
+      const isEmailVerified = resData?.isEmailVerified;
+      const user = resData?.user;
 
-      if (token) {
+      if (accessToken) {
+        const userObj = { email: user?.email || data.email, name: user?.fullName || user?.name || '' };
+        await authService.handleLoginSuccess(dispatch, accessToken, refreshToken || '', userObj);
+
         if (isEmailVerified === false) {
-          // Store token to allow verification requests
-          dispatch(setCredentials({ 
-            user: { email: data.email },
-            token 
-          }));
           navigation.navigate('OTPVerification' as never);
         } else {
-          // Successful full login
-          dispatch(setCredentials({ 
-            user: { email: user?.email, name: user?.fullName },
-            token 
-          }));
           navigation.navigate('Home' as never);
         }
       }
@@ -71,18 +68,8 @@ const SignInScreen = () => {
 
   return (
     <AuthLayout>
-      {/* Header */}
-      <View className="px-6 mb-10 mt-2">
-        <TouchableOpacity
-          onPress={() => navigation.goBack()}
-          className="w-10 h-10 border border-[#3A144E] rounded-xl items-center justify-center bg-black/40"
-        >
-          <ChevronLeft color="white" size={24} />
-        </TouchableOpacity>
-      </View>
-
       {/* Title & Subtitle */}
-      <View className="px-6 items-center mb-10 mt-10">
+      <View className="px-6 items-center mb-10 mt-14">
         <Text className="text-3xl text-white font-bold tracking-tight mb-4">Sign in</Text>
         <Text className="text-textSecondary text-center text-sm leading-5 px-4">
           Enter your email and password, sign in into the app

@@ -1,6 +1,6 @@
-import React from 'react';
-import { View, Text, Image, TouchableOpacity, ScrollView, Modal, Pressable } from 'react-native';
-import { ChevronLeft, ChevronDown, Upload, User, Users, Plus, Minus, Unlock } from 'lucide-react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, Image, TouchableOpacity, ScrollView, Modal, Pressable, TextInput, ActivityIndicator } from 'react-native';
+import { ChevronLeft, ChevronDown, Upload, User, Users, Plus, Minus, Unlock, ShieldAlert, CheckCircle } from 'lucide-react-native';
 
 export const LeagueSettingsModal = ({ isVisible, onClose, onOptionSelect }: any) => {
   const SETTINGS_OPTIONS = [
@@ -462,3 +462,101 @@ export const DeleteLeagueModal = ({ isVisible, onClose, onDelete }: any) => {
     </Modal>
   );
 };
+
+export const JoinLeagueModal = ({
+  isVisible,
+  onClose,
+  onJoin,
+  isLoading,
+  leagueName,
+  errorText,
+}: {
+  isVisible: boolean;
+  onClose: () => void;
+  onJoin: (fantasyTeamName: string) => void;
+  isLoading?: boolean;
+  leagueName?: string;
+  errorText?: string | null;
+}) => {
+  const [teamName, setTeamName] = useState('');
+
+  useEffect(() => {
+    if (isVisible) {
+      setTeamName('');
+    }
+  }, [isVisible]);
+
+  const handleJoin = () => {
+    if (teamName.trim().length >= 3) {
+      onJoin(teamName.trim());
+    }
+  };
+
+  return (
+    <Modal visible={isVisible} transparent={true} animationType="slide" onRequestClose={onClose}>
+      <TouchableOpacity
+        className="flex-1 bg-black/80 justify-end"
+        activeOpacity={1}
+        onPress={onClose}
+      >
+        <TouchableOpacity
+          activeOpacity={1}
+          className="bg-[#1a1a1a] rounded-t-[32px] p-6 border-t border-[#333] w-full"
+        >
+          <View className="w-12 h-1 bg-gray-600 rounded-full self-center mb-6" />
+          <Text className="text-white text-[20px] font-bold mb-1 text-center">Join Public League</Text>
+          <Text className="text-[#E0B566] text-[13px] text-center mb-6">
+            {leagueName ? `Joining "${leagueName}"` : 'Enter your team details to join'}
+          </Text>
+
+          {errorText ? (
+            <View className="bg-red-900/40 border border-red-500/50 rounded-xl p-3 mb-4 flex-row items-center">
+              <ShieldAlert color="#ff6b6b" size={18} className="mr-2" />
+              <Text className="text-red-300 text-xs flex-1">{errorText}</Text>
+            </View>
+          ) : null}
+
+          <Text className="text-gray-300 text-[13px] font-medium mb-2">Fantasy Team Name</Text>
+          <View className="border border-[#8B3DFF] rounded-[16px] flex-row items-center px-4 h-[54px] mb-2 bg-[#0d0d0d]">
+            <User color="#E0B566" size={20} className="mr-3" />
+            <TextInput
+              placeholder="e.g. Thunder Cheer Captains"
+              placeholderTextColor="#666"
+              className="flex-1 text-white text-[15px]"
+              value={teamName}
+              onChangeText={setTeamName}
+              maxLength={40}
+              autoCapitalize="words"
+            />
+          </View>
+          <Text className="text-gray-500 text-[11px] mb-6">Team name must be at least 3 characters long.</Text>
+
+          <View className="flex-row items-center gap-3">
+            <TouchableOpacity
+              className="flex-1 border border-gray-600 h-[52px] rounded-full justify-center items-center"
+              onPress={onClose}
+              disabled={isLoading}
+            >
+              <Text className="text-gray-300 text-[15px] font-medium">Cancel</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              className={`flex-1 h-[52px] rounded-full justify-center items-center ${
+                teamName.trim().length >= 3 ? 'bg-[#8B3DFF]' : 'bg-gray-700 opacity-60'
+              }`}
+              onPress={handleJoin}
+              disabled={teamName.trim().length < 3 || isLoading}
+            >
+              {isLoading ? (
+                <ActivityIndicator color="#fff" size="small" />
+              ) : (
+                <Text className="text-white text-[15px] font-bold">Join League</Text>
+              )}
+            </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
+      </TouchableOpacity>
+    </Modal>
+  );
+};
+

@@ -7,6 +7,7 @@ export interface League {
   logoUri?: string;
   draftDate?: string;
   draftTime?: string;
+  visibility?: 'public' | 'private';
   createdAt: number;
 }
 

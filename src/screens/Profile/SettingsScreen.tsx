@@ -3,9 +3,12 @@ import { View, Text, TouchableOpacity, ScrollView, Modal, StyleSheet } from 'rea
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ChevronLeft, ChevronRight, User, Shield, FileText, Headset, LogOut, Trash2 } from 'lucide-react-native';
 import { useNavigation } from '@react-navigation/native';
+import { useDispatch } from 'react-redux';
+import { authService } from '../../services/authService';
 
 export default function SettingsScreen() {
   const navigation = useNavigation();
+  const dispatch = useDispatch();
   const [isLogoutModalVisible, setIsLogoutModalVisible] = useState(false);
 
   return (
@@ -123,10 +126,7 @@ export default function SettingsScreen() {
             className="flex-1 bg-[#D32F2F] py-3 rounded-full ml-2 items-center shadow-md shadow-red-900/50"
             onPress={() => {
               setIsLogoutModalVisible(false);
-              navigation.reset({
-                index: 0,
-                routes: [{ name: 'SignIn' as never }],
-              });
+              authService.handleLogout(dispatch);
             }}
           >          
             <Text className="text-white font-medium">Yes</Text>

@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet, Image, TouchableOpacity, ScrollView, FlatList } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { ChevronLeft, Bell, MessageSquare, PlusSquare, ThumbsUp } from 'lucide-react-native';
+import { Bell, MessageSquare, PlusSquare, ThumbsUp } from 'lucide-react-native';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../../../App';
@@ -24,10 +24,12 @@ export default function HomeScreen() {
 
   const createdLeagues = useSelector((state: RootState) => state.league.leagues);
   const mockLeagues = [
-    { id: 'mock-1', name: '2026 Final cheer', logoUri: 'https://upload.wikimedia.org/wikipedia/en/thumb/0/0c/Liverpool_FC.svg/150px-Liverpool_FC.svg.png' },
-    { id: 'mock-2', name: '2026 Final cheer', logoUri: 'https://upload.wikimedia.org/wikipedia/en/thumb/0/0c/Liverpool_FC.svg/150px-Liverpool_FC.svg.png' },
+    { id: 'mock-1', name: '2026 Final cheer', logoUri: 'https://upload.wikimedia.org/wikipedia/en/thumb/0/0c/Liverpool_FC.svg/150px-Liverpool_FC.svg.png', visibility: 'public' },
+    { id: 'mock-2', name: '2026 Final cheer', logoUri: 'https://upload.wikimedia.org/wikipedia/en/thumb/0/0c/Liverpool_FC.svg/150px-Liverpool_FC.svg.png', visibility: 'public' },
   ];
-  const allLeagues = [...createdLeagues, ...mockLeagues];
+  const allLeagues = [...createdLeagues, ...mockLeagues].filter(
+    (league: any) => league.visibility === 'public' || !league.visibility
+  );
 
   const [isCommentsModalVisible, setIsCommentsModalVisible] = React.useState(false);
   const [activeCommentCount, setActiveCommentCount] = React.useState(0);
@@ -50,12 +52,6 @@ export default function HomeScreen() {
       {/* Header */}
       <View style={styles.header}>
         <View style={styles.headerLeft}>
-          <TouchableOpacity 
-            style={styles.backButton}
-            onPress={() => navigation.goBack()}
-          >
-            <ChevronLeft color="#fff" size={24} />
-          </TouchableOpacity>
           <TouchableOpacity 
             style={{ flexDirection: 'row', alignItems: 'center' }} 
             onPress={() => navigation.navigate('Profile')}

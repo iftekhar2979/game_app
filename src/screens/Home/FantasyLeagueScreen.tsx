@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, Image, TouchableOpacity, FlatList } from 'react-native';
+import { View, Text, Image, TouchableOpacity, FlatList, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ChevronLeft, Plus } from 'lucide-react-native';
 import { useNavigation } from '@react-navigation/native';
@@ -7,11 +7,11 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../../../App';
 import { useSelector } from 'react-redux';
 import { RootState } from '../../store';
-import { League } from '../../store/slices/leagueSlice';
+import { useGetLeaguesQuery } from '../../store/api/leagueApi';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
-// Mock data representing the list in the screenshot
+// Fallback mock data if API returns empty
 const MOCK_LEAGUES = [
   { id: 'mock-1', name: '2026 Final cheer', membersCount: 10, status: 'Draft' },
   { id: 'mock-2', name: '2026 Final cheer', membersCount: 12, status: 'Draft' },
@@ -23,15 +23,35 @@ const MOCK_LEAGUES = [
 export default function FantasyLeagueScreen() {
   const navigation = useNavigation<NavigationProp>();
   const createdLeagues = useSelector((state: RootState) => state.league.leagues);
+  const { data: apiLeagues, isLoading, refetch, isFetching } = useGetLeaguesQuery();
 
-  // Combine created leagues and mock leagues
-  const allLeagues = [
-    ...createdLeagues.map(league => ({
-      ...league,
-      status: 'Draft' // newly created leagues can default to Draft
-    })),
-    ...MOCK_LEAGUES
-  ];
+  const formattedApiLeagues = (apiLeagues || []).map((league: any) => ({
+    id: league._id || league.id,
+    name: league.name || 'Fantasy League',
+    membersCount: league.joinedTeamCount ?? league.membersCount ?? 1,
+    status:
+      league.status === 'registration_open' ||
+      league.status === 'drafting' ||
+      league.status === 'DRAFT' ||
+      league.status === 'Draft'
+        ? 'Draft'
+        : 'Play',
+    logoUri: league.logoUri || league.logoUrl,
+    visibility: league.visibility || 'public',
+    createdAt: league.createdAt ? new Date(league.createdAt).getTime() : 0,
+  }));
+
+  // Combine backend leagues, local state leagues, and mock fallback
+  const allLeagues =
+    formattedApiLeagues.length > 0
+      ? formattedApiLeagues
+      : [
+          ...createdLeagues.map((league) => ({
+            ...league,
+            status: 'Draft',
+          })),
+          ...MOCK_LEAGUES,
+        ];
 
   const renderItem = ({ item }: { item: any }) => (
     <TouchableOpacity 
@@ -75,13 +95,22 @@ export default function FantasyLeagueScreen() {
       </View>
 
       {/* List */}
-      <FlatList
-        data={allLeagues}
-        keyExtractor={item => item.id}
-        renderItem={renderItem}
-        contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 100 }}
-        showsVerticalScrollIndicator={false}
-      />
+      {isLoading ? (
+        <View className="flex-1 justify-center items-center">
+          <ActivityIndicator size="large" color="#E0B566" />
+          <Text className="text-gray-400 text-xs mt-3">Loading Fantasy Leagues...</Text>
+        </View>
+      ) : (
+        <FlatList
+          data={allLeagues}
+          keyExtractor={(item) => item.id}
+          renderItem={renderItem}
+          refreshing={isFetching}
+          onRefresh={refetch}
+          contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 100 }}
+          showsVerticalScrollIndicator={false}
+        />
+      )}
 
       {/* Floating Action Button */}
       <TouchableOpacity 

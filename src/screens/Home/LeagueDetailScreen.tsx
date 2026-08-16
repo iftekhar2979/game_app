@@ -1,14 +1,16 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, Image, TouchableOpacity, ScrollView, TextInput, Modal } from 'react-native';
+import { View, Text, Image, TouchableOpacity, ScrollView, TextInput, Modal, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { ChevronLeft, MoreVertical } from 'lucide-react-native';
+import { ChevronLeft, MoreVertical, UserCheck, Plus, Users } from 'lucide-react-native';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../../../App';
 import { useSelector } from 'react-redux';
 import { RootState } from '../../store';
+import { useGetLeagueDetailsQuery, useGetLeagueMembersQuery, useJoinLeagueMutation } from '../../store/api/leagueApi';
 import { MatchupTab, DraftTab, TeamTab, PlayersTab, LeagueTab } from '../../components/LeagueDetail/LeagueDetailTabs';
-import { AddTeamModal, PlayerDetailModal, LeagueSettingsModal, LeagueSettingsSubModal, RosterSettingsSubModal, MemberSettingsSubModal, GiveCommissionerAccessModal, LockRosterModal, DeleteLeagueModal } from '../../components/LeagueDetail/LeagueDetailModals';
+import { AddTeamModal, PlayerDetailModal, LeagueSettingsModal, LeagueSettingsSubModal, RosterSettingsSubModal, MemberSettingsSubModal, GiveCommissionerAccessModal, LockRosterModal, DeleteLeagueModal, JoinLeagueModal } from '../../components/LeagueDetail/LeagueDetailModals';
+
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList, 'LeagueDetail'>;
 type RouteProps = RouteProp<RootStackParamList, 'LeagueDetail'>;
@@ -74,17 +76,73 @@ export default function LeagueDetailScreen() {
   const route = useRoute<RouteProps>();
   const { leagueId } = route.params;
 
-  // Retrieve league data
+  // Fetch real API league data if leagueId is an API ID
+  const isMockId = !leagueId || leagueId.startsWith('mock-');
+  const { data: apiLeagueData, isLoading: isApiLoading, refetch: refetchLeagueDetails } = useGetLeagueDetailsQuery(leagueId, {
+    skip: isMockId,
+  });
+  const { data: apiMembersData, refetch: refetchMembers } = useGetLeagueMembersQuery(leagueId, {
+    skip: isMockId,
+  });
+  const [joinLeagueMutation, { isLoading: isJoiningLeague }] = useJoinLeagueMutation();
+
+  const callerInfo = apiLeagueData?.caller;
+
   const createdLeagues = useSelector((state: RootState) => state.league.leagues);
-  const league: any = createdLeagues.find(l => l.id === leagueId) || MOCK_LEAGUES.find(l => l.id === leagueId) || MOCK_LEAGUES[0];
+  const localLeague: any = createdLeagues.find(l => l.id === leagueId) || MOCK_LEAGUES.find(l => l.id === leagueId) || MOCK_LEAGUES[0];
+
+  const rawLeague = apiLeagueData?.league || apiLeagueData;
+  const draftStartsAt =
+    rawLeague?.draftStartsAt ||
+    rawLeague?.settings?.draftSettings?.draftStartsAt ||
+    localLeague?.draftDate ||
+    localLeague?.draftStartsAt;
+
+  const league = rawLeague
+    ? {
+        id: rawLeague._id || rawLeague.id || leagueId,
+        name: rawLeague.name || localLeague?.name || 'Fantasy League',
+        logoUri:
+          rawLeague.logoUri ||
+          rawLeague.logoUrl ||
+          localLeague?.logoUri ||
+          'https://images.unsplash.com/photo-1614680376593-902f74cf0d41?q=80&w=150&auto=format&fit=crop',
+        membersCount: rawLeague.joinedTeamCount ?? rawLeague.maxTeams ?? localLeague?.membersCount ?? 8,
+        maxTeams: rawLeague.maxTeams ?? 12,
+        status:
+          rawLeague.status === 'registration_open' || rawLeague.status === 'drafting'
+            ? 'Draft'
+            : rawLeague.status || localLeague?.status || 'Draft',
+        code: rawLeague.code || '',
+        description: rawLeague.description || '',
+        visibility: rawLeague.visibility || 'public',
+        draftStartsAt,
+      }
+    : localLeague;
 
   const [currentLeagueStatus, setCurrentLeagueStatus] = useState(league?.status);
   const [timeLeft, setTimeLeft] = useState<{ days: number; hours: number; minutes: number; seconds: number } | null>(null);
   const [isDraftStarted, setIsDraftStarted] = useState(false);
   const [activeTab, setActiveTab] = useState<'Matchup' | 'Draft' | 'Team' | 'Players' | 'League'>(currentLeagueStatus === 'Play' ? 'Matchup' : 'Draft');
 
+  const [isUserJoined, setIsUserJoined] = useState(false);
+  const [isJoinModalVisible, setIsJoinModalVisible] = useState(false);
+  const [joinErrorText, setJoinErrorText] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (league?.status) {
+      setCurrentLeagueStatus(league.status);
+    }
+  }, [league?.status]);
+
+  useEffect(() => {
+    if (callerInfo?.isMember !== undefined) {
+      setIsUserJoined(callerInfo.isMember);
+    }
+  }, [callerInfo?.isMember]);
+
   const [teamSlots, setTeamSlots] = useState<(TeamMember | null)[]>(() => {
-    const slots = new Array(league?.membersCount || 8).fill(null);
+    const slots = new Array(league?.maxTeams || 8).fill(null);
     slots[0] = MOCK_TEAM_MEMBERS[0];
     slots[1] = MOCK_TEAM_MEMBERS[1];
     return slots;
@@ -113,7 +171,6 @@ export default function LeagueDetailScreen() {
     } else if (optionTitle === 'Commissioner control') {
       setIsCommissionerModalVisible(true);
     } else if (optionTitle === 'Team settings') {
-      // Wiring team settings to lock roster for now as requested design
       setIsLockRosterModalVisible(true);
     } else if (optionTitle === 'Delete league') {
       setIsDeleteLeagueModalVisible(true);
@@ -129,13 +186,45 @@ export default function LeagueDetailScreen() {
     }
   };
 
-  useEffect(() => {
-    // If draftDate or draftTime is missing, we simulate it as 15 seconds from now for testing
-    const dDate = league?.draftDate ? new Date(league.draftDate) : new Date();
-    const tTime = league?.draftTime ? new Date(league.draftTime) : new Date(Date.now() + 15000);
+  const handleJoinLeague = async (fantasyTeamName: string) => {
+    try {
+      setJoinErrorText(null);
+      if (!isMockId) {
+        await joinLeagueMutation({ id: leagueId, fantasyTeamName }).unwrap();
+        if (refetchLeagueDetails) refetchLeagueDetails();
+        if (refetchMembers) refetchMembers();
+      }
+      const newSlots = [...teamSlots];
+      const emptyIndex = newSlots.findIndex(s => s === null);
+      const targetIndex = selectedSlotIndex !== null && newSlots[selectedSlotIndex] === null ? selectedSlotIndex : (emptyIndex !== -1 ? emptyIndex : 0);
+      newSlots[targetIndex] = {
+        id: `my-team-${Date.now()}`,
+        name: fantasyTeamName,
+        handle: `@${fantasyTeamName.toLowerCase().replace(/\s+/g, '')}`,
+      };
+      setTeamSlots(newSlots);
+      setIsUserJoined(true);
+      setIsJoinModalVisible(false);
+    } catch (err: any) {
+      const msg = err?.data?.message || err?.message || 'Failed to join league. Please try again.';
+      setJoinErrorText(msg);
+    }
+  };
 
-    dDate.setHours(tTime.getHours(), tTime.getMinutes(), tTime.getSeconds(), 0);
-    const targetTime = dDate.getTime();
+
+  useEffect(() => {
+    const rawTarget =
+      league?.draftStartsAt ||
+      league?.settings?.draftSettings?.draftStartsAt ||
+      league?.draftDate;
+
+    if (!rawTarget) {
+      setTimeLeft(null);
+      setIsDraftStarted(false);
+      return;
+    }
+
+    const targetTime = new Date(rawTarget).getTime();
 
     const calculateTime = () => {
       const diff = targetTime - Date.now();
@@ -162,7 +251,7 @@ export default function LeagueDetailScreen() {
     const intervalId = setInterval(calculateTime, 1000);
 
     return () => clearInterval(intervalId);
-  }, [league?.draftDate, league?.draftTime, currentLeagueStatus]);
+  }, [league?.draftStartsAt, league?.settings?.draftSettings?.draftStartsAt, league?.draftDate, currentLeagueStatus]);
 
   return (
     <SafeAreaView className="flex-1 bg-black" edges={['top', 'bottom']}>
@@ -180,105 +269,169 @@ export default function LeagueDetailScreen() {
         </View>
       </View>
 
-      <ScrollView contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 50 }} showsVerticalScrollIndicator={false}>
-        {/* League Info Row */}
-        <View className="flex-row items-center justify-between mb-6">
-          <View className="flex-row items-center">
-            <Image
-              source={{ uri: league.logoUri || 'https://images.unsplash.com/photo-1614680376593-902f74cf0d41?q=80&w=150&auto=format&fit=crop' }}
-              className="w-[50px] h-[50px] rounded-full bg-white mr-3"
-            />
-            <View>
-              <Text className="text-white text-[18px] font-normal">{league.name}</Text>
-              <View className="flex-row items-center mt-1">
-                <Text className="text-[#E0B566] text-xs font-medium mr-2">{league.membersCount || 8} team</Text>
-                <Text className="text-[#8B3DFF] text-xs font-medium">( Pre draft )</Text>
+      {isApiLoading ? (
+        <View className="flex-1 justify-center items-center">
+          <ActivityIndicator size="large" color="#E0B566" />
+          <Text className="text-gray-400 text-xs mt-3">Loading League Details...</Text>
+        </View>
+      ) : (
+        <ScrollView contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 50 }} showsVerticalScrollIndicator={false}>
+          {/* League Info Row */}
+          <View className="flex-row items-center justify-between mb-4">
+            <View className="flex-row items-center flex-1 mr-2">
+              <Image
+                source={{ uri: league.logoUri || 'https://images.unsplash.com/photo-1614680376593-902f74cf0d41?q=80&w=150&auto=format&fit=crop' }}
+                className="w-[50px] h-[50px] rounded-full bg-white mr-3"
+              />
+              <View className="flex-1">
+                <Text className="text-white text-[18px] font-semibold" numberOfLines={1}>{league.name}</Text>
+                <View className="flex-row items-center mt-1 flex-wrap">
+                  <Text className="text-[#E0B566] text-xs font-medium mr-2">{league.membersCount || 8} teams</Text>
+                  <Text className="text-[#8B3DFF] text-xs font-medium">({league.status === 'Draft' ? 'Pre draft' : league.status})</Text>
+                  {league.code ? (
+                    <Text className="text-gray-400 text-xs font-medium ml-2">Code: {league.code}</Text>
+                  ) : null}
+                </View>
               </View>
             </View>
+            <TouchableOpacity className="p-2" onPress={() => setIsSettingsModalVisible(true)}>
+              <MoreVertical color="#fff" size={20} />
+            </TouchableOpacity>
           </View>
-          <TouchableOpacity className="p-2" onPress={() => setIsSettingsModalVisible(true)}>
-            <MoreVertical color="#fff" size={20} />
-          </TouchableOpacity>
-        </View>
 
-        {/* Tabs */}
-        <View className="flex-row justify-between items-center mb-6 px-1">
-          {currentLeagueStatus === 'Play' ? (
-            <TouchableOpacity
-              className={`${activeTab === 'Matchup' ? 'bg-[#FFB84D]' : 'bg-transparent'} px-5 py-2 rounded-xl`}
-              onPress={() => setActiveTab('Matchup')}
-            >
-              <Text className={`${activeTab === 'Matchup' ? 'text-white' : 'text-gray-400'} text-[15px] font-semibold`}>Matchup</Text>
-            </TouchableOpacity>
+          {/* Join Public League Banner */}
+          {!isUserJoined ? (
+            <View className="bg-[#1a132b] border border-[#8B3DFF] rounded-2xl p-4 mb-6 flex-row items-center justify-between shadow-lg">
+              <View className="flex-1 mr-3">
+                <View className="flex-row items-center mb-1">
+                  <Users color="#E0B566" size={15} className="mr-1.5" />
+                  <Text className="text-[#E0B566] text-[11px] font-bold tracking-wider">PUBLIC LEAGUE</Text>
+                </View>
+                <Text className="text-white text-[15px] font-bold">Open Registration!</Text>
+                <Text className="text-gray-300 text-[12px] mt-0.5">Join this public league with your team.</Text>
+              </View>
+              <TouchableOpacity
+                className="bg-[#8B3DFF] px-4 py-2.5 rounded-full flex-row items-center"
+                activeOpacity={0.9}
+                onPress={() => {
+                  setJoinErrorText(null);
+                  setIsJoinModalVisible(true);
+                }}
+              >
+                <Plus color="#fff" size={16} className="mr-1" />
+                <Text className="text-white text-[13px] font-bold">Join League</Text>
+              </TouchableOpacity>
+            </View>
           ) : (
-            <TouchableOpacity
-              className={`${activeTab === 'Draft' ? 'bg-[#FFB84D]' : 'bg-transparent'} px-5 py-2 rounded-xl`}
-              onPress={() => setActiveTab('Draft')}
-            >
-              <Text className={`${activeTab === 'Draft' ? 'text-white' : 'text-gray-400'} text-[15px] font-semibold`}>Draft</Text>
-            </TouchableOpacity>
+            <View className="bg-emerald-950/70 border border-emerald-500/40 rounded-xl px-4 py-2.5 mb-6 flex-row items-center justify-between">
+              <View className="flex-row items-center">
+                <UserCheck color="#34d399" size={16} className="mr-2" />
+                <Text className="text-emerald-300 text-[13px] font-semibold">Your team has joined this league</Text>
+              </View>
+              <TouchableOpacity
+                className="bg-emerald-900/60 px-3 py-1 rounded-full border border-emerald-500/30"
+                onPress={() => setActiveTab('Team')}
+              >
+                <Text className="text-emerald-200 text-[11px] font-bold">View Team</Text>
+              </TouchableOpacity>
+            </View>
           )}
-          <TouchableOpacity
-            className={`${activeTab === 'Team' ? 'bg-[#FFB84D]' : 'bg-transparent'} px-5 py-2 rounded-xl`}
-            onPress={() => setActiveTab('Team')}
-          >
-            <Text className={`${activeTab === 'Team' ? 'text-white' : 'text-gray-400'} text-[15px] font-semibold`}>Team</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            className={`${activeTab === 'Players' ? 'bg-[#FFB84D]' : 'bg-transparent'} px-3 py-2 rounded-xl`}
-            onPress={() => setActiveTab('Players')}
-          >
-            <Text className={`${activeTab === 'Players' ? 'text-white' : 'text-gray-400'} text-[15px] font-semibold`}>Players</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            className={`${activeTab === 'League' ? 'bg-[#FFB84D]' : 'bg-transparent'} px-3 py-2 rounded-xl`}
-            onPress={() => setActiveTab('League')}
-          >
-            <Text className={`${activeTab === 'League' ? 'text-white' : 'text-gray-400'} text-[15px] font-semibold`}>League</Text>
-          </TouchableOpacity>
-        </View>
 
-        {/* Matchup Tab Content */}
-        {activeTab === 'Matchup' && currentLeagueStatus === 'Play' && (
-          <MatchupTab
-            matchup={MOCK_MATCHUPS[0]}
-            starters={MOCK_STARTERS}
-          />
-        )}
+          {/* Tabs */}
+          <View className="flex-row justify-between items-center mb-6 px-1">
+            {currentLeagueStatus === 'Play' ? (
+              <TouchableOpacity
+                className={`${activeTab === 'Matchup' ? 'bg-[#FFB84D]' : 'bg-transparent'} px-5 py-2 rounded-xl`}
+                onPress={() => setActiveTab('Matchup')}
+              >
+                <Text className={`${activeTab === 'Matchup' ? 'text-white' : 'text-gray-400'} text-[15px] font-semibold`}>Matchup</Text>
+              </TouchableOpacity>
+            ) : (
+              <TouchableOpacity
+                className={`${activeTab === 'Draft' ? 'bg-[#FFB84D]' : 'bg-transparent'} px-5 py-2 rounded-xl`}
+                onPress={() => setActiveTab('Draft')}
+              >
+                <Text className={`${activeTab === 'Draft' ? 'text-white' : 'text-gray-400'} text-[15px] font-semibold`}>Draft</Text>
+              </TouchableOpacity>
+            )}
+            <TouchableOpacity
+              className={`${activeTab === 'Team' ? 'bg-[#FFB84D]' : 'bg-transparent'} px-5 py-2 rounded-xl`}
+              onPress={() => setActiveTab('Team')}
+            >
+              <Text className={`${activeTab === 'Team' ? 'text-white' : 'text-gray-400'} text-[15px] font-semibold`}>Team</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              className={`${activeTab === 'Players' ? 'bg-[#FFB84D]' : 'bg-transparent'} px-3 py-2 rounded-xl`}
+              onPress={() => setActiveTab('Players')}
+            >
+              <Text className={`${activeTab === 'Players' ? 'text-white' : 'text-gray-400'} text-[15px] font-semibold`}>Players</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              className={`${activeTab === 'League' ? 'bg-[#FFB84D]' : 'bg-transparent'} px-3 py-2 rounded-xl`}
+              onPress={() => setActiveTab('League')}
+            >
+              <Text className={`${activeTab === 'League' ? 'text-white' : 'text-gray-400'} text-[15px] font-semibold`}>League</Text>
+            </TouchableOpacity>
+          </View>
 
-        {/* Draft Tab Content */}
-        {activeTab === 'Draft' && currentLeagueStatus !== 'Play' && (
-          <DraftTab
-            isDraftStarted={isDraftStarted}
-            timeLeft={timeLeft}
-            league={league}
-            navigation={navigation}
-          />
-        )}
+          {/* Matchup Tab Content */}
+          {activeTab === 'Matchup' && currentLeagueStatus === 'Play' && (
+            <MatchupTab
+              matchup={MOCK_MATCHUPS[0]}
+              starters={MOCK_STARTERS}
+            />
+          )}
 
-        {/* Team Tab Content */}
-        {activeTab === 'Team' && (
-          <TeamTab
-            teamSlots={teamSlots}
-            setSelectedSlotIndex={setSelectedSlotIndex}
-            setIsAddTeamModalVisible={setIsAddTeamModalVisible}
-          />
-        )}
+          {/* Draft Tab Content */}
+          {activeTab === 'Draft' && currentLeagueStatus !== 'Play' && (
+            <DraftTab
+              isDraftStarted={isDraftStarted}
+              timeLeft={timeLeft}
+              league={league}
+              navigation={navigation}
+            />
+          )}
 
-        {/* Players Tab Content */}
-        {activeTab === 'Players' && (
-          <PlayersTab
-            playersList={MOCK_PLAYERS_LIST}
-            setSelectedPlayer={setSelectedPlayer}
-            setIsPlayerModalVisible={setIsPlayerModalVisible}
-          />
-        )}
+          {/* Team Tab Content */}
+          {activeTab === 'Team' && (
+            <TeamTab
+              teamSlots={teamSlots}
+              setSelectedSlotIndex={setSelectedSlotIndex}
+              setIsAddTeamModalVisible={setIsAddTeamModalVisible}
+              isMember={isUserJoined}
+              onOpenJoinModal={() => {
+                setJoinErrorText(null);
+                setIsJoinModalVisible(true);
+              }}
+              maxTeams={league.maxTeams || 8}
+            />
+          )}
 
-        {/* League Tab Content */}
-        {activeTab === 'League' && (
-          <LeagueTab leagueStandings={MOCK_LEAGUE_STANDINGS} matchups={MOCK_MATCHUPS} />
-        )}
-      </ScrollView>
+          {/* Players Tab Content */}
+          {activeTab === 'Players' && (
+            <PlayersTab
+              playersList={MOCK_PLAYERS_LIST}
+              setSelectedPlayer={setSelectedPlayer}
+              setIsPlayerModalVisible={setIsPlayerModalVisible}
+            />
+          )}
+
+          {/* League Tab Content */}
+          {activeTab === 'League' && (
+            <LeagueTab leagueStandings={MOCK_LEAGUE_STANDINGS} matchups={MOCK_MATCHUPS} />
+          )}
+        </ScrollView>
+      )}
+
+      {/* Join League Modal */}
+      <JoinLeagueModal
+        isVisible={isJoinModalVisible}
+        onClose={() => setIsJoinModalVisible(false)}
+        onJoin={handleJoinLeague}
+        isLoading={isJoiningLeague}
+        leagueName={league?.name}
+        errorText={joinErrorText}
+      />
 
       {/* Add Team Modal */}
       <AddTeamModal
@@ -335,6 +488,7 @@ export default function LeagueDetailScreen() {
           navigation.goBack();
         }}
       />
+
     </SafeAreaView>
   );
 }
