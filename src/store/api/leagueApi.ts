@@ -16,11 +16,13 @@ export interface CreateLeaguePayload {
   seasonId: string;
   name: string;
   description?: string;
+  logoUrl?: string;
   visibility: 'public' | 'private';
   maxTeams: number;
   fantasyTeamName: string;
   draftSettings: DraftSettingsPayload;
 }
+
 
 export interface LeagueResponse {
   _id: string;

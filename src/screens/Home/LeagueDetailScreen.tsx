@@ -153,11 +153,9 @@ export default function LeagueDetailScreen() {
   }, [callerInfo?.isMember]);
 
   const [teamSlots, setTeamSlots] = useState<(TeamMember | null)[]>(() => {
-    const slots = new Array(league?.maxTeams || 8).fill(null);
-    slots[0] = MOCK_TEAM_MEMBERS[0];
-    slots[1] = MOCK_TEAM_MEMBERS[1];
-    return slots;
+    return new Array(league?.maxTeams || 12).fill(null);
   });
+
 
   const [realtimeNotification, setRealtimeNotification] = useState<string | null>(null);
 
@@ -302,19 +300,33 @@ export default function LeagueDetailScreen() {
       const newSlots = [...teamSlots];
       const emptyIndex = newSlots.findIndex(s => s === null);
       const targetIndex = selectedSlotIndex !== null && newSlots[selectedSlotIndex] === null ? selectedSlotIndex : (emptyIndex !== -1 ? emptyIndex : 0);
-      newSlots[targetIndex] = {
+      const joinedTeamObj = {
         id: `my-team-${Date.now()}`,
         name: fantasyTeamName,
         handle: `@${fantasyTeamName.toLowerCase().replace(/\s+/g, '')}`,
+        role: 'Joined',
       };
+      newSlots[targetIndex] = joinedTeamObj;
       setTeamSlots(newSlots);
       setIsUserJoined(true);
       setIsJoinModalVisible(false);
+
+      // Emit socket event to notify server and all other users in real-time
+      try {
+        const socket = getSocket();
+        socket.emit('teamJoined', {
+          leagueId,
+          team: joinedTeamObj,
+        });
+      } catch (e) {
+        console.warn('Socket emit error on join:', e);
+      }
     } catch (err: any) {
       const msg = err?.data?.message || err?.message || 'Failed to join league. Please try again.';
       setJoinErrorText(msg);
     }
   };
+
 
 
   useEffect(() => {
