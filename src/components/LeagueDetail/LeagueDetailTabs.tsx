@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, Image, TouchableOpacity, ScrollView, Modal } from 'react-native';
-import { Repeat, Plus, Users, UserCheck } from 'lucide-react-native';
+import { Repeat, Plus, Users, UserCheck, Shield, Globe, Lock, Award, Settings } from 'lucide-react-native';
+
 
 
 export const MatchupTab = ({ matchup, starters }: any) => {
@@ -402,11 +403,53 @@ export const PlayersTab = ({ playersList, setSelectedPlayer, setIsPlayerModalVis
   );
 };
 
-export const LeagueTab = ({ leagueStandings, matchups }: any) => {
+export const LeagueTab = ({ leagueStandings, matchups, league }: any) => {
   return (
     <View className="mb-4 mt-2">
+      {/* Detailed Rules & Settings Card */}
+      <View className="bg-[#111] border border-[#222] rounded-[24px] p-5 mb-6">
+        <View className="flex-row items-center mb-4 pb-3 border-b border-[#222]">
+          <Settings color="#E0B566" size={20} className="mr-3" />
+          <Text className="text-white text-[16px] font-bold">League Overview & Rules</Text>
+        </View>
+
+        <View className="space-y-3">
+          <View className="flex-row items-center justify-between py-1">
+            <Text className="text-gray-400 text-[13px]">League Type</Text>
+            <Text className="text-[#E0B566] text-[13px] font-bold uppercase">{league?.visibility || 'Public'}</Text>
+          </View>
+
+          <View className="flex-row items-center justify-between py-1">
+            <Text className="text-gray-400 text-[13px]">Total Team Capacity</Text>
+            <Text className="text-white text-[13px] font-medium">{league?.maxTeams || 12} Teams Max</Text>
+          </View>
+
+          <View className="flex-row items-center justify-between py-1">
+            <Text className="text-gray-400 text-[13px]">Draft Type</Text>
+            <Text className="text-white text-[13px] font-medium">Auction Draft ($100 Budget)</Text>
+          </View>
+
+          <View className="flex-row items-center justify-between py-1">
+            <Text className="text-gray-400 text-[13px]">Scoring Format</Text>
+            <Text className="text-[#8B3DFF] text-[13px] font-semibold">Head-to-Head PPR</Text>
+          </View>
+
+          <View className="flex-row items-center justify-between py-1">
+            <Text className="text-gray-400 text-[13px]">Waiver Wire</Text>
+            <Text className="text-white text-[13px] font-medium">FAAB Bidding System</Text>
+          </View>
+
+          {league?.description ? (
+            <View className="mt-3 pt-3 border-t border-[#222]">
+              <Text className="text-gray-400 text-[12px] font-medium mb-1">About League</Text>
+              <Text className="text-gray-300 text-[13px] leading-5">{league.description}</Text>
+            </View>
+          ) : null}
+        </View>
+      </View>
+
       {/* Matchups Section */}
-      <Text className="text-white text-[18px] font-semibold mb-4">Matchups</Text>
+      <Text className="text-white text-[18px] font-semibold mb-4">Current Matchups</Text>
       <View className="mb-8">
         {matchups?.map((matchup: any) => (
           <View key={matchup.id} className="border border-[#E0B566] rounded-[24px] mb-4 p-1 relative overflow-hidden">
@@ -457,22 +500,22 @@ export const LeagueTab = ({ leagueStandings, matchups }: any) => {
       </View>
 
       {/* Standings Section */}
-      <Text className="text-white text-[18px] font-semibold mb-4">Standings</Text>
+      <Text className="text-white text-[18px] font-semibold mb-4">League Standings</Text>
       <View>
         {leagueStandings?.map((team: any, index: number) => (
           <View key={team.id} className="flex-row items-center justify-between border-b border-[#222] pb-4 mb-4">
             <View className="flex-row items-center">
               <View className="w-10 h-10 rounded-full border border-[#444] justify-center items-center bg-black mr-4">
-                <Text className="text-white text-[14px]">{index + 1}</Text>
+                <Text className="text-white text-[14px] font-bold">{index + 1}</Text>
               </View>
               <View>
-                <Text className="text-white text-[15px] mb-1">{team.name}</Text>
+                <Text className="text-white text-[15px] font-semibold mb-1">{team.name}</Text>
                 <Text className="text-[#E0B566] text-[13px]">{team.handle}</Text>
               </View>
             </View>
             
             <View className="items-end justify-center">
-              <Text className="text-[#E0B566] text-[15px] font-medium">{team.score}</Text>
+              <Text className="text-[#E0B566] text-[15px] font-bold">{team.score}</Text>
             </View>
           </View>
         ))}
@@ -480,3 +523,4 @@ export const LeagueTab = ({ leagueStandings, matchups }: any) => {
     </View>
   );
 };
+

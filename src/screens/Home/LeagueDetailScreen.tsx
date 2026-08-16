@@ -1,15 +1,22 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, Image, TouchableOpacity, ScrollView, TextInput, Modal, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { ChevronLeft, MoreVertical, UserCheck, Plus, Users } from 'lucide-react-native';
+import { ChevronLeft, MoreVertical, UserCheck, Plus, Users, Globe, Lock, Shield, Calendar, DollarSign, Layers, Info } from 'lucide-react-native';
+
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../../../App';
 import { useSelector } from 'react-redux';
 import { RootState } from '../../store';
 import { useGetLeagueDetailsQuery, useGetLeagueMembersQuery, useJoinLeagueMutation } from '../../store/api/leagueApi';
+
 import { MatchupTab, DraftTab, TeamTab, PlayersTab, LeagueTab } from '../../components/LeagueDetail/LeagueDetailTabs';
 import { AddTeamModal, PlayerDetailModal, LeagueSettingsModal, LeagueSettingsSubModal, RosterSettingsSubModal, MemberSettingsSubModal, GiveCommissionerAccessModal, LockRosterModal, DeleteLeagueModal, JoinLeagueModal } from '../../components/LeagueDetail/LeagueDetailModals';
+import { getSocket, joinLeagueRoom, leaveLeagueRoom } from '../../services/socketService';
+
+
+
+
 
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList, 'LeagueDetail'>;
@@ -26,7 +33,11 @@ interface TeamMember {
   name: string;
   handle: string;
   avatarUri?: string;
+  role?: string;
+  budgetRemaining?: number;
+  joinedAt?: string;
 }
+
 
 const MOCK_TEAM_MEMBERS: TeamMember[] = [
   { id: 't1', name: 'Team Cheerleading', handle: '@cheerleading' },
@@ -147,6 +158,100 @@ export default function LeagueDetailScreen() {
     slots[1] = MOCK_TEAM_MEMBERS[1];
     return slots;
   });
+
+  const [realtimeNotification, setRealtimeNotification] = useState<string | null>(null);
+
+  // Sync real backend members list into teamSlots
+  useEffect(() => {
+    if (apiMembersData) {
+      const memberList = Array.isArray(apiMembersData)
+        ? apiMembersData
+        : Array.isArray(apiMembersData?.data)
+        ? apiMembersData.data
+        : [];
+
+      const maxCapacity = league?.maxTeams || 12;
+      const newSlots: (TeamMember | null)[] = new Array(maxCapacity).fill(null);
+
+      if (memberList.length > 0) {
+        memberList.forEach((m: any, idx: number) => {
+          if (idx < maxCapacity) {
+            const teamObj = m.team || {};
+            const teamName = teamObj.name || m.fantasyTeamName || m.name || `Team ${idx + 1}`;
+            const handle = teamObj.handle || m.handle || `@${teamName.toLowerCase().replace(/[^a-z0-9]/g, '')}`;
+            const avatarUri = teamObj.avatarUri || m.avatarUri || m.user?.avatarUrl || `https://i.pravatar.cc/150?img=${(idx % 12) + 1}`;
+
+            newSlots[idx] = {
+              id: m._id || m.id || `member-${idx}`,
+              name: teamName,
+              handle,
+              avatarUri,
+              role: m.role === 'creator' || idx === 0 ? 'Commissioner' : 'Joined',
+              budgetRemaining: teamObj.budgetRemaining ?? 100,
+            };
+          }
+        });
+        setTeamSlots(newSlots);
+      }
+    }
+  }, [apiMembersData, league?.maxTeams]);
+
+  // Real-Time WebSocket Connection & Event Listener
+  useEffect(() => {
+    if (!leagueId) return;
+
+    try {
+      const socket = getSocket();
+      joinLeagueRoom(leagueId);
+
+      const handleTeamJoined = (eventData: any) => {
+        if (!eventData || (eventData.leagueId && eventData.leagueId !== leagueId)) {
+          return;
+        }
+
+        const joinedTeam = eventData.team || {};
+        const teamName = joinedTeam.name || 'A new team';
+
+        setRealtimeNotification(`🔥 ${teamName} just joined the league!`);
+
+        // Dynamically add team to slots in real-time
+        setTeamSlots(prevSlots => {
+          const slots = [...prevSlots];
+          const emptyIdx = slots.findIndex(s => s === null);
+          if (emptyIdx !== -1) {
+            slots[emptyIdx] = {
+              id: joinedTeam.id || `rt-${Date.now()}`,
+              name: teamName,
+              handle: joinedTeam.handle || `@${teamName.toLowerCase().replace(/[^a-z0-9]/g, '')}`,
+              avatarUri: joinedTeam.avatarUri || `https://i.pravatar.cc/150?img=${(emptyIdx % 12) + 1}`,
+              role: joinedTeam.role || 'Joined',
+            };
+          }
+          return slots;
+        });
+
+        if (refetchLeagueDetails) refetchLeagueDetails();
+        if (refetchMembers) refetchMembers();
+
+        setTimeout(() => {
+          setRealtimeNotification(null);
+        }, 5000);
+      };
+
+      socket.on('teamJoined', handleTeamJoined);
+      socket.on('leagueUpdated', handleTeamJoined);
+
+      return () => {
+        socket.off('teamJoined', handleTeamJoined);
+        socket.off('leagueUpdated', handleTeamJoined);
+        leaveLeagueRoom(leagueId);
+      };
+    } catch (e) {
+      console.warn('Socket connection error:', e);
+    }
+  }, [leagueId, refetchLeagueDetails, refetchMembers]);
+
+
 
   const [isAddTeamModalVisible, setIsAddTeamModalVisible] = useState(false);
   const [selectedSlotIndex, setSelectedSlotIndex] = useState<number | null>(null);
@@ -276,28 +381,85 @@ export default function LeagueDetailScreen() {
         </View>
       ) : (
         <ScrollView contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 50 }} showsVerticalScrollIndicator={false}>
-          {/* League Info Row */}
-          <View className="flex-row items-center justify-between mb-4">
-            <View className="flex-row items-center flex-1 mr-2">
-              <Image
-                source={{ uri: league.logoUri || 'https://images.unsplash.com/photo-1614680376593-902f74cf0d41?q=80&w=150&auto=format&fit=crop' }}
-                className="w-[50px] h-[50px] rounded-full bg-white mr-3"
-              />
-              <View className="flex-1">
-                <Text className="text-white text-[18px] font-semibold" numberOfLines={1}>{league.name}</Text>
-                <View className="flex-row items-center mt-1 flex-wrap">
-                  <Text className="text-[#E0B566] text-xs font-medium mr-2">{league.membersCount || 8} teams</Text>
-                  <Text className="text-[#8B3DFF] text-xs font-medium">({league.status === 'Draft' ? 'Pre draft' : league.status})</Text>
-                  {league.code ? (
-                    <Text className="text-gray-400 text-xs font-medium ml-2">Code: {league.code}</Text>
-                  ) : null}
+          {/* Real-Time WebSocket Notification Banner */}
+          {realtimeNotification ? (
+            <View className="bg-[#8B3DFF] border border-purple-400 rounded-2xl p-4 mb-5 flex-row items-center justify-between shadow-xl animate-bounce">
+              <View className="flex-row items-center flex-1 mr-2">
+                <View className="w-9 h-9 rounded-full bg-white/20 items-center justify-center mr-3">
+                  <Users color="#fff" size={18} />
+                </View>
+                <Text className="text-white text-[14px] font-bold flex-1" numberOfLines={2}>
+                  {realtimeNotification}
+                </Text>
+              </View>
+              <TouchableOpacity onPress={() => setRealtimeNotification(null)} className="bg-white/20 px-3 py-1 rounded-full border border-white/30">
+                <Text className="text-white text-[11px] font-bold">Dismiss</Text>
+              </TouchableOpacity>
+            </View>
+          ) : null}
+
+          {/* League Info Row Card */}
+
+          <View className="bg-[#111] border border-[#222] rounded-[24px] p-5 mb-5 shadow-lg">
+            <View className="flex-row items-start justify-between mb-4">
+              <View className="flex-row items-center flex-1 mr-2">
+                <Image
+                  source={{ uri: league.logoUri || 'https://images.unsplash.com/photo-1614680376593-902f74cf0d41?q=80&w=150&auto=format&fit=crop' }}
+                  className="w-[56px] h-[56px] rounded-2xl bg-white border border-[#333] mr-3.5"
+                />
+                <View className="flex-1">
+                  <Text className="text-white text-[20px] font-bold mb-1" numberOfLines={1}>{league.name}</Text>
+                  
+                  <View className="flex-row items-center flex-wrap gap-2">
+                    {/* Visibility Badge */}
+                    <View className="flex-row items-center bg-[#1e1a2b] border border-[#8B3DFF]/50 px-2.5 py-0.5 rounded-full">
+                      {league.visibility === 'public' ? (
+                        <Globe color="#E0B566" size={12} className="mr-1" />
+                      ) : (
+                        <Lock color="#E0B566" size={12} className="mr-1" />
+                      )}
+                      <Text className="text-[#E0B566] text-[11px] font-semibold uppercase">{league.visibility || 'Public'}</Text>
+                    </View>
+
+                    {/* Status Badge */}
+                    <View className="bg-[#2a1a00] border border-[#FFB84D]/50 px-2.5 py-0.5 rounded-full">
+                      <Text className="text-[#FFB84D] text-[11px] font-semibold">
+                        {league.status === 'Draft' || league.status === 'registration_open' ? 'Pre-Draft' : league.status}
+                      </Text>
+                    </View>
+                  </View>
                 </View>
               </View>
+
+              <TouchableOpacity className="p-2 border border-[#333] rounded-xl bg-[#1a1a1a]" onPress={() => setIsSettingsModalVisible(true)}>
+                <MoreVertical color="#fff" size={18} />
+              </TouchableOpacity>
             </View>
-            <TouchableOpacity className="p-2" onPress={() => setIsSettingsModalVisible(true)}>
-              <MoreVertical color="#fff" size={20} />
-            </TouchableOpacity>
+
+            {/* Quick Stats Line */}
+            <View className="flex-row items-center justify-between border-t border-[#222] pt-3.5 mt-1">
+              <View className="flex-row items-center">
+                <Users color="#888" size={14} className="mr-1.5" />
+                <Text className="text-gray-400 text-[12px] font-medium">Joined Teams:</Text>
+                <Text className="text-[#E0B566] text-[12px] font-bold ml-1">
+                  {`${teamSlots.filter(t => !!t).length} / ${league.maxTeams || 12}`}
+                </Text>
+              </View>
+
+              {league.code ? (
+                <View className="flex-row items-center">
+                  <Text className="text-gray-400 text-[12px]">Code: </Text>
+                  <Text className="text-[#8B3DFF] text-[12px] font-bold">{league.code}</Text>
+                </View>
+              ) : (
+                <View className="flex-row items-center">
+                  <Calendar color="#888" size={14} className="mr-1.5" />
+                  <Text className="text-gray-400 text-[12px]">Draft Open</Text>
+                </View>
+              )}
+            </View>
           </View>
+
 
           {/* Join Public League Banner */}
           {!isUserJoined ? (
@@ -418,8 +580,9 @@ export default function LeagueDetailScreen() {
 
           {/* League Tab Content */}
           {activeTab === 'League' && (
-            <LeagueTab leagueStandings={MOCK_LEAGUE_STANDINGS} matchups={MOCK_MATCHUPS} />
+            <LeagueTab leagueStandings={MOCK_LEAGUE_STANDINGS} matchups={MOCK_MATCHUPS} league={league} />
           )}
+
         </ScrollView>
       )}
 
