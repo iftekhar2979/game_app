@@ -13,12 +13,14 @@ interface AuthState {
   user: UserProfile | null;
   token: string | null;
   isAuthenticated: boolean;
+  isInitializing: boolean;
 }
 
 const initialState: AuthState = {
   user: null,
   token: null,
   isAuthenticated: false,
+  isInitializing: true,
 };
 
 const authSlice = createSlice({
@@ -32,6 +34,7 @@ const authSlice = createSlice({
       state.user = action.payload.user;
       state.token = action.payload.token;
       state.isAuthenticated = true;
+      state.isInitializing = false;
     },
     updateUser: (state, action: PayloadAction<Partial<UserProfile>>) => {
       if (state.user) {
@@ -40,13 +43,17 @@ const authSlice = createSlice({
         state.user = action.payload as UserProfile;
       }
     },
+    setInitializing: (state, action: PayloadAction<boolean>) => {
+      state.isInitializing = action.payload;
+    },
     logout: (state) => {
       state.user = null;
       state.token = null;
       state.isAuthenticated = false;
+      state.isInitializing = false;
     },
   },
 });
 
-export const { setCredentials, logout, updateUser } = authSlice.actions;
+export const { setCredentials, logout, updateUser, setInitializing } = authSlice.actions;
 export default authSlice.reducer;

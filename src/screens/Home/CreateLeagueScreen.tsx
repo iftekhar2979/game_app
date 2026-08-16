@@ -37,6 +37,7 @@ export default function CreateLeagueScreen() {
   const [bidIncrement, setBidIncrement] = useState('1');
   const [nominationSeconds, setNominationSeconds] = useState('30');
   const [biddingSeconds, setBiddingSeconds] = useState('15');
+  const [draftDurationMinutes, setDraftDurationMinutes] = useState('5');
 
   // Timing
   const [draftDate, setDraftDate] = useState<Date | null>(null);
@@ -94,14 +95,31 @@ export default function CreateLeagueScreen() {
       return;
     }
 
+    const durationMins = parseInt(draftDurationMinutes, 10);
+    if (isNaN(durationMins) || durationMins < 5) {
+      showToast.error('Validation Error', 'Draft duration must be at least 5 minutes.');
+      return;
+    }
+
+    const pickDurationSeconds = durationMins * 60;
+
     const seasonId = selectedSeasonId || (seasonsList[0]._id || seasonsList[0].id);
     let draftStartsAt: string | undefined;
-
 
     if (draftDate && draftTime) {
       const combined = new Date(draftDate);
       combined.setHours(draftTime.getHours(), draftTime.getMinutes(), 0, 0);
+
+      if (combined.getTime() <= Date.now()) {
+        showToast.error('Validation Error', 'Draft start time must be in the future.');
+        return;
+      }
+
       draftStartsAt = combined.toISOString();
+    } else {
+      // Default to 15 minutes from now if not explicitly scheduled
+      const defaultStart = new Date(Date.now() + 15 * 60 * 1000);
+      draftStartsAt = defaultStart.toISOString();
     }
 
     try {
@@ -118,16 +136,17 @@ export default function CreateLeagueScreen() {
           startingBudget: parseInt(startingBudget, 10),
           minimumBid: parseInt(minimumBid, 10),
           bidIncrement: parseInt(bidIncrement, 10),
-          nominationDurationSeconds: parseInt(nominationSeconds, 10),
-          biddingDurationSeconds: parseInt(biddingSeconds, 10),
-          draftStartsAt
-        }
+          nominationDurationSeconds: Math.min(300, Math.max(10, parseInt(nominationSeconds, 10) || 30)),
+          biddingDurationSeconds: Math.min(300, Math.max(10, parseInt(biddingSeconds, 10) || 15)),
+          pickDurationSeconds,
+          draftStartsAt,
+        },
       }).unwrap();
 
       showToast.success('Success', 'League created successfully!');
       navigation.goBack();
     } catch (error: any) {
-      console.log(error)
+      console.log(error);
       showToast.error('Error', error?.data?.message || 'Failed to create league');
     }
   };
@@ -270,7 +289,7 @@ export default function CreateLeagueScreen() {
               </View>
             </View>
 
-            <View className="flex-row justify-between mb-8">
+            <View className="flex-row justify-between mb-4">
               <View className="flex-1 mr-2">
                 <Text className="text-[#ccc] text-sm mb-2 ml-1">Nomination Time (s)</Text>
                 <TextInput
@@ -289,6 +308,18 @@ export default function CreateLeagueScreen() {
                   keyboardType="numeric"
                 />
               </View>
+            </View>
+
+            <View className="mb-8">
+              <Text className="text-[#ccc] text-sm mb-2 ml-1">Draft Duration (minutes - min 5 mins)</Text>
+              <TextInput
+                className="border border-[#B366FF] rounded-2xl bg-[#0a0a0a] h-[50px] px-4 text-white text-base"
+                value={draftDurationMinutes}
+                onChangeText={setDraftDurationMinutes}
+                keyboardType="numeric"
+                placeholder="5"
+                placeholderTextColor="#666"
+              />
             </View>
 
             <Text className="text-white font-bold text-lg mb-4">Schedule Draft</Text>

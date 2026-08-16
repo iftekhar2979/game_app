@@ -35,6 +35,22 @@ export interface ApiResponse<T> {
   data: T;
 }
 
+export interface LeagueItem {
+  _id: string;
+  id?: string;
+  name: string;
+  status: string;
+  joinedTeamCount?: number;
+  maxTeams?: number;
+  membersCount?: number;
+  logoUri?: string;
+}
+
+export interface JoinLeaguePayload {
+  id: string;
+  fantasyTeamName: string;
+}
+
 export const leagueApi = baseApi.injectEndpoints({
   endpoints: (builder) => ({
     createLeague: builder.mutation<LeagueResponse, CreateLeaguePayload>({
@@ -49,10 +65,60 @@ export const leagueApi = baseApi.injectEndpoints({
         }
         return response as LeagueResponse;
       },
+      invalidatesTags: ['League'],
+    }),
+    getLeagues: builder.query<LeagueItem[], { mine?: boolean } | void>({
+      query: (params) => ({
+        url: 'leagues',
+        params: params ? { mine: params.mine } : {},
+      }),
+      transformResponse: (response: any) => {
+        const raw = response?.data !== undefined ? response.data : response;
+        if (Array.isArray(raw)) return raw;
+        if (Array.isArray(raw?.data)) return raw.data;
+        return [];
+      },
+      providesTags: ['League'],
+    }),
+    getLeagueDetails: builder.query<any, string>({
+      query: (id) => ({
+        url: `leagues/${id}`,
+      }),
+      transformResponse: (response: any) => {
+        return response?.data || response;
+      },
+      providesTags: (result, error, id) => [{ type: 'League', id }],
+    }),
+    joinLeague: builder.mutation<any, JoinLeaguePayload>({
+      query: ({ id, fantasyTeamName }) => ({
+        url: `leagues/${id}/join`,
+        method: 'POST',
+        body: { fantasyTeamName },
+      }),
+      transformResponse: (response: any) => {
+        return response?.data || response;
+      },
+      invalidatesTags: (result, error, { id }) => [{ type: 'League', id }, 'League'],
+    }),
+    getLeagueMembers: builder.query<any, string>({
+      query: (id) => ({
+        url: `leagues/${id}/members`,
+      }),
+      transformResponse: (response: any) => {
+        return response?.data || response;
+      },
+      providesTags: (result, error, id) => [{ type: 'League', id }],
     }),
   }),
   overrideExisting: true,
 });
 
-export const { useCreateLeagueMutation } = leagueApi;
+export const {
+  useCreateLeagueMutation,
+  useGetLeaguesQuery,
+  useGetLeagueDetailsQuery,
+  useJoinLeagueMutation,
+  useGetLeagueMembersQuery,
+} = leagueApi;
+
 
