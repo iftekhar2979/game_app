@@ -9,6 +9,122 @@ import { useSelector, useDispatch } from 'react-redux';
 import { RootState } from '../../store';
 import { CommentsModal } from '../../components/Home/CommentsModal';
 import { addReaction, ReactionType } from '../../store/slices/postSlice';
+import { useGetCurrentMatchupQuery, useGetLeagueStandingsQuery, useGetMatchupHistoryQuery, useGetLeaguesQuery } from '../../store/api/leagueApi';
+
+const DashboardMatchupCard = ({ leagueId, navigation }: any) => {
+  const { data: matchup } = useGetCurrentMatchupQuery(leagueId, {
+    skip: !leagueId || leagueId.startsWith('mock-'),
+  });
+
+  if (!matchup) return null;
+
+  return (
+    <TouchableOpacity
+      className="bg-[#121212] border border-[#333] p-4 rounded-[20px] mb-4 mx-5"
+      activeOpacity={0.85}
+      onPress={() => navigation.navigate('LeagueDetail', { leagueId })}
+    >
+      <View className="flex-row justify-between items-center mb-2">
+        <Text className="text-[#E0B566] text-[11px] font-bold tracking-wider uppercase">
+          MY MATCHUP • WEEK {matchup.weekNumber || 1}
+        </Text>
+        <View className="px-2 py-0.5 rounded-full bg-[#8B3DFF]/20 border border-[#8B3DFF]/50">
+          <Text className="text-[#8B3DFF] text-[9px] font-bold uppercase">
+            {matchup.result?.status || 'pending'}
+          </Text>
+        </View>
+      </View>
+
+      <View className="flex-row items-center justify-between">
+        <View className="flex-1">
+          <Text className="text-white text-[14px] font-semibold" numberOfLines={1}>{matchup.myTeam?.teamName || 'My Team'}</Text>
+          <Text className="text-[#8B3DFF] text-[18px] font-bold">{matchup.myTeam?.score ?? 0}</Text>
+        </View>
+
+        <Text className="text-gray-500 font-extrabold text-[12px] mx-3">VS</Text>
+
+        <View className="flex-1 items-end">
+          <Text className="text-white text-[14px] font-semibold" numberOfLines={1}>{matchup.opponent?.teamName || 'Opponent'}</Text>
+          <Text className="text-gray-300 text-[18px] font-bold">{matchup.opponent?.score ?? 0}</Text>
+        </View>
+      </View>
+    </TouchableOpacity>
+  );
+};
+
+const DashboardStandingsCard = ({ leagueId, navigation }: any) => {
+  const { data: standingsData } = useGetLeagueStandingsQuery(leagueId, {
+    skip: !leagueId || leagueId.startsWith('mock-'),
+  });
+
+  const currentUserId = useSelector((state: RootState) => (state.auth?.user as any)?._id || (state.auth?.user as any)?.id);
+  const standings = standingsData?.standings || [];
+
+  if (standings.length === 0) return null;
+
+  const myStanding = standings.find((s: any) => String(s.userId || s.ownerId) === String(currentUserId)) || standings[0];
+
+  return (
+    <TouchableOpacity
+      className="bg-[#121212] border border-[#333] p-4 rounded-[20px] mb-4 mx-5 flex-row justify-between items-center"
+      activeOpacity={0.85}
+      onPress={() => navigation.navigate('LeagueDetail', { leagueId })}
+    >
+      <View className="flex-1 mr-3">
+        <Text className="text-[#E0B566] text-[11px] font-bold tracking-wider uppercase mb-1">
+          CURRENT STANDING
+        </Text>
+        <Text className="text-white text-[15px] font-bold" numberOfLines={1}>{myStanding.teamName}</Text>
+        <Text className="text-gray-400 text-[12px] mt-0.5">
+          {myStanding.wins}W - {myStanding.losses}L - {myStanding.ties}T • PF: {myStanding.pointsFor}
+        </Text>
+      </View>
+      <View className="w-11 h-11 rounded-full bg-[#8B3DFF]/20 border border-[#8B3DFF]/50 items-center justify-center">
+        <Text className="text-[#8B3DFF] text-[16px] font-extrabold">#{myStanding.rank}</Text>
+      </View>
+    </TouchableOpacity>
+  );
+};
+
+const DashboardRecentMatchupCard = ({ leagueId, navigation }: any) => {
+  const { data: historyData } = useGetMatchupHistoryQuery(leagueId, {
+    skip: !leagueId || leagueId.startsWith('mock-'),
+  });
+
+  const matchups = historyData?.matchups || [];
+  if (matchups.length === 0) return null;
+
+  const recent = matchups[0];
+  const resultColor =
+    recent.result === 'WIN'
+      ? 'text-emerald-400 border-emerald-400/40 bg-emerald-400/10'
+      : recent.result === 'LOSS'
+      ? 'text-rose-400 border-rose-400/40 bg-rose-400/10'
+      : 'text-amber-400 border-amber-400/40 bg-amber-400/10';
+
+  return (
+    <TouchableOpacity
+      className="bg-[#121212] border border-[#333] p-4 rounded-[20px] mb-5 mx-5 flex-row justify-between items-center"
+      activeOpacity={0.85}
+      onPress={() => navigation.navigate('LeagueDetail', { leagueId })}
+    >
+      <View className="flex-1 mr-3">
+        <Text className="text-[#E0B566] text-[11px] font-bold tracking-wider uppercase mb-1">
+          RECENT RESULT • WEEK {recent.weekNumber}
+        </Text>
+        <Text className="text-white text-[14px] font-bold" numberOfLines={1}>
+          vs {recent.opponentTeamName}
+        </Text>
+        <Text className="text-gray-300 text-[13px] font-semibold mt-0.5">
+          {recent.myScore} — {recent.opponentScore}
+        </Text>
+      </View>
+      <View className={`px-3 py-1.5 rounded-full border ${resultColor}`}>
+        <Text className="text-[12px] font-extrabold">{recent.result}</Text>
+      </View>
+    </TouchableOpacity>
+  );
+};
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
@@ -22,14 +138,17 @@ export default function HomeScreen() {
   const avatars = useSelector((state: RootState) => state.avatar.savedAvatars);
   const userAvatarUri = avatars.length > 0 ? avatars[0].imageUri : 'https://i.pravatar.cc/150?img=11';
 
+  const { data: apiLeagues } = useGetLeaguesQuery();
   const createdLeagues = useSelector((state: RootState) => state.league.leagues);
-  const mockLeagues = [
-    { id: 'mock-1', name: '2026 Final cheer', logoUri: 'https://upload.wikimedia.org/wikipedia/en/thumb/0/0c/Liverpool_FC.svg/150px-Liverpool_FC.svg.png', visibility: 'public' },
-    { id: 'mock-2', name: '2026 Final cheer', logoUri: 'https://upload.wikimedia.org/wikipedia/en/thumb/0/0c/Liverpool_FC.svg/150px-Liverpool_FC.svg.png', visibility: 'public' },
-  ];
-  const allLeagues = [...createdLeagues, ...mockLeagues].filter(
-    (league: any) => league.visibility === 'public' || !league.visibility
-  );
+
+  const formattedApiLeagues = (apiLeagues || []).map((league: any) => ({
+    id: league._id || league.id,
+    name: league.name || 'Fantasy League',
+    logoUri: league.logoUri || league.logoUrl || 'https://images.unsplash.com/photo-1614680376593-902f74cf0d41?q=80&w=150&auto=format&fit=crop',
+    visibility: league.visibility || 'public',
+  }));
+
+  const allLeagues = formattedApiLeagues.length > 0 ? formattedApiLeagues : createdLeagues;
 
   const [isCommentsModalVisible, setIsCommentsModalVisible] = React.useState(false);
   const [activeCommentCount, setActiveCommentCount] = React.useState(0);
@@ -82,7 +201,7 @@ export default function HomeScreen() {
             </TouchableOpacity>
           </View>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.horizontalScroll}>
-            {allLeagues.map(league => (
+            {allLeagues.map((league: any) => (
               <TouchableOpacity 
                 key={league.id} 
                 style={styles.fantasyCard}
@@ -107,6 +226,15 @@ export default function HomeScreen() {
             <View style={styles.dot} />
           </View>
         </View>
+
+        {/* Dashboard Cards */}
+        {createdLeagues.length > 0 && (
+          <>
+            <DashboardMatchupCard leagueId={createdLeagues[0].id} navigation={navigation} />
+            <DashboardStandingsCard leagueId={createdLeagues[0].id} navigation={navigation} />
+            <DashboardRecentMatchupCard leagueId={createdLeagues[0].id} navigation={navigation} />
+          </>
+        )}
 
         {/* Feed Section */}
         <View style={styles.feedSection}>
