@@ -3,8 +3,63 @@ import { View, Text, Image, TouchableOpacity, ScrollView, Modal, Pressable, Text
 import { ChevronLeft, ChevronDown, Upload, User, Users, Plus, Minus, Unlock, ShieldAlert, CheckCircle } from 'lucide-react-native';
 import { useGetAthleteGameLogQuery } from '../../store/api/seasonApi';
 import { useAddFreeAgentMutation, useUpdateLineupMutation, useDropPlayerMutation } from '../../store/api/leagueApi';
+import { showToast } from '../../utils/toast';
 
-export const LeagueSettingsModal = ({ isVisible, onClose, onOptionSelect }: any) => {
+export interface LeagueSettingsModalProps {
+  isVisible: boolean;
+  onClose: () => void;
+  onOptionSelect?: (optionTitle: string) => void;
+}
+
+export interface LeagueSettingsSubModalProps {
+  isVisible: boolean;
+  onClose: () => void;
+}
+
+export interface RosterSettingsSubModalProps {
+  isVisible: boolean;
+  onClose: () => void;
+}
+
+export interface MemberSettingsSubModalProps {
+  isVisible: boolean;
+  onClose: () => void;
+}
+
+export interface AddTeamModalProps {
+  isVisible: boolean;
+  onClose: () => void;
+  teamMembers: Array<{ id: string; name: string; handle: string; avatarUri?: string }>;
+  onAddTeam: (team: any) => void;
+}
+
+export interface PlayerDetailModalProps {
+  isVisible: boolean;
+  onClose: () => void;
+  selectedPlayer: any;
+  seasonId?: string;
+  leagueId: string;
+  userTeamId?: string;
+  onAddSuccess?: () => void;
+}
+
+export interface GiveCommissionerAccessModalProps {
+  isVisible: boolean;
+  onClose: () => void;
+}
+
+export interface LockRosterModalProps {
+  isVisible: boolean;
+  onClose: () => void;
+}
+
+export interface DeleteLeagueModalProps {
+  isVisible: boolean;
+  onClose: () => void;
+  onDelete?: () => void;
+}
+
+export const LeagueSettingsModal = ({ isVisible, onClose, onOptionSelect }: LeagueSettingsModalProps) => {
 
   const SETTINGS_OPTIONS = [
     { id: '1', title: 'League settings' },
@@ -222,35 +277,63 @@ export const AddTeamModal = ({ isVisible, onClose, teamMembers, onAddTeam }: any
   );
 };
 
-export const PlayerDetailModal = ({ isVisible, onClose, selectedPlayer, seasonId, leagueId, userTeamId, onAddSuccess }: any) => {
-  const athleteId = selectedPlayer?.id || selectedPlayer?._id;
-  const targetSeasonId = seasonId || selectedPlayer?.seasonId;
+export const PlayerDetailModal = ({ isVisible, onClose, selectedPlayer, seasonId, leagueId, userTeamId, onAddSuccess }: PlayerDetailModalProps) => {
+  const athleteId =
+    typeof selectedPlayer?.seasonAthleteId === 'string'
+      ? selectedPlayer.seasonAthleteId
+      : selectedPlayer?.seasonAthleteId?._id ||
+        selectedPlayer?.seasonAthleteId?.id ||
+        selectedPlayer?.athleteId?._id ||
+        selectedPlayer?.athleteId ||
+        selectedPlayer?._id ||
+        selectedPlayer?.id;
+
+  const targetSeasonId =
+    seasonId ||
+    (typeof selectedPlayer?.seasonId === 'string' ? selectedPlayer.seasonId : selectedPlayer?.seasonId?._id) ||
+    selectedPlayer?.seasonAthleteId?.seasonId;
 
   const [addFreeAgent, { isLoading: isAddingPlayer }] = useAddFreeAgentMutation();
 
   const { data: gameLogData, isLoading: isLogLoading } = useGetAthleteGameLogQuery(
-    { seasonId: targetSeasonId, athleteId },
+    { seasonId: targetSeasonId as string, athleteId: athleteId as string },
     { skip: !isVisible || !athleteId || !targetSeasonId }
   );
 
   const handleAddPlayer = async () => {
+    console.log('[PlayerDetailModal handleAddPlayer] Invoked:', {
+      leagueId,
+      userTeamId,
+      athleteId,
+      selectedPlayerName: selectedPlayer?.name || selectedPlayer?.displayName,
+    });
+
     if (!leagueId || !userTeamId) {
-      Alert.alert('Error', 'Your fantasy team was not found in this league.');
+      console.warn('[PlayerDetailModal handleAddPlayer] Missing leagueId or userTeamId:', { leagueId, userTeamId });
+      showToast.error('Team Not Found', 'Your fantasy team was not found in this league.');
       return;
     }
     if (!athleteId) {
-      Alert.alert('Error', 'Invalid athlete selected.');
+      console.warn('[PlayerDetailModal handleAddPlayer] Missing athleteId:', { athleteId });
+      showToast.error('Invalid Selection', 'Invalid athlete selected.');
       return;
     }
 
     try {
-      await addFreeAgent({ leagueId, teamId: userTeamId, seasonAthleteId: athleteId }).unwrap();
-      Alert.alert('Success', `${selectedPlayer?.name || 'Player'} added to your fantasy team!`);
+      console.log('[PlayerDetailModal handleAddPlayer] Executing addFreeAgent mutation:', {
+        leagueId,
+        teamId: userTeamId,
+        seasonAthleteId: String(athleteId),
+      });
+      const res = await addFreeAgent({ leagueId, teamId: userTeamId, seasonAthleteId: String(athleteId) }).unwrap();
+      console.log('[PlayerDetailModal handleAddPlayer] addFreeAgent SUCCESS:', res);
+      showToast.success('Player Added!', `${selectedPlayer?.name || selectedPlayer?.displayName || 'Player'} added to your fantasy team!`);
       if (onAddSuccess) onAddSuccess();
       onClose();
     } catch (err: any) {
+      console.error('[PlayerDetailModal handleAddPlayer] addFreeAgent FAILED:', err);
       const msg = err?.data?.message || err?.message || 'Failed to add player to fantasy team.';
-      Alert.alert('Add Player Failed', msg);
+      showToast.error('Add Player Failed', msg);
     }
   };
 
@@ -700,7 +783,7 @@ export const RosterPlayerActionModal = ({
 
   const handleToggleLineup = async () => {
     if (!leagueId || !userTeamId || !ownershipId) {
-      Alert.alert('Error', 'Missing required league or team parameters.');
+      showToast.error('Error', 'Missing required league or team parameters.');
       return;
     }
 
@@ -718,12 +801,12 @@ export const RosterPlayerActionModal = ({
         assignedPositionId: targetPosId,
       }).unwrap();
 
-      Alert.alert('Success', `${playerName} moved to ${newStatus.toUpperCase()}!`);
+      showToast.success('Lineup Updated!', `${playerName} moved to ${newStatus.toUpperCase()}!`);
       if (onSuccess) onSuccess();
       onClose();
     } catch (err: any) {
       const msg = err?.data?.message || err?.message || 'Failed to update lineup.';
-      Alert.alert('Lineup Error', msg);
+      showToast.error('Lineup Error', msg);
     }
   };
 
@@ -738,7 +821,7 @@ export const RosterPlayerActionModal = ({
           style: 'destructive',
           onPress: async () => {
             if (!leagueId || !userTeamId || !seasonAthleteId) {
-              Alert.alert('Error', 'Missing required athlete data.');
+              showToast.error('Error', 'Missing required athlete data.');
               return;
             }
             try {
@@ -748,12 +831,12 @@ export const RosterPlayerActionModal = ({
                 seasonAthleteId: typeof seasonAthleteId === 'string' ? seasonAthleteId : seasonAthleteId?._id,
               }).unwrap();
 
-              Alert.alert('Success', `${playerName} has been dropped from your team.`);
+              showToast.success('Player Dropped', `${playerName} has been dropped from your team.`);
               if (onSuccess) onSuccess();
               onClose();
             } catch (err: any) {
               const msg = err?.data?.message || err?.message || 'Failed to drop player.';
-              Alert.alert('Drop Error', msg);
+              showToast.error('Drop Error', msg);
             }
           },
         },

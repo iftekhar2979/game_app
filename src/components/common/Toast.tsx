@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { Animated, Text, View, TouchableOpacity, StyleSheet } from 'react-native';
+import { Animated, Text, View, TouchableOpacity, StyleSheet, Modal } from 'react-native';
 import { CheckCircle2, AlertCircle, Info, X } from 'lucide-react-native';
 import { toastEmitter, ToastOptions } from '../../utils/toast';
 
@@ -19,7 +19,7 @@ export const ToastContainer = () => {
 
       Animated.parallel([
         Animated.timing(translateY, {
-          toValue: 50,
+          toValue: 20,
           duration: 300,
           useNativeDriver: true,
         }),
@@ -33,7 +33,7 @@ export const ToastContainer = () => {
       if (timer) clearTimeout(timer);
       timer = setTimeout(() => {
         hideToast();
-      }, options.duration || 4000);
+      }, options.duration || 4500);
     });
 
     return () => {
@@ -60,59 +60,69 @@ export const ToastContainer = () => {
   if (!toast) return null;
 
   const isSuccess = toast.type === 'success';
+  const isWarning = toast.type === 'warning';
   const isError = toast.type === 'error';
 
-  const borderColor = isSuccess ? '#00E676' : isError ? '#FF4D4D' : '#B366FF';
-  const iconColor = isSuccess ? '#00E676' : isError ? '#FF4D4D' : '#B366FF';
-  const bgBadgeColor = isSuccess ? 'rgba(0,230,118,0.15)' : isError ? 'rgba(255,77,77,0.15)' : 'rgba(179,102,255,0.15)';
+  const borderColor = isSuccess ? '#00E676' : isWarning ? '#FFB300' : isError ? '#FF4D4D' : '#A855F7';
+  const iconColor = isSuccess ? '#00E676' : isWarning ? '#FFB300' : isError ? '#FF4D4D' : '#A855F7';
+  const bgBadgeColor = isSuccess
+    ? 'rgba(0,230,118,0.2)'
+    : isWarning
+    ? 'rgba(255,179,0,0.2)'
+    : isError
+    ? 'rgba(255,77,77,0.2)'
+    : 'rgba(168,85,247,0.2)';
 
   return (
-    <Animated.View
-      style={[
-        styles.container,
-        {
-          transform: [{ translateY }],
-          opacity,
-          borderColor: borderColor,
-        },
-      ]}
-      pointerEvents="box-none"
-    >
-      <TouchableOpacity activeOpacity={0.9} onPress={hideToast} style={styles.toastCard}>
-        <View style={[styles.iconContainer, { backgroundColor: bgBadgeColor }]}>
-          {isSuccess && <CheckCircle2 color={iconColor} size={22} />}
-          {isError && <AlertCircle color={iconColor} size={22} />}
-          {!isSuccess && !isError && <Info color={iconColor} size={22} />}
-        </View>
+    <Modal visible={true} transparent={true} animationType="none" statusBarTranslucent onRequestClose={hideToast}>
+      <View style={StyleSheet.absoluteFill} pointerEvents="box-none">
+        <Animated.View
+          style={[
+            styles.container,
+            {
+              transform: [{ translateY }],
+              opacity,
+              borderColor: borderColor,
+            },
+          ]}
+        >
+          <TouchableOpacity activeOpacity={0.9} onPress={hideToast} style={styles.toastCard}>
+            <View style={[styles.iconContainer, { backgroundColor: bgBadgeColor }]}>
+              {isSuccess && <CheckCircle2 color={iconColor} size={22} />}
+              {(isError || isWarning) && <AlertCircle color={iconColor} size={22} />}
+              {!isSuccess && !isError && !isWarning && <Info color={iconColor} size={22} />}
+            </View>
 
-        <View style={styles.textContainer}>
-          <Text style={styles.titleText}>{toast.title}</Text>
-          {toast.message ? <Text style={styles.messageText}>{toast.message}</Text> : null}
-        </View>
+            <View style={styles.textContainer}>
+              <Text style={styles.titleText}>{toast.title}</Text>
+              {toast.message ? <Text style={styles.messageText}>{toast.message}</Text> : null}
+            </View>
 
-        <TouchableOpacity onPress={hideToast} style={styles.closeBtn}>
-          <X color="#999" size={18} />
-        </TouchableOpacity>
-      </TouchableOpacity>
-    </Animated.View>
+            <TouchableOpacity onPress={hideToast} style={styles.closeBtn}>
+              <X color="#A1A1AA" size={18} />
+            </TouchableOpacity>
+          </TouchableOpacity>
+        </Animated.View>
+      </View>
+    </Modal>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     position: 'absolute',
-    top: 0,
-    left: 20,
-    right: 20,
-    zIndex: 99999,
-    backgroundColor: '#121212',
+    top: 30,
+    left: 16,
+    right: 16,
+    zIndex: 999999,
+    backgroundColor: '#1E1E2E',
     borderRadius: 16,
-    borderWidth: 1,
+    borderWidth: 1.5,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 10,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.4,
+    shadowRadius: 10,
+    elevation: 20,
   },
   toastCard: {
     flexDirection: 'row',
@@ -132,16 +142,17 @@ const styles = StyleSheet.create({
   },
   titleText: {
     color: '#FFFFFF',
-    fontWeight: '600',
+    fontWeight: '700',
     fontSize: 15,
-    marginBottom: 2,
+    marginBottom: 3,
   },
   messageText: {
-    color: '#A1A1AA',
+    color: '#E2E8F0',
     fontSize: 13,
+    lineHeight: 18,
   },
   closeBtn: {
-    padding: 4,
+    padding: 6,
     marginLeft: 8,
   },
 });
