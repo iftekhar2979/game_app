@@ -11,12 +11,20 @@ export interface League {
   createdAt: number;
 }
 
+export interface ActiveTeamInfo {
+  teamId: string;
+  teamName?: string;
+  role?: string;
+}
+
 interface LeagueState {
   leagues: League[];
+  activeTeams: Record<string, ActiveTeamInfo>;
 }
 
 const initialState: LeagueState = {
   leagues: [],
+  activeTeams: {},
 };
 
 export const leagueSlice = createSlice({
@@ -30,10 +38,18 @@ export const leagueSlice = createSlice({
       state.leagues = state.leagues.filter(
         (league) => league.id !== action.payload
       );
+      delete state.activeTeams[action.payload];
+    },
+    setActiveTeam: (
+      state,
+      action: PayloadAction<{ leagueId: string; teamId: string; teamName?: string; role?: string }>
+    ) => {
+      const { leagueId, teamId, teamName, role } = action.payload;
+      state.activeTeams[leagueId] = { teamId, teamName, role };
     },
   },
 });
 
-export const { createLeague, deleteLeague } = leagueSlice.actions;
+export const { createLeague, deleteLeague, setActiveTeam } = leagueSlice.actions;
 
 export default leagueSlice.reducer;

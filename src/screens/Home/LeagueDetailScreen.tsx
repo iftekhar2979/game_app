@@ -5,8 +5,9 @@ import { ChevronLeft, MoreVertical, UserCheck, Plus, Users, Globe, Lock, Shield,
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../../../App';
-import { useSelector } from 'react-redux';
+import { useSelector, useDispatch } from 'react-redux';
 import { RootState } from '../../store';
+import { setActiveTeam } from '../../store/slices/leagueSlice';
 import { useGetLeagueDetailsQuery, useGetLeagueMembersQuery, useJoinLeagueMutation, useGetAvailableAthletesQuery, useGetLeagueRostersQuery, useGetCurrentMatchupQuery, useGetLeagueStandingsQuery, useGetMatchupHistoryQuery } from '../../store/api/leagueApi';
 import { useGetSeasonAthletesQuery } from '../../store/api/seasonApi';
 import { MatchupTab, DraftTab, TeamTab, PlayersTab, LeagueTab } from '../../components/LeagueDetail/LeagueDetailTabs';
@@ -249,7 +250,22 @@ export default function LeagueDetailScreen() {
     }
   }, [league?.status]);
 
+  const dispatch = useDispatch();
+  const reduxActiveTeamId = useSelector((state: RootState) => state.league.activeTeams?.[leagueId]?.teamId);
   const currentUserId = useSelector((state: RootState) => (state.auth?.user as any)?._id || (state.auth?.user as any)?.id);
+
+  const rosterTeam = useMemo(() => {
+    const rawRosters = Array.isArray(apiRostersData)
+      ? apiRostersData
+      : Array.isArray((apiRostersData as any)?.data)
+      ? (apiRostersData as any).data
+      : [];
+    if (!currentUserId || rawRosters.length === 0) return null;
+    return rawRosters.find((r: any) => {
+      const ownerId = r.ownerId || r.ownerUserId || r.userId?._id || r.userId?.id || r.userId;
+      return String(ownerId) === String(currentUserId);
+    });
+  }, [apiRostersData, currentUserId]);
 
   const userTeamObj = useMemo(() => {
     const memberList = Array.isArray(apiMembersData)
@@ -258,12 +274,34 @@ export default function LeagueDetailScreen() {
       ? apiMembersData.data
       : [];
     return memberList.find((m: any) => {
-      const uId = m.userId?._id || m.userId?.id || m.userId || m.user?._id || m.user?.id;
+      const uId =
+        m.userId?._id ||
+        m.userId?.id ||
+        (typeof m.userId === 'string' ? m.userId : null) ||
+        m.user?._id ||
+        m.user?.id ||
+        m.team?.ownerId ||
+        m.team?.ownerUserId;
       return String(uId) === String(currentUserId);
     });
   }, [apiMembersData, currentUserId]);
 
-  const userTeamId = userTeamObj?.team?._id || userTeamObj?.team?.id || userTeamObj?._id;
+  const userTeamId =
+    reduxActiveTeamId ||
+    rosterTeam?._id ||
+    rosterTeam?.id ||
+    userTeamObj?.team?._id ||
+    userTeamObj?.team?.id ||
+    userTeamObj?._id ||
+    callerInfo?.team?._id ||
+    callerInfo?.team?.id;
+
+  // Persist user team ID to Redux global state
+  useEffect(() => {
+    if (leagueId && userTeamId && userTeamId !== reduxActiveTeamId) {
+      dispatch(setActiveTeam({ leagueId, teamId: String(userTeamId) }));
+    }
+  }, [leagueId, userTeamId, reduxActiveTeamId, dispatch]);
 
   const currentUserRoster = useMemo(() => {
     const rawRosters = Array.isArray(apiRostersData)

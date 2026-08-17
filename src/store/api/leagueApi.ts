@@ -69,6 +69,15 @@ export const leagueApi = baseApi.injectEndpoints({
       },
       invalidatesTags: ['League'],
     }),
+    updateLeague: builder.mutation<any, { id: string; maxTeams?: number; status?: string; name?: string }>({
+      query: ({ id, ...body }) => ({
+        url: `leagues/${id}`,
+        method: 'PATCH',
+        body,
+      }),
+      transformResponse: (response: any) => response?.data || response,
+      invalidatesTags: (result, error, { id }) => [{ type: 'League', id }, 'League'],
+    }),
     getLeagues: builder.query<LeagueItem[], { mine?: boolean } | void>({
       query: (params) => ({
         url: 'leagues',

@@ -5,10 +5,19 @@ import { ChevronLeft, Users } from 'lucide-react-native';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../../../App';
-import { useSelector } from 'react-redux';
+import { useSelector, useDispatch } from 'react-redux';
 import { RootState } from '../../store';
-import { useGetLeagueMembersQuery, useGetAvailableAthletesQuery, useDraftPickMutation } from '../../store/api/leagueApi';
+import { setActiveTeam } from '../../store/slices/leagueSlice';
+import {
+  useGetLeagueDetailsQuery,
+  useGetLeagueMembersQuery,
+  useGetAvailableAthletesQuery,
+  useGetLeagueRostersQuery,
+  useJoinLeagueMutation,
+  useDraftPickMutation,
+} from '../../store/api/leagueApi';
 import { getSocket, joinLeagueRoom, leaveLeagueRoom } from '../../services/socketService';
+import { showToast } from '../../utils/toast';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList, 'DraftRoom'>;
 type RouteProps = RouteProp<RootStackParamList, 'DraftRoom'>;
@@ -28,23 +37,57 @@ const MOCK_PLAYERS = [
 ];
 
 export default function DraftRoomScreen() {
+  const dispatch = useDispatch();
   const navigation = useNavigation<NavigationProp>();
   const route = useRoute<RouteProps>();
   const leagueId = route.params?.leagueId;
   const isMockId = !leagueId || leagueId.startsWith('mock-');
 
   const league = useSelector((state: RootState) => state.league.leagues.find(l => l.id === leagueId));
+  const reduxActiveTeamId = useSelector((state: RootState) => state.league.activeTeams?.[leagueId]?.teamId);
 
-  const currentUserId = useSelector((state: RootState) => (state.auth?.user as any)?._id || (state.auth?.user as any)?.id);
+  const currentUserId = useSelector(
+    (state: RootState) =>
+      (state.auth?.user as any)?._id ||
+      (state.auth?.user as any)?.id ||
+      (state.auth?.user as any)?.sub ||
+      (state.auth?.user as any)?.userId
+  );
   const [draftPick, { isLoading: isDrafting }] = useDraftPickMutation();
+  const [joinLeagueMutation, { isLoading: isJoining }] = useJoinLeagueMutation();
 
-  // Fetch real league teams & available players upon navigation
+  const { data: apiLeagueData } = useGetLeagueDetailsQuery(leagueId, {
+    skip: isMockId,
+  });
+
   const { data: apiMembersData, isLoading: isLoadingMembers } = useGetLeagueMembersQuery(leagueId, {
+    skip: isMockId,
+  });
+  const { data: apiRostersData } = useGetLeagueRostersQuery(leagueId, {
     skip: isMockId,
   });
   const { data: apiAthletesData, isLoading: isLoadingAthletes, refetch: refetchAvailableAthletes } = useGetAvailableAthletesQuery(leagueId, {
     skip: isMockId,
   });
+
+  const callerInfo = (apiLeagueData as any)?.caller;
+
+  const rosterTeam = useMemo(() => {
+    const rawRosters = Array.isArray(apiRostersData)
+      ? apiRostersData
+      : Array.isArray((apiRostersData as any)?.data)
+      ? (apiRostersData as any).data
+      : [];
+    if (rawRosters.length === 0) return null;
+    if (currentUserId) {
+      const match = rawRosters.find((r: any) => {
+        const ownerId = r.ownerId || r.ownerUserId || r.userId?._id || r.userId?.id || r.userId;
+        return String(ownerId) === String(currentUserId);
+      });
+      if (match) return match;
+    }
+    return null;
+  }, [apiRostersData, currentUserId]);
 
   const userTeamObj = useMemo(() => {
     const memberList = Array.isArray(apiMembersData)
@@ -53,12 +96,34 @@ export default function DraftRoomScreen() {
       ? apiMembersData.data
       : [];
     return memberList.find((m: any) => {
-      const uId = m.userId?._id || m.userId?.id || m.userId || m.user?._id || m.user?.id;
+      const uId =
+        m.userId?._id ||
+        m.userId?.id ||
+        (typeof m.userId === 'string' ? m.userId : null) ||
+        m.user?._id ||
+        m.user?.id ||
+        m.team?.ownerId ||
+        m.team?.ownerUserId;
       return String(uId) === String(currentUserId);
     });
   }, [apiMembersData, currentUserId]);
 
-  const userTeamId = userTeamObj?.team?._id || userTeamObj?.team?.id || userTeamObj?._id;
+  const userTeamId =
+    reduxActiveTeamId ||
+    callerInfo?.team?._id ||
+    callerInfo?.team?.id ||
+    rosterTeam?._id ||
+    rosterTeam?.id ||
+    userTeamObj?.team?._id ||
+    userTeamObj?.team?.id ||
+    userTeamObj?._id;
+
+  // Persist user team ID to Redux global state
+  useEffect(() => {
+    if (leagueId && userTeamId && userTeamId !== reduxActiveTeamId) {
+      dispatch(setActiveTeam({ leagueId, teamId: String(userTeamId) }));
+    }
+  }, [leagueId, userTeamId, reduxActiveTeamId, dispatch]);
 
   // Real-time playerAcquired socket listener
   useEffect(() => {
@@ -261,18 +326,49 @@ export default function DraftRoomScreen() {
                 activeOpacity={0.8}
                 disabled={isDrafting}
                 onPress={async () => {
-                  const seasonAthleteId = player.id || player._id;
+                  const seasonAthleteId =
+                    typeof player.seasonAthleteId === 'string'
+                      ? player.seasonAthleteId
+                      : player.seasonAthleteId?._id ||
+                        player.seasonAthleteId?.id ||
+                        player.rawItem?.seasonAthleteId?._id ||
+                        player.rawItem?.seasonAthleteId ||
+                        player._id ||
+                        player.id;
+
                   if (!leagueId || !userTeamId) {
-                    Alert.alert('Draft Error', 'Your fantasy team was not found in this league.');
+                    Alert.alert(
+                      'Not Joined Yet',
+                      'You must join this league to pick draft players.',
+                      [
+                        { text: 'Cancel', style: 'cancel' },
+                        {
+                          text: 'Join League Now',
+                          onPress: async () => {
+                            try {
+                              const defaultName = `Team ${((apiMembersData as any)?.length || 0) + 1}`;
+                              const joined: any = await joinLeagueMutation({ id: leagueId, fantasyTeamName: defaultName }).unwrap();
+                              const newTeamId = joined?.team?._id || joined?.team?.id || joined?._id;
+                              if (newTeamId) {
+                                dispatch(setActiveTeam({ leagueId, teamId: String(newTeamId) }));
+                                showToast.success('Joined Successfully!', `Joined as "${defaultName}". Please tap Draft again.`);
+                              }
+                            } catch (e: any) {
+                              showToast.error('Join Error', e?.data?.message || 'Failed to join league.');
+                            }
+                          },
+                        },
+                      ]
+                    );
                     return;
                   }
                   try {
-                    await draftPick({ leagueId, teamId: userTeamId, seasonAthleteId, acquisitionCost: 0 }).unwrap();
-                    Alert.alert('Draft Pick Success!', `${player.name} was drafted to your team.`);
+                    await draftPick({ leagueId, teamId: userTeamId, seasonAthleteId: String(seasonAthleteId), acquisitionCost: 0 }).unwrap();
+                    showToast.success('Draft Pick Success!', `${player.name} was drafted to your team.`);
                     if (refetchAvailableAthletes) refetchAvailableAthletes();
                   } catch (err: any) {
                     const msg = err?.data?.message || err?.message || 'Failed to draft player.';
-                    Alert.alert('Draft Error', msg);
+                    showToast.error('Draft Error', msg);
                   }
                 }}
               >
@@ -321,19 +417,50 @@ export default function DraftRoomScreen() {
                   activeOpacity={0.7}
                   disabled={isDrafting}
                   onPress={async () => {
-                    const seasonAthleteId = player.id || player._id;
+                    const seasonAthleteId =
+                      typeof player.seasonAthleteId === 'string'
+                        ? player.seasonAthleteId
+                        : player.seasonAthleteId?._id ||
+                          player.seasonAthleteId?.id ||
+                          player.rawItem?.seasonAthleteId?._id ||
+                          player.rawItem?.seasonAthleteId ||
+                          player._id ||
+                          player.id;
+
                     if (!leagueId || !userTeamId) {
-                      Alert.alert('Draft Error', 'Your fantasy team was not found in this league.');
+                      Alert.alert(
+                        'Not Joined Yet',
+                        'You must join this league to pick draft players.',
+                        [
+                          { text: 'Cancel', style: 'cancel' },
+                          {
+                            text: 'Join League Now',
+                            onPress: async () => {
+                              try {
+                                const defaultName = `Team ${((apiMembersData as any)?.length || 0) + 1}`;
+                                const joined: any = await joinLeagueMutation({ id: leagueId, fantasyTeamName: defaultName }).unwrap();
+                                const newTeamId = joined?.team?._id || joined?.team?.id || joined?._id;
+                                if (newTeamId) {
+                                  dispatch(setActiveTeam({ leagueId, teamId: String(newTeamId) }));
+                                  showToast.success('Joined Successfully!', `Joined as "${defaultName}". Please tap Pick again.`);
+                                }
+                              } catch (e: any) {
+                                showToast.error('Join Error', e?.data?.message || 'Failed to join league.');
+                              }
+                            },
+                          },
+                        ]
+                      );
                       return;
                     }
                     try {
-                      await draftPick({ leagueId, teamId: userTeamId, seasonAthleteId, acquisitionCost: 0 }).unwrap();
+                      await draftPick({ leagueId, teamId: userTeamId, seasonAthleteId: String(seasonAthleteId), acquisitionCost: 0 }).unwrap();
                       setSetPlayerModalVisible(false);
-                      Alert.alert('Draft Pick Success!', `${player.name} was drafted to your team.`);
+                      showToast.success('Draft Pick Success!', `${player.name} was drafted to your team.`);
                       if (refetchAvailableAthletes) refetchAvailableAthletes();
                     } catch (err: any) {
                       const msg = err?.data?.message || err?.message || 'Failed to draft player.';
-                      Alert.alert('Draft Error', msg);
+                      showToast.error('Draft Error', msg);
                     }
                   }}
                 >
