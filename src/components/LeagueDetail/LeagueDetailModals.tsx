@@ -1,8 +1,11 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, Image, TouchableOpacity, ScrollView, Modal, Pressable, TextInput, ActivityIndicator } from 'react-native';
+import React, { useState, useEffect, useMemo } from 'react';
+import { View, Text, Image, TouchableOpacity, ScrollView, Modal, Pressable, TextInput, ActivityIndicator, Alert } from 'react-native';
 import { ChevronLeft, ChevronDown, Upload, User, Users, Plus, Minus, Unlock, ShieldAlert, CheckCircle } from 'lucide-react-native';
+import { useGetAthleteGameLogQuery } from '../../store/api/seasonApi';
+import { useAddFreeAgentMutation, useUpdateLineupMutation, useDropPlayerMutation } from '../../store/api/leagueApi';
 
 export const LeagueSettingsModal = ({ isVisible, onClose, onOptionSelect }: any) => {
+
   const SETTINGS_OPTIONS = [
     { id: '1', title: 'League settings' },
     { id: '2', title: 'Team settings' },
@@ -219,7 +222,59 @@ export const AddTeamModal = ({ isVisible, onClose, teamMembers, onAddTeam }: any
   );
 };
 
-export const PlayerDetailModal = ({ isVisible, onClose, selectedPlayer }: any) => {
+export const PlayerDetailModal = ({ isVisible, onClose, selectedPlayer, seasonId, leagueId, userTeamId, onAddSuccess }: any) => {
+  const athleteId = selectedPlayer?.id || selectedPlayer?._id;
+  const targetSeasonId = seasonId || selectedPlayer?.seasonId;
+
+  const [addFreeAgent, { isLoading: isAddingPlayer }] = useAddFreeAgentMutation();
+
+  const { data: gameLogData, isLoading: isLogLoading } = useGetAthleteGameLogQuery(
+    { seasonId: targetSeasonId, athleteId },
+    { skip: !isVisible || !athleteId || !targetSeasonId }
+  );
+
+  const handleAddPlayer = async () => {
+    if (!leagueId || !userTeamId) {
+      Alert.alert('Error', 'Your fantasy team was not found in this league.');
+      return;
+    }
+    if (!athleteId) {
+      Alert.alert('Error', 'Invalid athlete selected.');
+      return;
+    }
+
+    try {
+      await addFreeAgent({ leagueId, teamId: userTeamId, seasonAthleteId: athleteId }).unwrap();
+      Alert.alert('Success', `${selectedPlayer?.name || 'Player'} added to your fantasy team!`);
+      if (onAddSuccess) onAddSuccess();
+      onClose();
+    } catch (err: any) {
+      const msg = err?.data?.message || err?.message || 'Failed to add player to fantasy team.';
+      Alert.alert('Add Player Failed', msg);
+    }
+  };
+
+  const logs = useMemo(() => {
+    const raw = Array.isArray(gameLogData)
+      ? gameLogData
+      : Array.isArray((gameLogData as any)?.data)
+      ? (gameLogData as any).data
+      : [];
+
+    if (raw.length > 0) {
+      return raw.map((log: any, idx: number) => ({
+        id: log.id || `log-${idx}`,
+        week: idx + 1,
+        opp: log.teamShortName || log.teamName || 'OPP',
+        fpts: log.fantasyPoints !== undefined ? log.fantasyPoints.toFixed(2) : '0.00',
+        passing: log.passYards ?? log.recYards ?? 0,
+        rushing: log.rushYards ?? 0,
+      }));
+    }
+
+    return [];
+  }, [gameLogData]);
+
   return (
     <Modal
       visible={isVisible}
@@ -235,45 +290,60 @@ export const PlayerDetailModal = ({ isVisible, onClose, selectedPlayer }: any) =
               <TouchableOpacity onPress={onClose} className="p-1 -ml-1">
                 <ChevronLeft color="#fff" size={24} />
               </TouchableOpacity>
-              <TouchableOpacity className="bg-white/20 rounded-full px-4 py-1.5 flex-row items-center border border-white/30">
-                <Text className="text-white text-[12px] font-bold">+ ADD</Text>
+              <TouchableOpacity
+                className="bg-white/20 rounded-full px-4 py-1.5 flex-row items-center border border-white/30"
+                onPress={handleAddPlayer}
+                disabled={isAddingPlayer}
+                activeOpacity={0.8}
+              >
+                {isAddingPlayer ? (
+                  <ActivityIndicator size="small" color="#fff" />
+                ) : (
+                  <Text className="text-white text-[12px] font-bold">+ ADD</Text>
+                )}
               </TouchableOpacity>
             </View>
 
             {/* Player Header Info */}
             <View className="flex-row items-center mb-5">
               <Image 
-                source={{ uri: selectedPlayer?.avatarUri || 'https://i.pravatar.cc/150?img=11' }} 
+                source={{ uri: selectedPlayer?.avatarUri || selectedPlayer?.photoUrl || selectedPlayer?.athlete?.photoUrl || 'https://i.pravatar.cc/150?img=11' }} 
                 className="w-16 h-16 rounded-full border-2 border-[#1e1e1e] mr-3 bg-white"
+                resizeMode="cover"
               />
-              <View>
-                <Text className="text-white text-[22px] font-bold">{selectedPlayer?.name || 'Josh Allen'}</Text>
+              <View className="flex-1">
+                <Text className="text-white text-[22px] font-bold" numberOfLines={1}>
+                  {selectedPlayer?.name || selectedPlayer?.displayName || selectedPlayer?.athlete?.displayName || 'Athlete'}
+                </Text>
                 <View className="flex-row items-center mt-1">
-                  <View className="bg-[#ff2a5f] px-1.5 py-0.5 rounded mr-2">
-                    <Text className="text-white text-[10px] font-bold">QB</Text>
+                  <View className="bg-[#ff2a5f] px-2 py-0.5 rounded mr-2">
+                    <Text className="text-white text-[10px] font-bold">
+                      {selectedPlayer?.position || selectedPlayer?.eligiblePositionIds?.[0]?.code || 'CHEER'}
+                    </Text>
                   </View>
-                  <Text className="text-white text-[12px] font-medium">BILLS #17</Text>
+                  <Text className="text-white text-[12px] font-medium uppercase" numberOfLines={1}>
+                    {selectedPlayer?.organizationName || selectedPlayer?.organizationId?.name || selectedPlayer?.teamName || 'CHEER SQUAD'}
+                  </Text>
                 </View>
               </View>
             </View>
 
             {/* Stats Row */}
             <View className="flex-row justify-between mb-4 px-1">
-              <View><Text className="text-[#88b0ff] text-[9px] mb-1">AGE</Text><Text className="text-white text-[14px] font-bold">30</Text></View>
-              <View><Text className="text-[#88b0ff] text-[9px] mb-1">HEIGHT</Text><Text className="text-white text-[14px] font-bold">6'5"</Text></View>
-              <View><Text className="text-[#88b0ff] text-[9px] mb-1">WEIGHT</Text><Text className="text-white text-[14px] font-bold">237<Text className="text-[10px] font-normal"> lbs</Text></Text></View>
-              <View><Text className="text-[#88b0ff] text-[9px] mb-1">EXP</Text><Text className="text-white text-[14px] font-bold">8</Text></View>
-              <View><Text className="text-[#88b0ff] text-[9px] mb-1">COLLEGE</Text><Text className="text-white text-[14px] font-bold">Wyoming</Text></View>
+              <View><Text className="text-[#88b0ff] text-[9px] mb-1">POS</Text><Text className="text-white text-[14px] font-bold">{selectedPlayer?.position || 'ATH'}</Text></View>
+              <View><Text className="text-[#88b0ff] text-[9px] mb-1">POINTS</Text><Text className="text-white text-[14px] font-bold">{selectedPlayer?.points || '+10'}</Text></View>
+              <View><Text className="text-[#88b0ff] text-[9px] mb-1">ROSTERED</Text><Text className="text-white text-[14px] font-bold">{selectedPlayer?.rostered || '17%'}</Text></View>
+              <View><Text className="text-[#88b0ff] text-[9px] mb-1">STATUS</Text><Text className="text-white text-[14px] font-bold">Active</Text></View>
             </View>
 
             {/* Rankings Row */}
             <View className="flex-row justify-between border-t border-[#1a4baf] pt-3 px-1">
-              <View className="flex-row items-center"><Text className="text-white font-bold text-[14px] mr-1">#1</Text><Text className="text-[#88b0ff] text-[9px] font-bold">QB</Text></View>
-              <View className="flex-row items-center"><Text className="text-white font-bold text-[14px] mr-1">#3</Text><Text className="text-[#88b0ff] text-[9px] font-bold">OVERALL</Text></View>
-              <View className="flex-row items-center"><Text className="text-white font-bold text-[14px] mr-1">99%</Text><Text className="text-[#88b0ff] text-[9px] font-bold">ROSTERED</Text></View>
-              <View className="flex-row items-center"><Text className="text-white font-bold text-[14px] mr-1">99%</Text><Text className="text-[#88b0ff] text-[9px] font-bold">STARTED</Text></View>
+              <View className="flex-row items-center"><Text className="text-white font-bold text-[14px] mr-1">#1</Text><Text className="text-[#88b0ff] text-[9px] font-bold">RANK</Text></View>
+              <View className="flex-row items-center"><Text className="text-white font-bold text-[14px] mr-1">PROJ</Text><Text className="text-[#88b0ff] text-[9px] font-bold">{selectedPlayer?.points || '+10'}</Text></View>
+              <View className="flex-row items-center"><Text className="text-white font-bold text-[14px] mr-1">{selectedPlayer?.rostered || '17%'}</Text><Text className="text-[#88b0ff] text-[9px] font-bold">OWNED</Text></View>
             </View>
           </View>
+
 
           {/* Dark Body Section */}
           <View className="p-4 flex-row">
@@ -283,9 +353,9 @@ export const PlayerDetailModal = ({ isVisible, onClose, selectedPlayer }: any) =
               
               {/* Year Tabs */}
               <View className="flex-row mb-3 justify-between pr-2">
-                <View className="bg-[#00e5ff] rounded-full px-2 py-0.5"><Text className="text-black text-[9px] font-bold">2023</Text></View>
+                <View className="bg-[#00e5ff] rounded-full px-2 py-0.5"><Text className="text-black text-[9px] font-bold">2026</Text></View>
+                <Text className="text-gray-400 text-[9px] font-bold mt-0.5">2025</Text>
                 <Text className="text-gray-400 text-[9px] font-bold mt-0.5">2024</Text>
-                <Text className="text-gray-400 text-[9px] font-bold mt-0.5">2022</Text>
                 <Text className="text-gray-400 text-[9px] font-bold mt-0.5">MORE</Text>
               </View>
 
@@ -298,30 +368,24 @@ export const PlayerDetailModal = ({ isVisible, onClose, selectedPlayer }: any) =
                 <Text className="text-gray-500 text-[8px] flex-1 text-center">RUSHING</Text>
               </View>
 
-              {/* Table Row 1 */}
-              <View className="flex-row justify-between items-center mb-2">
-                <Text className="text-white text-[9px] w-5">1</Text>
-                <Text className="text-white text-[9px] w-6">NYJ</Text>
-                <Text className="text-white text-[9px] w-8 font-bold">18.04</Text>
-                <Text className="text-gray-400 text-[9px] flex-1 text-center">236</Text>
-                <Text className="text-gray-400 text-[9px] flex-1 text-center">36</Text>
-              </View>
-              {/* Table Row 2 */}
-              <View className="flex-row justify-between items-center mb-2">
-                <Text className="text-white text-[9px] w-5">2</Text>
-                <Text className="text-white text-[9px] w-6">LV</Text>
-                <Text className="text-white text-[9px] w-8 font-bold">24.50</Text>
-                <Text className="text-gray-400 text-[9px] flex-1 text-center">274</Text>
-                <Text className="text-gray-400 text-[9px] flex-1 text-center">7</Text>
-              </View>
-              {/* Table Row 3 */}
-              <View className="flex-row justify-between items-center mb-2">
-                <Text className="text-white text-[9px] w-5">3</Text>
-                <Text className="text-white text-[9px] w-6">WAS</Text>
-                <Text className="text-white text-[9px] w-8 font-bold">28.12</Text>
-                <Text className="text-gray-400 text-[9px] flex-1 text-center">218</Text>
-                <Text className="text-gray-400 text-[9px] flex-1 text-center">46</Text>
-              </View>
+              {/* Dynamic Game Logs */}
+              {isLogLoading ? (
+                <ActivityIndicator size="small" color="#00e5ff" className="my-4" />
+              ) : logs.length > 0 ? (
+                logs.map((row: any) => (
+                  <View key={row.id} className="flex-row justify-between items-center mb-2">
+                    <Text className="text-white text-[9px] w-5">{row.week}</Text>
+                    <Text className="text-white text-[9px] w-6" numberOfLines={1}>{row.opp}</Text>
+                    <Text className="text-white text-[9px] w-8 font-bold">{row.fpts}</Text>
+                    <Text className="text-gray-400 text-[9px] flex-1 text-center">{row.passing}</Text>
+                    <Text className="text-gray-400 text-[9px] flex-1 text-center">{row.rushing}</Text>
+                  </View>
+                ))
+              ) : (
+                <View className="py-4 items-center">
+                  <Text className="text-gray-500 text-[9px]">No match game logs recorded yet</Text>
+                </View>
+              )}
 
               <TouchableOpacity className="mt-2 border-t border-[#333] pt-2">
                 <Text className="text-[#88b0ff] text-[10px] text-center font-medium">View Full Stats</Text>
@@ -331,10 +395,12 @@ export const PlayerDetailModal = ({ isVisible, onClose, selectedPlayer }: any) =
             {/* Latest News Area (Right) */}
             <View className="flex-1">
               <Text className="text-white text-[11px] font-bold mb-3 tracking-wider">LATEST NEWS</Text>
-              <Text className="text-white text-[10px] font-bold mb-1 leading-4">Josh Allen Still the 1.01 in Superflex Startups?</Text>
-              <Text className="text-gray-500 text-[7px] mb-2">16 days ago via RotoBaller</Text>
+              <Text className="text-white text-[10px] font-bold mb-1 leading-4">
+                {selectedPlayer?.name || selectedPlayer?.displayName || 'Athlete'} Season Outlook
+              </Text>
+              <Text className="text-gray-500 text-[7px] mb-2">Active Season</Text>
               <Text className="text-gray-400 text-[8px] leading-3" numberOfLines={12}>
-                Buffalo Bills quarterback Josh Allen has finished the past six seasons as the QB1, the QB2, the QB1, the QB1, the QB1, and the QB1, and even as he enters his age-28 season, he has a strong case as anyone to top the superflex dynasty rankings. At an age when most rushing quarterbacks face a durability-related decline, Allen has been able to sidestep such concerns with his 6'5", 237-pound frame. With the Bills trading for veteran receiver Stefon Diggs, many assume the offense will rely heavily on Allen's rushing ability this season.
+                Official match telemetry and performance metrics are updated in real-time as competition results are finalized.
               </Text>
             </View>
           </View>
@@ -343,6 +409,7 @@ export const PlayerDetailModal = ({ isVisible, onClose, selectedPlayer }: any) =
     </Modal>
   );
 };
+
 
 export const GiveCommissionerAccessModal = ({ isVisible, onClose }: any) => {
   const MEMBERS = [
@@ -554,6 +621,235 @@ export const JoinLeagueModal = ({
               )}
             </TouchableOpacity>
           </View>
+        </TouchableOpacity>
+      </TouchableOpacity>
+    </Modal>
+  );
+};
+
+export const RosterPlayerActionModal = ({
+  isVisible,
+  onClose,
+  selectedRosterItem,
+  leagueId,
+  userTeamId,
+  onSuccess,
+}: {
+  isVisible: boolean;
+  onClose: () => void;
+  selectedRosterItem: any;
+  leagueId: string;
+  userTeamId: string;
+  onSuccess?: () => void;
+}) => {
+  const [updateLineup, { isLoading: isUpdating }] = useUpdateLineupMutation();
+  const [dropPlayer, { isLoading: isDropping }] = useDropPlayerMutation();
+  const [selectedPositionId, setSelectedPositionId] = useState<string | null>(null);
+
+  if (!selectedRosterItem) return null;
+
+  const athlete = selectedRosterItem.seasonAthleteId?.athleteId || selectedRosterItem.seasonAthleteId || selectedRosterItem;
+  const playerName = athlete.displayName || athlete.name || `${athlete.firstName || ''} ${athlete.lastName || ''}`.trim() || 'Player';
+  const posCode = selectedRosterItem.assignment?.assignedPositionId?.code || athlete.primaryPositionId?.code || 'ATH';
+  const teamName = selectedRosterItem.seasonAthleteId?.organizationId?.shortName || selectedRosterItem.seasonAthleteId?.organizationId?.name || 'NFL';
+  const avatarUri = athlete.photoUrl || 'https://i.pravatar.cc/150?img=11';
+
+  const isStarter = selectedRosterItem.assignment?.lineupStatus === 'starter';
+  const ownershipId = selectedRosterItem._id || selectedRosterItem.assignment?.ownershipId;
+  const seasonAthleteId = selectedRosterItem.seasonAthleteId?._id || selectedRosterItem.seasonAthleteId?.id || selectedRosterItem.seasonAthleteId;
+  const assignedPosId = selectedRosterItem.assignment?.assignedPositionId?._id || selectedRosterItem.assignment?.assignedPositionId || athlete.primaryPositionId?._id || athlete.primaryPositionId;
+
+  // Extract eligible positions for starter position assignment
+  const eligiblePositions = useMemo(() => {
+    const sa = selectedRosterItem.seasonAthleteId;
+    const rawList = Array.isArray(sa?.eligiblePositionIds)
+      ? sa.eligiblePositionIds
+      : Array.isArray(sa?.eligiblePositions)
+      ? sa.eligiblePositions
+      : [];
+
+    if (rawList.length > 0) {
+      return rawList.map((p: any) => ({
+        id: typeof p === 'string' ? p : p._id || p.id,
+        code: p.code || p.name || 'ATH',
+        name: p.name || p.code || 'Position',
+      }));
+    }
+
+    const defaultPos = athlete.primaryPositionId || selectedRosterItem.assignment?.assignedPositionId;
+    if (defaultPos) {
+      return [{
+        id: typeof defaultPos === 'string' ? defaultPos : defaultPos._id || defaultPos.id,
+        code: defaultPos.code || posCode,
+        name: defaultPos.name || posCode,
+      }];
+    }
+
+    return [];
+  }, [selectedRosterItem, athlete, posCode]);
+
+  useEffect(() => {
+    if (eligiblePositions.length > 0) {
+      const activeId = typeof assignedPosId === 'string' ? assignedPosId : assignedPosId?._id;
+      const matching = eligiblePositions.find((p: any) => String(p.id) === String(activeId));
+      setSelectedPositionId(matching ? matching.id : eligiblePositions[0].id);
+    } else {
+      setSelectedPositionId(typeof assignedPosId === 'string' ? assignedPosId : assignedPosId?._id || null);
+    }
+  }, [eligiblePositions, assignedPosId]);
+
+  const handleToggleLineup = async () => {
+    if (!leagueId || !userTeamId || !ownershipId) {
+      Alert.alert('Error', 'Missing required league or team parameters.');
+      return;
+    }
+
+    const newStatus = isStarter ? 'bench' : 'starter';
+    const targetPosId = newStatus === 'starter'
+      ? (selectedPositionId || (typeof assignedPosId === 'string' ? assignedPosId : assignedPosId?._id))
+      : undefined;
+
+    try {
+      await updateLineup({
+        leagueId,
+        teamId: userTeamId,
+        ownershipId: String(ownershipId),
+        lineupStatus: newStatus,
+        assignedPositionId: targetPosId,
+      }).unwrap();
+
+      Alert.alert('Success', `${playerName} moved to ${newStatus.toUpperCase()}!`);
+      if (onSuccess) onSuccess();
+      onClose();
+    } catch (err: any) {
+      const msg = err?.data?.message || err?.message || 'Failed to update lineup.';
+      Alert.alert('Lineup Error', msg);
+    }
+  };
+
+  const handleConfirmDrop = () => {
+    Alert.alert(
+      `Drop ${playerName}?`,
+      `Are you sure you want to drop ${playerName} from your team? They will return to the available player pool.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Drop Player',
+          style: 'destructive',
+          onPress: async () => {
+            if (!leagueId || !userTeamId || !seasonAthleteId) {
+              Alert.alert('Error', 'Missing required athlete data.');
+              return;
+            }
+            try {
+              await dropPlayer({
+                leagueId,
+                teamId: userTeamId,
+                seasonAthleteId: typeof seasonAthleteId === 'string' ? seasonAthleteId : seasonAthleteId?._id,
+              }).unwrap();
+
+              Alert.alert('Success', `${playerName} has been dropped from your team.`);
+              if (onSuccess) onSuccess();
+              onClose();
+            } catch (err: any) {
+              const msg = err?.data?.message || err?.message || 'Failed to drop player.';
+              Alert.alert('Drop Error', msg);
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  return (
+    <Modal visible={isVisible} transparent={true} animationType="fade" onRequestClose={onClose}>
+      <TouchableOpacity className="flex-1 bg-black/80 justify-center items-center px-4" activeOpacity={1} onPress={onClose}>
+        <TouchableOpacity activeOpacity={1} className="w-full bg-[#1e1e1e] rounded-[24px] border border-[#333] p-6 shadow-xl">
+          {/* Header Player Info */}
+          <View className="flex-row items-center mb-6 pb-4 border-b border-[#333]">
+            <Image source={{ uri: avatarUri }} className="w-14 h-14 rounded-full mr-4 bg-[#333] border border-[#444]" />
+            <View className="flex-1">
+              <Text className="text-white text-[18px] font-bold" numberOfLines={1}>{playerName}</Text>
+              <Text className="text-gray-400 text-[13px]">{`${posCode} • ${teamName}`}</Text>
+              <View className="flex-row items-center mt-1.5">
+                <View className={`px-2.5 py-0.5 rounded-full border ${isStarter ? 'bg-emerald-950/80 border-emerald-500/50' : 'bg-[#2b2b2b] border-[#444]'}`}>
+                  <Text className={`${isStarter ? 'text-emerald-400' : 'text-gray-300'} text-[11px] font-semibold`}>
+                    {isStarter ? 'STARTER' : 'BENCH'}
+                  </Text>
+                </View>
+              </View>
+            </View>
+          </View>
+
+          {/* Position Selector for Moving to Starter */}
+          {!isStarter && eligiblePositions.length > 1 && (
+            <View className="mb-5 bg-[#262626] p-3.5 rounded-2xl border border-[#383838]">
+              <Text className="text-gray-300 text-[12px] font-semibold mb-2.5">
+                Select Starting Position Slot:
+              </Text>
+              <View className="flex-row flex-wrap gap-2">
+                {eligiblePositions.map((pos: any) => {
+                  const isSelected = String(selectedPositionId) === String(pos.id);
+                  return (
+                    <TouchableOpacity
+                      key={pos.id}
+                      className={`px-3.5 py-2 rounded-xl border ${
+                        isSelected
+                          ? 'bg-[#8B3DFF] border-[#9d5bff]'
+                          : 'bg-[#1e1e1e] border-[#444]'
+                      }`}
+                      onPress={() => setSelectedPositionId(pos.id)}
+                      disabled={isUpdating || isDropping}
+                      activeOpacity={0.7}
+                    >
+                      <Text className={`${isSelected ? 'text-white font-bold' : 'text-gray-300'} text-[12px]`}>
+                        {pos.code}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            </View>
+          )}
+
+          {/* Lineup Action Button */}
+          <TouchableOpacity
+            className={`h-[52px] rounded-full justify-center items-center mb-3 ${isStarter ? 'bg-[#333] border border-[#555]' : 'bg-[#8B3DFF]'}`}
+            onPress={handleToggleLineup}
+            disabled={isUpdating || isDropping}
+            activeOpacity={0.8}
+          >
+            {isUpdating ? (
+              <ActivityIndicator color="#fff" size="small" />
+            ) : (
+              <Text className="text-white text-[15px] font-bold">
+                {isStarter ? 'Move to Bench' : 'Move to Starter'}
+              </Text>
+            )}
+          </TouchableOpacity>
+
+          {/* Drop Player Button */}
+          <TouchableOpacity
+            className="h-[52px] rounded-full border border-red-500/60 bg-red-950/40 justify-center items-center mb-3"
+            onPress={handleConfirmDrop}
+            disabled={isUpdating || isDropping}
+            activeOpacity={0.8}
+          >
+            {isDropping ? (
+              <ActivityIndicator color="#ff6b6b" size="small" />
+            ) : (
+              <Text className="text-red-400 text-[15px] font-bold">Drop Player</Text>
+            )}
+          </TouchableOpacity>
+
+          {/* Cancel Button */}
+          <TouchableOpacity
+            className="h-[48px] rounded-full border border-gray-700 justify-center items-center"
+            onPress={onClose}
+            disabled={isUpdating || isDropping}
+          >
+            <Text className="text-gray-400 text-[14px]">Cancel</Text>
+          </TouchableOpacity>
         </TouchableOpacity>
       </TouchableOpacity>
     </Modal>

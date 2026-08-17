@@ -111,6 +111,103 @@ export const leagueApi = baseApi.injectEndpoints({
       },
       providesTags: (result, error, id) => [{ type: 'League', id }],
     }),
+    getAvailableAthletes: builder.query<any, string>({
+      query: (id) => ({
+        url: `leagues/${id}/available-athletes`,
+      }),
+      transformResponse: (response: any) => {
+        return response?.data || response;
+      },
+      providesTags: (result, error, id) => [{ type: 'League', id }],
+    }),
+    getSeasonAthleteDetails: builder.query<any, { seasonId: string; athleteId: string }>({
+      query: ({ seasonId, athleteId }) => ({
+        url: `seasons/${seasonId}/athletes/${athleteId}`,
+      }),
+      transformResponse: (response: any) => {
+        return response?.data || response;
+      },
+    }),
+    getLeagueRosters: builder.query<any, string>({
+      query: (id) => ({
+        url: `leagues/${id}/rosters`,
+      }),
+      transformResponse: (response: any) => {
+        return response?.data || response;
+      },
+      providesTags: (result, error, id) => [{ type: 'League', id }],
+    }),
+    addFreeAgent: builder.mutation<any, { leagueId: string; teamId: string; seasonAthleteId: string }>({
+      query: ({ leagueId, teamId, seasonAthleteId }) => ({
+        url: `leagues/${leagueId}/teams/${teamId}/add-player`,
+        method: 'POST',
+        body: { seasonAthleteId },
+      }),
+      transformResponse: (response: any) => {
+        return response?.data || response;
+      },
+      invalidatesTags: (result, error, { leagueId }) => [{ type: 'League', id: leagueId }, 'League'],
+    }),
+    draftPick: builder.mutation<any, { leagueId: string; teamId: string; seasonAthleteId: string; acquisitionCost?: number }>({
+      query: ({ leagueId, teamId, seasonAthleteId, acquisitionCost = 0 }) => ({
+        url: `leagues/${leagueId}/teams/${teamId}/draft-pick`,
+        method: 'POST',
+        body: { seasonAthleteId, acquisitionCost },
+      }),
+      transformResponse: (response: any) => {
+        return response?.data || response;
+      },
+      invalidatesTags: (result, error, { leagueId }) => [{ type: 'League', id: leagueId }, 'League'],
+    }),
+    updateLineup: builder.mutation<any, { leagueId: string; teamId: string; ownershipId: string; lineupStatus: 'starter' | 'bench'; assignedPositionId?: string }>({
+      query: ({ leagueId, teamId, ownershipId, lineupStatus, assignedPositionId }) => ({
+        url: `leagues/${leagueId}/teams/${teamId}/lineup`,
+        method: 'PATCH',
+        body: { ownershipId, lineupStatus, assignedPositionId },
+      }),
+      transformResponse: (response: any) => {
+        return response?.data || response;
+      },
+      invalidatesTags: (result, error, { leagueId }) => [{ type: 'League', id: leagueId }, 'League'],
+    }),
+    dropPlayer: builder.mutation<any, { leagueId: string; teamId: string; seasonAthleteId: string }>({
+      query: ({ leagueId, teamId, seasonAthleteId }) => ({
+        url: `leagues/${leagueId}/teams/${teamId}/drop-player`,
+        method: 'POST',
+        body: { seasonAthleteId },
+      }),
+      transformResponse: (response: any) => {
+        return response?.data || response;
+      },
+      invalidatesTags: (result, error, { leagueId }) => [{ type: 'League', id: leagueId }, 'League'],
+    }),
+    getCurrentMatchup: builder.query<any, string>({
+      query: (leagueId) => ({
+        url: `leagues/${leagueId}/matchups/current`,
+      }),
+      transformResponse: (response: any) => {
+        return response?.data || response;
+      },
+      providesTags: (result, error, leagueId) => [{ type: 'League', id: leagueId }, 'League'],
+    }),
+    getLeagueStandings: builder.query<any, string>({
+      query: (leagueId) => ({
+        url: `leagues/${leagueId}/standings`,
+      }),
+      transformResponse: (response: any) => {
+        return response?.data || response;
+      },
+      providesTags: (result, error, leagueId) => [{ type: 'League', id: leagueId }],
+    }),
+    getMatchupHistory: builder.query<any, string>({
+      query: (leagueId) => ({
+        url: `leagues/${leagueId}/matchups/history`,
+      }),
+      transformResponse: (response: any) => {
+        return response?.data || response;
+      },
+      providesTags: (result, error, leagueId) => [{ type: 'League', id: leagueId }],
+    }),
   }),
   overrideExisting: true,
 });
@@ -121,6 +218,18 @@ export const {
   useGetLeagueDetailsQuery,
   useJoinLeagueMutation,
   useGetLeagueMembersQuery,
+  useGetAvailableAthletesQuery,
+  useGetSeasonAthleteDetailsQuery,
+  useGetLeagueRostersQuery,
+  useAddFreeAgentMutation,
+  useDraftPickMutation,
+  useUpdateLineupMutation,
+  useDropPlayerMutation,
+  useGetCurrentMatchupQuery,
+  useGetLeagueStandingsQuery,
+  useGetMatchupHistoryQuery,
 } = leagueApi;
+
+
 
 

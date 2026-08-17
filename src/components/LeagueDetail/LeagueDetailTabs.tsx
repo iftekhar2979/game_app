@@ -4,86 +4,173 @@ import { Repeat, Plus, Users, UserCheck, Shield, Globe, Lock, Award, Settings } 
 
 
 
-export const MatchupTab = ({ matchup, starters }: any) => {
+import { useGetCurrentMatchupQuery, useGetLeagueStandingsQuery, useGetMatchupHistoryQuery } from '../../store/api/leagueApi';
+import { ActivityIndicator } from 'react-native';
+
+export const MatchupTab = ({ leagueId }: any) => {
   const [isWeekModalVisible, setIsWeekModalVisible] = useState(false);
   const [selectedWeek, setSelectedWeek] = useState('Week 1');
   const weeks = Array.from({ length: 18 }, (_, i) => `Week ${i + 1}`);
+
+  const { data: matchupData, isLoading, isError, refetch } = useGetCurrentMatchupQuery(leagueId, {
+    skip: !leagueId || leagueId.startsWith('mock-'),
+  });
+
+  if (isLoading) {
+    return (
+      <View className="py-12 items-center justify-center">
+        <ActivityIndicator size="large" color="#8B3DFF" />
+        <Text className="text-gray-400 text-[13px] mt-3">Loading matchup...</Text>
+      </View>
+    );
+  }
+
+  if (isError || !matchupData) {
+    return (
+      <View className="bg-[#1e1e1e] border border-[#333] rounded-[24px] p-6 mb-6 items-center justify-center">
+        <Text className="text-white text-[15px] font-semibold mb-2">No Matchup Scheduled</Text>
+        <Text className="text-gray-400 text-[12px] text-center mb-4">
+          No matchup has been generated or scheduled for this week yet.
+        </Text>
+        <TouchableOpacity
+          className="bg-[#8B3DFF] px-5 py-2.5 rounded-full"
+          onPress={() => refetch()}
+        >
+          <Text className="text-white text-[13px] font-medium">Retry</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
+  const { weekNumber, status, myTeam, opponent, result } = matchupData;
+
+  const resultColor =
+    result?.status === 'winning'
+      ? 'text-emerald-400 border-emerald-400/40 bg-emerald-400/10'
+      : result?.status === 'losing'
+      ? 'text-rose-400 border-rose-400/40 bg-rose-400/10'
+      : 'text-amber-400 border-amber-400/40 bg-amber-400/10';
 
   return (
     <View className="mb-4 mt-2">
       {/* Matchups Header */}
       <View className="flex-row justify-between items-center mb-4">
-        <Text className="text-white text-[18px] font-semibold">Matchups</Text>
+        <View className="flex-row items-center">
+          <Text className="text-white text-[18px] font-semibold mr-2">Week {weekNumber || 1}</Text>
+          <View className={`px-2.5 py-0.5 rounded-full border ${resultColor}`}>
+            <Text className="text-[10px] font-bold uppercase">{result?.status || 'pending'}</Text>
+          </View>
+        </View>
+
         <TouchableOpacity 
           className="flex-row items-center p-2"
           onPress={() => setIsWeekModalVisible(true)}
         >
-          <Text className="text-gray-400 text-[12px] mr-2">{selectedWeek}</Text>
+          <Text className="text-gray-400 text-[12px] mr-2">Week {weekNumber || 1}</Text>
           <Repeat color="#999" size={14} />
         </TouchableOpacity>
       </View>
 
-      {/* Matchup Card */}
-      <View className="border border-[#E0B566] rounded-[24px] mb-8 p-1 relative overflow-hidden">
+      {/* Matchup Overview Card */}
+      <View className="border border-[#E0B566] rounded-[24px] mb-6 p-1 relative overflow-hidden bg-[#0d0d0d]">
         <View className="flex-row">
-          {/* Left Team */}
-          <View className="flex-1 border border-[#333] rounded-[20px] bg-[#0a0a0a] p-4 mr-0.5">
-            <View className="w-10 h-10 rounded-full border border-[#333] justify-center items-center bg-black mb-3">
-              <Text className="text-[#8B3DFF] text-[8px] font-bold">CHEER</Text>
-            </View>
-            <Text className="text-[#E0B566] text-[12px] mb-1">{matchup.team1.handle}</Text>
-            <Text className="text-white text-[14px] mb-3">{matchup.team1.name}</Text>
+          {/* Left Team (My Team) */}
+          <View className="flex-1 border border-[#222] rounded-[20px] bg-[#141414] p-4 mr-0.5 items-center">
+            {myTeam?.avatarUri ? (
+              <Image source={{ uri: myTeam.avatarUri }} className="w-12 h-12 rounded-full mb-2 bg-[#222]" />
+            ) : (
+              <View className="w-12 h-12 rounded-full border border-[#8B3DFF] justify-center items-center bg-[#8B3DFF]/20 mb-2">
+                <Text className="text-[#8B3DFF] text-[10px] font-bold">MY</Text>
+              </View>
+            )}
+            <Text className="text-[#E0B566] text-[11px] font-medium mb-1 uppercase tracking-wider">My Team</Text>
+            <Text className="text-white text-[14px] font-bold text-center mb-2" numberOfLines={1}>
+              {myTeam?.teamName || 'My Team'}
+            </Text>
             
-            <View className="w-full h-1 bg-[#333] rounded-full overflow-hidden mb-2">
-              <View className="h-full bg-[#8B3DFF]" style={{ width: '50%' }} />
-            </View>
-            
-            <View className="flex-row justify-between items-center">
-              <Text className="text-gray-400 text-[10px]">{matchup.team1.percentage}</Text>
-              <Text className="text-white text-[12px] font-medium">{matchup.team1.score}</Text>
-            </View>
+            <Text className="text-[#8B3DFF] text-[22px] font-extrabold">{myTeam?.score ?? 0}</Text>
+            <Text className="text-gray-500 text-[9px] uppercase font-bold">Points</Text>
           </View>
 
-          {/* Right Team */}
-          <View className="flex-1 border border-[#333] rounded-[20px] bg-[#0a0a0a] p-4 ml-0.5">
-            <View className="w-10 h-10 rounded-full border border-[#333] justify-center items-center bg-black mb-3">
-              <Text className="text-[#8B3DFF] text-[8px] font-bold">CHEER</Text>
-            </View>
-            <Text className="text-[#E0B566] text-[12px] mb-1">{matchup.team2.handle}</Text>
-            <Text className="text-white text-[14px] mb-3">{matchup.team2.name}</Text>
+          {/* Right Team (Opponent) */}
+          <View className="flex-1 border border-[#222] rounded-[20px] bg-[#141414] p-4 ml-0.5 items-center">
+            {opponent?.avatarUri ? (
+              <Image source={{ uri: opponent.avatarUri }} className="w-12 h-12 rounded-full mb-2 bg-[#222]" />
+            ) : (
+              <View className="w-12 h-12 rounded-full border border-gray-600 justify-center items-center bg-gray-800 mb-2">
+                <Text className="text-gray-300 text-[10px] font-bold">OPP</Text>
+              </View>
+            )}
+            <Text className="text-gray-400 text-[11px] font-medium mb-1 uppercase tracking-wider">Opponent</Text>
+            <Text className="text-white text-[14px] font-bold text-center mb-2" numberOfLines={1}>
+              {opponent?.teamName || 'Opponent'}
+            </Text>
             
-            <View className="w-full h-1 bg-[#333] rounded-full overflow-hidden mb-2">
-              <View className="h-full bg-[#8B3DFF]" style={{ width: '50%' }} />
-            </View>
-            
-            <View className="flex-row justify-between items-center">
-              <Text className="text-gray-400 text-[10px]">{matchup.team2.percentage}</Text>
-              <Text className="text-white text-[12px] font-medium">{matchup.team2.score}</Text>
-            </View>
+            <Text className="text-gray-200 text-[22px] font-extrabold">{opponent?.score ?? 0}</Text>
+            <Text className="text-gray-500 text-[9px] uppercase font-bold">Points</Text>
           </View>
         </View>
 
         {/* VS Badge */}
-        <View className="absolute top-[42%] left-1/2 w-8 h-8 bg-white rounded-full justify-center items-center -ml-4 z-10 shadow-sm">
-          <Text className="text-black text-[12px] font-semibold">VS</Text>
+        <View className="absolute top-[40%] left-1/2 w-9 h-9 bg-[#E0B566] rounded-full justify-center items-center -ml-4.5 z-10 shadow-md">
+          <Text className="text-black text-[12px] font-extrabold">VS</Text>
         </View>
       </View>
 
-      {/* Starters Section */}
-      <Text className="text-white text-[18px] font-semibold mb-4">Starters</Text>
-      <View className="flex-row flex-wrap justify-between">
-        {starters?.map((starter: any) => (
-          <View key={starter.id} className="w-[48%] flex-row items-center border-b border-[#222] pb-3 mb-3">
-            <Image source={{ uri: starter.avatarUri }} className="w-10 h-10 rounded-full bg-[#333] mr-3" />
-            <View className="flex-1">
-              <View className="flex-row justify-between items-center mb-0.5">
-                <Text className="text-white text-[14px]" numberOfLines={1}>{starter.name}</Text>
-                <Text className="text-[#E0B566] text-[10px] font-medium">{starter.points}</Text>
+      {/* MY STARTERS SECTION */}
+      <View className="mb-6">
+        <Text className="text-white text-[16px] font-bold mb-3">
+          MY STARTERS <Text className="text-gray-500 text-[13px]">({myTeam?.teamName})</Text>
+        </Text>
+        <View className="bg-[#121212] border border-[#222] rounded-[20px] p-3">
+          {myTeam?.starters?.length > 0 ? (
+            myTeam.starters.map((starter: any, idx: number) => (
+              <View key={starter.seasonAthleteId || idx} className="flex-row items-center justify-between border-b border-[#222] py-2.5 last:border-b-0 px-1">
+                <View className="flex-row items-center flex-1">
+                  <Image source={{ uri: starter.photoUrl || 'https://i.pravatar.cc/150?img=11' }} className="w-9 h-9 rounded-full bg-[#222] mr-3" />
+                  <View className="flex-1">
+                    <Text className="text-white text-[13px] font-semibold" numberOfLines={1}>{starter.name}</Text>
+                    <Text className="text-gray-400 text-[10px]">{starter.nflTeam} • {starter.assignedPosition || starter.positionCode}</Text>
+                  </View>
+                </View>
+                <View className="items-end ml-2">
+                  <Text className="text-[#E0B566] text-[13px] font-bold">+{starter.fantasyPoints ?? 0} pts</Text>
+                  <Text className="text-gray-500 text-[9px] uppercase">{starter.gameStatus || 'scheduled'}</Text>
+                </View>
               </View>
-              <Text className="text-[#E0B566] text-[10px]">{starter.time}</Text>
-            </View>
-          </View>
-        ))}
+            ))
+          ) : (
+            <Text className="text-gray-500 text-[12px] p-2 text-center">No starters assigned yet.</Text>
+          )}
+        </View>
+      </View>
+
+      {/* OPPONENT STARTERS SECTION */}
+      <View className="mb-6">
+        <Text className="text-white text-[16px] font-bold mb-3">
+          OPPONENT STARTERS <Text className="text-gray-500 text-[13px]">({opponent?.teamName})</Text>
+        </Text>
+        <View className="bg-[#121212] border border-[#222] rounded-[20px] p-3">
+          {opponent?.starters?.length > 0 ? (
+            opponent.starters.map((starter: any, idx: number) => (
+              <View key={starter.seasonAthleteId || idx} className="flex-row items-center justify-between border-b border-[#222] py-2.5 last:border-b-0 px-1">
+                <View className="flex-row items-center flex-1">
+                  <Image source={{ uri: starter.photoUrl || 'https://i.pravatar.cc/150?img=12' }} className="w-9 h-9 rounded-full bg-[#222] mr-3" />
+                  <View className="flex-1">
+                    <Text className="text-white text-[13px] font-semibold" numberOfLines={1}>{starter.name}</Text>
+                    <Text className="text-gray-400 text-[10px]">{starter.nflTeam} • {starter.assignedPosition || starter.positionCode}</Text>
+                  </View>
+                </View>
+                <View className="items-end ml-2">
+                  <Text className="text-gray-300 text-[13px] font-bold">+{starter.fantasyPoints ?? 0} pts</Text>
+                  <Text className="text-gray-500 text-[9px] uppercase">{starter.gameStatus || 'scheduled'}</Text>
+                </View>
+              </View>
+            ))
+          ) : (
+            <Text className="text-gray-500 text-[12px] p-2 text-center">No starters assigned yet.</Text>
+          )}
+        </View>
       </View>
 
       {/* Week Selection Modal */}
@@ -198,35 +285,24 @@ export const DraftTab = ({ isDraftStarted, timeLeft, league, navigation }: any) 
             activeOpacity={0.9}
             onPress={() => navigation.navigate('DraftRoom', { leagueId: league?.id })}
           >
-            <Text className="text-[#8B3DFF] text-[16px] font-bold">Enter Draft</Text>
+            <Text className="text-[#8B3DFF] text-[16px] font-bold">Go to Draft Room</Text>
           </TouchableOpacity>
         </View>
       )}
 
-      {/* Invite Friends Section */}
-      <View className="mb-8">
-        <Text className="text-white text-[16px] font-medium mb-1">Invite friends to play</Text>
-        <Text className="text-gray-400 text-[12px] mb-4">Copy the link and share with your friends</Text>
-        <View className="flex-row items-center border border-[#8B3DFF] rounded-[16px] h-[52px] px-4 relative">
-          <Text className="text-[#E0B566] text-[13px] mr-16" numberOfLines={1}>
+      {/* Share / Invite Section */}
+      <View className="bg-[#111] border border-[#222] rounded-[24px] p-5 mb-8">
+        <Text className="text-white text-[16px] font-bold mb-1">Invite League Members</Text>
+        <Text className="text-gray-400 text-[12px] mb-4">Share this link or QR code with friends to join.</Text>
+
+        <View className="flex-row items-center justify-center mb-5 bg-white p-3 rounded-2xl self-center">
+          <Image source={{ uri: qrCodeUrl }} className="w-40 h-40" />
+        </View>
+
+        <View className="bg-[#1a1a1a] border border-[#333] rounded-xl p-3 flex-row items-center justify-between mb-4">
+          <Text className="text-[#E0B566] text-[12px] font-mono flex-1 mr-2" numberOfLines={1}>
             {joinUrl}
           </Text>
-          <TouchableOpacity className="absolute right-2 border border-[#8B3DFF] rounded-[12px] px-4 py-2">
-            <Text className="text-[#8B3DFF] text-[13px] font-medium">Copy</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
-
-      {/* QR Code Section */}
-      <View className="mb-10 items-center">
-        <Text className="text-white text-[18px] font-medium mb-6">Scan QR code to join</Text>
-        <View className="bg-white p-4 rounded-[24px]">
-          {/* Dynamic QR Code Image */}
-          <Image
-            source={{ uri: qrCodeUrl }}
-            className="w-[180px] h-[180px]"
-            resizeMode="contain"
-          />
         </View>
       </View>
     </View>
@@ -234,24 +310,116 @@ export const DraftTab = ({ isDraftStarted, timeLeft, league, navigation }: any) 
 };
 
 export const TeamTab = ({
-  teamSlots = [],
-  setSelectedSlotIndex,
-  setIsAddTeamModalVisible,
+  teamSlots: propTeamSlots = [],
+  setSelectedSlotIndex: parentSetSelectedSlotIndex,
+  setIsAddTeamModalVisible: parentSetIsAddTeamModalVisible,
   isMember = false,
   onOpenJoinModal,
-  maxTeams = 8,
-}: {
-  teamSlots: any[];
-  setSelectedSlotIndex: (index: number) => void;
-  setIsAddTeamModalVisible: (visible: boolean) => void;
-  isMember?: boolean;
-  onOpenJoinModal?: () => void;
-  maxTeams?: number;
-}) => {
-  const filledCount = teamSlots.filter(t => !!t).length;
+  maxTeams: propMaxTeams = 12,
+  userRoster,
+  totalRosterSize = 15,
+  onSelectRosterItem,
+}: any) => {
+  const [selectedSlotIndex, setSelectedSlotIndex] = useState<number | null>(null);
+  const [isAddTeamModalVisible, setIsAddTeamModalVisible] = useState(false);
+
+  const handleSetSelectedSlot = parentSetSelectedSlotIndex || setSelectedSlotIndex;
+  const handleSetAddModal = parentSetIsAddTeamModalVisible || setIsAddTeamModalVisible;
+
+  const slots = Array.isArray(propTeamSlots) && propTeamSlots.length > 0 ? propTeamSlots : (userRoster?.teamSlots || []);
+  const filledCount = slots.filter((t: any) => t !== null && t !== undefined).length;
+  const maxTeams = propMaxTeams || userRoster?.maxTeams || 12;
+
+  const rosterItems = userRoster?.roster || [];
+  const starters = userRoster?.starters || rosterItems.filter((item: any) => item.assignment?.lineupStatus === 'starter');
+  const bench = userRoster?.bench || rosterItems.filter((item: any) => item.assignment?.lineupStatus !== 'starter');
+  const rosterCount = userRoster?.rosterCount ?? rosterItems.length;
 
   return (
     <View className="mb-4 mt-2">
+      {/* Roster Starters & Bench Overview */}
+      {userRoster && (starters.length > 0 || bench.length > 0) && (
+        <View className="bg-[#111] border border-[#222] rounded-[24px] p-4 mb-6">
+          <View className="flex-row justify-between items-center mb-4 pb-3 border-b border-[#222]">
+            <View className="flex-row items-center">
+              <Shield color="#8B3DFF" size={20} className="mr-2.5" />
+              <Text className="text-white text-[17px] font-bold">MY FANTASY TEAM</Text>
+            </View>
+            <View className="bg-[#1e1a2b] border border-[#8B3DFF]/50 px-3 py-1 rounded-full">
+              <Text className="text-[#8B3DFF] text-[12px] font-bold">{`Roster: ${rosterCount} / ${totalRosterSize}`}</Text>
+            </View>
+          </View>
+
+          {/* Starters Sub-section */}
+          <Text className="text-[#E0B566] text-[13px] font-bold uppercase mb-3 tracking-wider">Starters</Text>
+          {starters.length > 0 ? (
+            starters.map((item: any, idx: number) => {
+              const athlete = item.seasonAthleteId?.athleteId || item.seasonAthleteId || item;
+              const name = athlete.displayName || athlete.name || `${athlete.firstName || ''} ${athlete.lastName || ''}`.trim() || `Starter ${idx + 1}`;
+              const pos = item.assignment?.assignedPositionId?.code || athlete.primaryPositionId?.code || 'ATH';
+              const teamName = item.seasonAthleteId?.organizationId?.shortName || item.seasonAthleteId?.organizationId?.name || 'NFL';
+              const avatarUri = athlete.photoUrl || `https://i.pravatar.cc/150?img=${(idx % 15) + 1}`;
+
+              return (
+                <TouchableOpacity
+                  key={item._id || `starter-${idx}`}
+                  className="flex-row items-center justify-between border-b border-[#222] pb-3 mb-3"
+                  activeOpacity={0.7}
+                  onPress={() => onSelectRosterItem && onSelectRosterItem(item)}
+                >
+                  <View className="flex-row items-center flex-1">
+                    <Image source={{ uri: avatarUri }} className="w-10 h-10 rounded-full mr-3 bg-[#333]" />
+                    <View className="flex-1">
+                      <Text className="text-white text-[14px] font-semibold" numberOfLines={1}>{name}</Text>
+                      <Text className="text-gray-400 text-[11px]">{`${pos} • ${teamName}`}</Text>
+                    </View>
+                  </View>
+                  <View className="bg-emerald-950 border border-emerald-500/40 px-2.5 py-0.5 rounded-full">
+                    <Text className="text-emerald-400 text-[10px] font-bold">Starter</Text>
+                  </View>
+                </TouchableOpacity>
+              );
+            })
+          ) : (
+            <Text className="text-gray-500 text-[12px] italic mb-4">No starter positions assigned yet.</Text>
+          )}
+
+          {/* Bench Sub-section */}
+          <Text className="text-gray-400 text-[13px] font-bold uppercase mt-2 mb-3 tracking-wider">Bench</Text>
+          {bench.length > 0 ? (
+            bench.map((item: any, idx: number) => {
+              const athlete = item.seasonAthleteId?.athleteId || item.seasonAthleteId || item;
+              const name = athlete.displayName || athlete.name || `${athlete.firstName || ''} ${athlete.lastName || ''}`.trim() || `Bench Player ${idx + 1}`;
+              const pos = item.assignment?.assignedPositionId?.code || athlete.primaryPositionId?.code || 'ATH';
+              const teamName = item.seasonAthleteId?.organizationId?.shortName || item.seasonAthleteId?.organizationId?.name || 'NFL';
+              const avatarUri = athlete.photoUrl || `https://i.pravatar.cc/150?img=${(idx % 15) + 1}`;
+
+              return (
+                <TouchableOpacity
+                  key={item._id || `bench-${idx}`}
+                  className="flex-row items-center justify-between border-b border-[#222] pb-3 mb-3"
+                  activeOpacity={0.7}
+                  onPress={() => onSelectRosterItem && onSelectRosterItem(item)}
+                >
+                  <View className="flex-row items-center flex-1">
+                    <Image source={{ uri: avatarUri }} className="w-10 h-10 rounded-full mr-3 bg-[#333]" />
+                    <View className="flex-1">
+                      <Text className="text-white text-[14px] font-semibold" numberOfLines={1}>{name}</Text>
+                      <Text className="text-gray-400 text-[11px]">{`${pos} • ${teamName}`}</Text>
+                    </View>
+                  </View>
+                  <View className="bg-[#222] border border-[#333] px-2.5 py-0.5 rounded-full">
+                    <Text className="text-gray-400 text-[10px] font-medium">Bench</Text>
+                  </View>
+                </TouchableOpacity>
+              );
+            })
+          ) : (
+            <Text className="text-gray-500 text-[12px] italic">No bench players added yet.</Text>
+          )}
+        </View>
+      )}
+
       {/* Header Summary */}
       <View className="flex-row items-center justify-between mb-4 bg-[#111] p-4 rounded-2xl border border-[#222]">
         <View className="flex-row items-center">
@@ -279,25 +447,8 @@ export const TeamTab = ({
         )}
       </View>
 
-      {/* Banner if not joined */}
-      {!isMember && onOpenJoinModal ? (
-        <View className="bg-[#1a132b] border border-[#8B3DFF]/50 rounded-2xl p-4 mb-5 flex-row items-center justify-between">
-          <View className="flex-1 mr-3">
-            <Text className="text-white text-[15px] font-bold mb-1">Add Your Team to This Public League</Text>
-            <Text className="text-gray-300 text-[12px]">Choose a team name and join the competition before draft day!</Text>
-          </View>
-          <TouchableOpacity
-            className="bg-[#FFB84D] px-4 py-2.5 rounded-full"
-            activeOpacity={0.9}
-            onPress={onOpenJoinModal}
-          >
-            <Text className="text-black text-[13px] font-bold">Join Now</Text>
-          </TouchableOpacity>
-        </View>
-      ) : null}
-
       {/* Slots */}
-      {teamSlots.map((team: any, index: number) => {
+      {slots.map((team: any, index: number) => {
         if (team) {
           return (
             <View key={`slot-${index}`} className="flex-row items-center justify-between border-b border-[#222] pb-4 mb-4">
@@ -330,8 +481,8 @@ export const TeamTab = ({
                 if (!isMember && onOpenJoinModal) {
                   onOpenJoinModal();
                 } else {
-                  setSelectedSlotIndex(index);
-                  setIsAddTeamModalVisible(true);
+                  handleSetSelectedSlot(index);
+                  handleSetAddModal(true);
                 }
               }}
             >
@@ -403,7 +554,18 @@ export const PlayersTab = ({ playersList, setSelectedPlayer, setIsPlayerModalVis
   );
 };
 
-export const LeagueTab = ({ leagueStandings, matchups, league }: any) => {
+export const LeagueTab = ({ leagueId, userTeamId, league }: any) => {
+  const { data: standingsData, isLoading: isStandingsLoading } = useGetLeagueStandingsQuery(leagueId, {
+    skip: !leagueId || leagueId.startsWith('mock-'),
+  });
+
+  const { data: historyData, isLoading: isHistoryLoading } = useGetMatchupHistoryQuery(leagueId, {
+    skip: !leagueId || leagueId.startsWith('mock-'),
+  });
+
+  const standingsList = standingsData?.standings || [];
+  const historyList = historyData?.matchups || [];
+
   return (
     <View className="mb-4 mt-2">
       {/* Detailed Rules & Settings Card */}
@@ -434,11 +596,6 @@ export const LeagueTab = ({ leagueStandings, matchups, league }: any) => {
             <Text className="text-[#8B3DFF] text-[13px] font-semibold">Head-to-Head PPR</Text>
           </View>
 
-          <View className="flex-row items-center justify-between py-1">
-            <Text className="text-gray-400 text-[13px]">Waiver Wire</Text>
-            <Text className="text-white text-[13px] font-medium">FAAB Bidding System</Text>
-          </View>
-
           {league?.description ? (
             <View className="mt-3 pt-3 border-t border-[#222]">
               <Text className="text-gray-400 text-[12px] font-medium mb-1">About League</Text>
@@ -448,79 +605,93 @@ export const LeagueTab = ({ leagueStandings, matchups, league }: any) => {
         </View>
       </View>
 
-      {/* Matchups Section */}
-      <Text className="text-white text-[18px] font-semibold mb-4">Current Matchups</Text>
+      {/* Standings Section */}
       <View className="mb-8">
-        {matchups?.map((matchup: any) => (
-          <View key={matchup.id} className="border border-[#E0B566] rounded-[24px] mb-4 p-1 relative overflow-hidden">
-            <View className="flex-row">
-              {/* Left Team */}
-              <View className="flex-1 border border-[#333] rounded-[20px] bg-[#0a0a0a] p-4 mr-0.5">
-                <View className="w-10 h-10 rounded-full border border-[#333] justify-center items-center bg-black mb-3">
-                  <Text className="text-[#8B3DFF] text-[8px] font-bold">CHEER</Text>
-                </View>
-                <Text className="text-[#E0B566] text-[12px] mb-1">{matchup.team1.handle}</Text>
-                <Text className="text-white text-[14px] mb-3">{matchup.team1.name}</Text>
-                
-                <View className="w-full h-1 bg-[#333] rounded-full overflow-hidden mb-2">
-                  <View className="h-full bg-[#8B3DFF]" style={{ width: '50%' }} />
-                </View>
-                
-                <View className="flex-row justify-between items-center">
-                  <Text className="text-gray-400 text-[10px]">{matchup.team1.percentage}</Text>
-                  <Text className="text-white text-[12px] font-medium">{matchup.team1.score}</Text>
-                </View>
-              </View>
+        <View className="flex-row justify-between items-center mb-4">
+          <Text className="text-white text-[18px] font-bold">League Standings</Text>
+          {isStandingsLoading && <ActivityIndicator size="small" color="#8B3DFF" />}
+        </View>
 
-              {/* Right Team */}
-              <View className="flex-1 border border-[#333] rounded-[20px] bg-[#0a0a0a] p-4 ml-0.5">
-                <View className="w-10 h-10 rounded-full border border-[#333] justify-center items-center bg-black mb-3">
-                  <Text className="text-[#8B3DFF] text-[8px] font-bold">CHEER</Text>
-                </View>
-                <Text className="text-[#E0B566] text-[12px] mb-1">{matchup.team2.handle}</Text>
-                <Text className="text-white text-[14px] mb-3">{matchup.team2.name}</Text>
-                
-                <View className="w-full h-1 bg-[#333] rounded-full overflow-hidden mb-2">
-                  <View className="h-full bg-[#8B3DFF]" style={{ width: '50%' }} />
-                </View>
-                
-                <View className="flex-row justify-between items-center">
-                  <Text className="text-gray-400 text-[10px]">{matchup.team2.percentage}</Text>
-                  <Text className="text-white text-[12px] font-medium">{matchup.team2.score}</Text>
-                </View>
-              </View>
-            </View>
+        <View className="bg-[#111] border border-[#222] rounded-[20px] p-3">
+          {standingsList.length > 0 ? (
+            standingsList.map((item: any) => {
+              const isMyTeam = String(item.fantasyTeamId) === String(userTeamId);
+              return (
+                <View
+                  key={item.fantasyTeamId || item.rank}
+                  className={`flex-row items-center justify-between p-3 rounded-[16px] mb-2 border ${
+                    isMyTeam ? 'bg-[#8B3DFF]/20 border-[#8B3DFF]' : 'bg-[#181818] border-[#222]'
+                  }`}
+                >
+                  <View className="flex-row items-center flex-1 mr-2">
+                    <View className="w-8 h-8 rounded-full bg-[#222] border border-[#444] items-center justify-center mr-3">
+                      <Text className="text-[#E0B566] text-[12px] font-bold">#{item.rank}</Text>
+                    </View>
+                    <View className="flex-1">
+                      <Text className={`text-[14px] font-bold ${isMyTeam ? 'text-[#E0B566]' : 'text-white'}`} numberOfLines={1}>
+                        {item.teamName} {isMyTeam ? '(My Team)' : ''}
+                      </Text>
+                      <Text className="text-gray-400 text-[11px]">
+                        W {item.wins} • L {item.losses} • T {item.ties}
+                      </Text>
+                    </View>
+                  </View>
 
-            {/* VS Badge */}
-            <View className="absolute top-[42%] left-1/2 w-8 h-8 bg-white rounded-full justify-center items-center -ml-4 z-10 shadow-sm">
-              <Text className="text-black text-[12px] font-semibold">VS</Text>
-            </View>
-          </View>
-        ))}
+                  <View className="items-end">
+                    <Text className="text-white text-[13px] font-bold">PF: {item.pointsFor}</Text>
+                    <Text className="text-gray-400 text-[10px]">PA: {item.pointsAgainst} • {(item.winPercentage * 100).toFixed(1)}%</Text>
+                  </View>
+                </View>
+              );
+            })
+          ) : (
+            <Text className="text-gray-500 text-[12px] p-3 text-center">No standings available yet.</Text>
+          )}
+        </View>
       </View>
 
-      {/* Standings Section */}
-      <Text className="text-white text-[18px] font-semibold mb-4">League Standings</Text>
-      <View>
-        {leagueStandings?.map((team: any, index: number) => (
-          <View key={team.id} className="flex-row items-center justify-between border-b border-[#222] pb-4 mb-4">
-            <View className="flex-row items-center">
-              <View className="w-10 h-10 rounded-full border border-[#444] justify-center items-center bg-black mr-4">
-                <Text className="text-white text-[14px] font-bold">{index + 1}</Text>
-              </View>
-              <View>
-                <Text className="text-white text-[15px] font-semibold mb-1">{team.name}</Text>
-                <Text className="text-[#E0B566] text-[13px]">{team.handle}</Text>
-              </View>
-            </View>
-            
-            <View className="items-end justify-center">
-              <Text className="text-[#E0B566] text-[15px] font-bold">{team.score}</Text>
-            </View>
-          </View>
-        ))}
+      {/* Matchup History Section */}
+      <View className="mb-6">
+        <View className="flex-row justify-between items-center mb-4">
+          <Text className="text-white text-[18px] font-bold">Matchup History</Text>
+          {isHistoryLoading && <ActivityIndicator size="small" color="#8B3DFF" />}
+        </View>
+
+        <View className="bg-[#111] border border-[#222] rounded-[20px] p-3">
+          {historyList.length > 0 ? (
+            historyList.map((matchup: any) => {
+              const resultColor =
+                matchup.result === 'WIN'
+                  ? 'text-emerald-400 bg-emerald-400/10 border-emerald-400/40'
+                  : matchup.result === 'LOSS'
+                  ? 'text-rose-400 bg-rose-400/10 border-rose-400/40'
+                  : 'text-amber-400 bg-amber-400/10 border-amber-400/40';
+
+              return (
+                <View key={matchup.matchupId} className="flex-row items-center justify-between border-b border-[#222] py-3 last:border-b-0 px-1">
+                  <View className="flex-1">
+                    <Text className="text-[#E0B566] text-[11px] font-bold uppercase mb-0.5">Week {matchup.weekNumber}</Text>
+                    <Text className="text-white text-[14px] font-semibold">vs {matchup.opponentTeamName}</Text>
+                  </View>
+
+                  <View className="items-end mr-3">
+                    <Text className="text-white text-[14px] font-bold">{matchup.myScore} - {matchup.opponentScore}</Text>
+                    <Text className="text-gray-500 text-[9px] uppercase">{matchup.status}</Text>
+                  </View>
+
+                  <View className={`px-3 py-1 rounded-full border ${resultColor}`}>
+                    <Text className="text-[11px] font-extrabold">{matchup.result}</Text>
+                  </View>
+                </View>
+              );
+            })
+          ) : (
+            <Text className="text-gray-500 text-[12px] p-3 text-center">No completed matchups yet.</Text>
+          )}
+        </View>
       </View>
     </View>
   );
 };
+
 
