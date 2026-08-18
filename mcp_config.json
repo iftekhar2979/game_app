@@ -1,0 +1,14 @@
+{
+  "mcpServers": {
+    "crawler": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@mendableai/firecrawl-mcp-server"
+      ],
+      "env": {
+        "FIRECRAWL_API_KEY": "fc-9d2f681c8a544d70a27a3303ded82824"
+      }
+    }
+  }
+}
