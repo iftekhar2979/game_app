@@ -7,9 +7,26 @@ export interface ToastOptions {
   duration?: number;
 }
 
-export function formatToastMessage(message?: string): string | undefined {
-  if (!message) return undefined;
-  return message
+export function formatToastMessage(message?: unknown): string | undefined {
+  if (message === null || message === undefined) return undefined;
+
+  // Validation failures come back as a string[], and other rejections can carry
+  // an object. Coerce before touching string methods — calling .replace on an
+  // array throws inside the caller's catch block and surfaces as an unhandled
+  // promise rejection rather than a toast.
+  const text = Array.isArray(message)
+    ? message.filter(Boolean).join('\n')
+    : typeof message === 'string'
+    ? message
+    : typeof message === 'object'
+    ? (message as any).message
+      ? String((message as any).message)
+      : JSON.stringify(message)
+    : String(message);
+
+  if (!text) return undefined;
+
+  return text
     .replace(
       /\b\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})?\b/g,
       (match) => {
@@ -58,16 +75,16 @@ class ToastEmitter {
 export const toastEmitter = new ToastEmitter();
 
 export const showToast = {
-  success: (title: string, message?: string) => {
+  success: (title: string, message?: unknown) => {
     toastEmitter.show({ type: 'success', title, message: formatToastMessage(message) });
   },
-  warning: (title: string, message?: string) => {
+  warning: (title: string, message?: unknown) => {
     toastEmitter.show({ type: 'warning', title, message: formatToastMessage(message) });
   },
-  error: (title: string, message?: string) => {
+  error: (title: string, message?: unknown) => {
     toastEmitter.show({ type: 'error', title, message: formatToastMessage(message) });
   },
-  info: (title: string, message?: string) => {
+  info: (title: string, message?: unknown) => {
     toastEmitter.show({ type: 'info', title, message: formatToastMessage(message) });
   },
 };

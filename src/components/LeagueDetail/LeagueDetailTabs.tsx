@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
-import { View, Text, Image, TouchableOpacity, ScrollView, Modal } from 'react-native';
-import { Repeat, Plus, Users, UserCheck, Shield, Globe, Lock, Award, Settings } from 'lucide-react-native';
+import { View, Text, Image, TouchableOpacity, ScrollView, Modal, TextInput } from 'react-native';
+import { Repeat, Plus, Users, UserCheck, Shield, Globe, Lock, Award, Settings, ChevronRight, Search, X, User } from 'lucide-react-native';
 
 
 
 import { useGetCurrentMatchupQuery, useGetLeagueStandingsQuery, useGetMatchupHistoryQuery } from '../../store/api/leagueApi';
 import { ActivityIndicator } from 'react-native';
+import { RosterSections } from './RosterPlayerRow';
 
 export const MatchupTab = ({ leagueId }: any) => {
   const [isWeekModalVisible, setIsWeekModalVisible] = useState(false);
@@ -125,7 +126,7 @@ export const MatchupTab = ({ leagueId }: any) => {
         <View className="bg-[#121212] border border-[#222] rounded-[20px] p-3">
           {myTeam?.starters?.length > 0 ? (
             myTeam.starters.map((starter: any, idx: number) => (
-              <View key={starter.seasonAthleteId || idx} className="flex-row items-center justify-between border-b border-[#222] py-2.5 last:border-b-0 px-1">
+              <View key={`${starter.seasonAthleteId || 'starter'}-${idx}`} className="flex-row items-center justify-between border-b border-[#222] py-2.5 last:border-b-0 px-1">
                 <View className="flex-row items-center flex-1">
                   <Image source={{ uri: starter.photoUrl || 'https://i.pravatar.cc/150?img=11' }} className="w-9 h-9 rounded-full bg-[#222] mr-3" />
                   <View className="flex-1">
@@ -153,7 +154,7 @@ export const MatchupTab = ({ leagueId }: any) => {
         <View className="bg-[#121212] border border-[#222] rounded-[20px] p-3">
           {opponent?.starters?.length > 0 ? (
             opponent.starters.map((starter: any, idx: number) => (
-              <View key={starter.seasonAthleteId || idx} className="flex-row items-center justify-between border-b border-[#222] py-2.5 last:border-b-0 px-1">
+              <View key={`${starter.seasonAthleteId || 'opp-starter'}-${idx}`} className="flex-row items-center justify-between border-b border-[#222] py-2.5 last:border-b-0 px-1">
                 <View className="flex-row items-center flex-1">
                   <Image source={{ uri: starter.photoUrl || 'https://i.pravatar.cc/150?img=12' }} className="w-9 h-9 rounded-full bg-[#222] mr-3" />
                   <View className="flex-1">
@@ -316,9 +317,11 @@ export const TeamTab = ({
   isMember = false,
   onOpenJoinModal,
   maxTeams: propMaxTeams = 12,
-  userRoster,
-  totalRosterSize = 15,
-  onSelectRosterItem,
+  myRoster,
+  isMyRosterLoading = false,
+  totalRosterSize,
+  onSelectRosterPlayer,
+  onSelectTeam,
 }: any) => {
   const [selectedSlotIndex, setSelectedSlotIndex] = useState<number | null>(null);
   const [isAddTeamModalVisible, setIsAddTeamModalVisible] = useState(false);
@@ -326,96 +329,48 @@ export const TeamTab = ({
   const handleSetSelectedSlot = parentSetSelectedSlotIndex || setSelectedSlotIndex;
   const handleSetAddModal = parentSetIsAddTeamModalVisible || setIsAddTeamModalVisible;
 
-  const slots = Array.isArray(propTeamSlots) && propTeamSlots.length > 0 ? propTeamSlots : (userRoster?.teamSlots || []);
+  const slots = Array.isArray(propTeamSlots) ? propTeamSlots : [];
   const filledCount = slots.filter((t: any) => t !== null && t !== undefined).length;
-  const maxTeams = propMaxTeams || userRoster?.maxTeams || 12;
+  const maxTeams = propMaxTeams || 12;
 
-  const rosterItems = userRoster?.roster || [];
-  const starters = userRoster?.starters || rosterItems.filter((item: any) => item.assignment?.lineupStatus === 'starter');
-  const bench = userRoster?.bench || rosterItems.filter((item: any) => item.assignment?.lineupStatus !== 'starter');
-  const rosterCount = userRoster?.rosterCount ?? rosterItems.length;
+  const starters = myRoster?.starters || [];
+  const bench = myRoster?.bench || [];
+  const rosterCount = myRoster?.rosterCount ?? 0;
 
   return (
     <View className="mb-4 mt-2">
-      {/* Roster Starters & Bench Overview */}
-      {userRoster && (starters.length > 0 || bench.length > 0) && (
+      {/* My fantasy team roster */}
+      {isMember && (
         <View className="bg-[#111] border border-[#222] rounded-[24px] p-4 mb-6">
           <View className="flex-row justify-between items-center mb-4 pb-3 border-b border-[#222]">
             <View className="flex-row items-center">
               <Shield color="#8B3DFF" size={20} className="mr-2.5" />
-              <Text className="text-white text-[17px] font-bold">MY FANTASY TEAM</Text>
+              <Text className="text-white text-[17px] font-bold" numberOfLines={1}>
+                {myRoster?.team?.name || 'MY FANTASY TEAM'}
+              </Text>
             </View>
             <View className="bg-[#1e1a2b] border border-[#8B3DFF]/50 px-3 py-1 rounded-full">
-              <Text className="text-[#8B3DFF] text-[12px] font-bold">{`Roster: ${rosterCount} / ${totalRosterSize}`}</Text>
+              <Text className="text-[#8B3DFF] text-[12px] font-bold">
+                {`Roster: ${rosterCount} / ${totalRosterSize ?? '—'}`}
+              </Text>
             </View>
           </View>
 
-          {/* Starters Sub-section */}
-          <Text className="text-[#E0B566] text-[13px] font-bold uppercase mb-3 tracking-wider">Starters</Text>
-          {starters.length > 0 ? (
-            starters.map((item: any, idx: number) => {
-              const athlete = item.seasonAthleteId?.athleteId || item.seasonAthleteId || item;
-              const name = athlete.displayName || athlete.name || `${athlete.firstName || ''} ${athlete.lastName || ''}`.trim() || `Starter ${idx + 1}`;
-              const pos = item.assignment?.assignedPositionId?.code || athlete.primaryPositionId?.code || 'ATH';
-              const teamName = item.seasonAthleteId?.organizationId?.shortName || item.seasonAthleteId?.organizationId?.name || 'NFL';
-              const avatarUri = athlete.photoUrl || `https://i.pravatar.cc/150?img=${(idx % 15) + 1}`;
-
-              return (
-                <TouchableOpacity
-                  key={item._id || `starter-${idx}`}
-                  className="flex-row items-center justify-between border-b border-[#222] pb-3 mb-3"
-                  activeOpacity={0.7}
-                  onPress={() => onSelectRosterItem && onSelectRosterItem(item)}
-                >
-                  <View className="flex-row items-center flex-1">
-                    <Image source={{ uri: avatarUri }} className="w-10 h-10 rounded-full mr-3 bg-[#333]" />
-                    <View className="flex-1">
-                      <Text className="text-white text-[14px] font-semibold" numberOfLines={1}>{name}</Text>
-                      <Text className="text-gray-400 text-[11px]">{`${pos} • ${teamName}`}</Text>
-                    </View>
-                  </View>
-                  <View className="bg-emerald-950 border border-emerald-500/40 px-2.5 py-0.5 rounded-full">
-                    <Text className="text-emerald-400 text-[10px] font-bold">Starter</Text>
-                  </View>
-                </TouchableOpacity>
-              );
-            })
+          {isMyRosterLoading && !myRoster ? (
+            <View className="py-8 items-center justify-center">
+              <ActivityIndicator size="small" color="#8B3DFF" />
+              <Text className="text-gray-400 text-[12px] mt-2">Loading your players...</Text>
+            </View>
+          ) : !myRoster ? (
+            <Text className="text-gray-500 text-[12px] italic">
+              Your roster is unavailable right now. Pull to refresh or try again shortly.
+            </Text>
+          ) : rosterCount === 0 ? (
+            <Text className="text-gray-500 text-[12px] italic">
+              You have not acquired any players yet. Players you draft or add appear here.
+            </Text>
           ) : (
-            <Text className="text-gray-500 text-[12px] italic mb-4">No starter positions assigned yet.</Text>
-          )}
-
-          {/* Bench Sub-section */}
-          <Text className="text-gray-400 text-[13px] font-bold uppercase mt-2 mb-3 tracking-wider">Bench</Text>
-          {bench.length > 0 ? (
-            bench.map((item: any, idx: number) => {
-              const athlete = item.seasonAthleteId?.athleteId || item.seasonAthleteId || item;
-              const name = athlete.displayName || athlete.name || `${athlete.firstName || ''} ${athlete.lastName || ''}`.trim() || `Bench Player ${idx + 1}`;
-              const pos = item.assignment?.assignedPositionId?.code || athlete.primaryPositionId?.code || 'ATH';
-              const teamName = item.seasonAthleteId?.organizationId?.shortName || item.seasonAthleteId?.organizationId?.name || 'NFL';
-              const avatarUri = athlete.photoUrl || `https://i.pravatar.cc/150?img=${(idx % 15) + 1}`;
-
-              return (
-                <TouchableOpacity
-                  key={item._id || `bench-${idx}`}
-                  className="flex-row items-center justify-between border-b border-[#222] pb-3 mb-3"
-                  activeOpacity={0.7}
-                  onPress={() => onSelectRosterItem && onSelectRosterItem(item)}
-                >
-                  <View className="flex-row items-center flex-1">
-                    <Image source={{ uri: avatarUri }} className="w-10 h-10 rounded-full mr-3 bg-[#333]" />
-                    <View className="flex-1">
-                      <Text className="text-white text-[14px] font-semibold" numberOfLines={1}>{name}</Text>
-                      <Text className="text-gray-400 text-[11px]">{`${pos} • ${teamName}`}</Text>
-                    </View>
-                  </View>
-                  <View className="bg-[#222] border border-[#333] px-2.5 py-0.5 rounded-full">
-                    <Text className="text-gray-400 text-[10px] font-medium">Bench</Text>
-                  </View>
-                </TouchableOpacity>
-              );
-            })
-          ) : (
-            <Text className="text-gray-500 text-[12px] italic">No bench players added yet.</Text>
+            <RosterSections starters={starters} bench={bench} onSelectPlayer={onSelectRosterPlayer} />
           )}
         </View>
       )}
@@ -450,8 +405,15 @@ export const TeamTab = ({
       {/* Slots */}
       {slots.map((team: any, index: number) => {
         if (team) {
+          const canOpenRoster = !!(team.teamId && onSelectTeam);
           return (
-            <View key={`slot-${index}`} className="flex-row items-center justify-between border-b border-[#222] pb-4 mb-4">
+            <TouchableOpacity
+              key={`slot-${index}`}
+              className="flex-row items-center justify-between border-b border-[#222] pb-4 mb-4"
+              activeOpacity={canOpenRoster ? 0.7 : 1}
+              disabled={!canOpenRoster}
+              onPress={() => onSelectTeam(team.teamId, team.name)}
+            >
               <View className="flex-row items-center flex-1">
                 <View className="w-12 h-12 rounded-full border border-[#333] justify-center items-center bg-black mr-4 overflow-hidden">
                   {team.avatarUri ? (
@@ -463,13 +425,19 @@ export const TeamTab = ({
                 <View className="flex-1">
                   <Text className="text-white text-[15px] font-semibold mb-0.5" numberOfLines={1}>{team.name}</Text>
                   <Text className="text-[#E0B566] text-[13px]">{team.handle || `@team${index + 1}`}</Text>
+                  {canOpenRoster && (
+                    <Text className="text-gray-500 text-[11px] mt-0.5">Tap to view manager and players</Text>
+                  )}
                 </View>
               </View>
-              
-              <View className="bg-[#222] border border-[#333] px-3 py-1 rounded-full">
-                <Text className="text-gray-300 text-[11px] font-medium">{index === 0 ? 'Commissioner' : 'Joined'}</Text>
+
+              <View className="flex-row items-center">
+                <View className="bg-[#222] border border-[#333] px-3 py-1 rounded-full">
+                  <Text className="text-gray-300 text-[11px] font-medium">{team.role || (index === 0 ? 'Commissioner' : 'Joined')}</Text>
+                </View>
+                {canOpenRoster && <ChevronRight color="#666" size={16} />}
               </View>
-            </View>
+            </TouchableOpacity>
           );
         } else {
           return (
@@ -510,46 +478,141 @@ export const TeamTab = ({
 };
 
 
-export const PlayersTab = ({ playersList, setSelectedPlayer, setIsPlayerModalVisible }: any) => {
+export const PlayersTab = ({
+  players = [],
+  positions = [],
+  searchTerm,
+  onChangeSearchTerm,
+  selectedPositionId,
+  onSelectPosition,
+  isLoading = false,
+  isFetching = false,
+  hasMore = false,
+  totalItems = 0,
+  onLoadMore,
+  onSelectPlayer,
+}: any) => {
   return (
     <View className="mb-4 mt-2">
-      {/* Filters */}
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} className="mb-6">
-        <TouchableOpacity className="border border-[#FFB84D] rounded-full px-4 py-1.5 mr-4 justify-center items-center">
-          <Text className="text-[#FFB84D] text-[12px] font-medium">New</Text>
-        </TouchableOpacity>
-        <TouchableOpacity className="mr-5 justify-center">
-          <Text className="text-gray-400 text-[12px]">All</Text>
-        </TouchableOpacity>
-      </ScrollView>
+      {/* Search */}
+      <View className="flex-row items-center bg-[#111] border border-[#222] rounded-2xl px-3.5 py-2.5 mb-3">
+        <Search color="#666" size={16} />
+        <TextInput
+          className="flex-1 text-white text-[14px] ml-2.5 p-0"
+          placeholder="Search players"
+          placeholderTextColor="#666"
+          value={searchTerm}
+          onChangeText={onChangeSearchTerm}
+          autoCorrect={false}
+          returnKeyType="search"
+        />
+        {!!searchTerm && (
+          <TouchableOpacity onPress={() => onChangeSearchTerm('')} hitSlop={8}>
+            <X color="#666" size={16} />
+          </TouchableOpacity>
+        )}
+      </View>
 
-      {/* Players List */}
-      {playersList.map((player: any) => (
-        <TouchableOpacity 
-          key={player.id} 
-          className="flex-row items-center justify-between border-b border-[#222] pb-4 mb-4"
-          activeOpacity={0.7}
-          onPress={() => {
-            setSelectedPlayer(player);
-            setIsPlayerModalVisible(true);
-          }}
-        >
-          <View className="flex-row items-center">
-            <Image source={{ uri: player.avatarUri }} className="w-11 h-11 rounded-full mr-4 bg-[#333]" />
-            <View>
-              <Text className="text-white text-[15px] mb-1">{player.name}</Text>
-              <Text className="text-[#FFB84D] text-[12px]">Rostered {player.rostered}</Text>
-            </View>
-          </View>
-          
-          <View className="items-end justify-center w-[60px]">
-            <Text className="text-[#FFB84D] text-[14px] font-medium mb-1.5">{player.points}</Text>
-            <View className="w-full h-1 bg-[#333] rounded-full overflow-hidden">
-              <View className="h-full bg-[#FFB84D]" style={{ width: `${player.progress}%` }} />
-            </View>
-          </View>
-        </TouchableOpacity>
-      ))}
+      {/* Position filters */}
+      {positions.length > 0 && (
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} className="mb-4">
+          <TouchableOpacity
+            className={`rounded-full px-4 py-1.5 mr-2.5 border ${
+              !selectedPositionId ? 'border-[#FFB84D] bg-[#FFB84D]/10' : 'border-[#333]'
+            }`}
+            onPress={() => onSelectPosition(null)}
+            activeOpacity={0.7}
+          >
+            <Text className={`${!selectedPositionId ? 'text-[#FFB84D]' : 'text-gray-400'} text-[12px] font-medium`}>
+              All
+            </Text>
+          </TouchableOpacity>
+          {positions.map((pos: any) => {
+            const isSelected = String(selectedPositionId) === String(pos._id);
+            return (
+              <TouchableOpacity
+                key={pos._id}
+                className={`rounded-full px-4 py-1.5 mr-2.5 border ${
+                  isSelected ? 'border-[#FFB84D] bg-[#FFB84D]/10' : 'border-[#333]'
+                }`}
+                onPress={() => onSelectPosition(isSelected ? null : pos._id)}
+                activeOpacity={0.7}
+              >
+                <Text className={`${isSelected ? 'text-[#FFB84D]' : 'text-gray-400'} text-[12px] font-medium`}>
+                  {pos.code || pos.name}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </ScrollView>
+      )}
+
+      {isLoading ? (
+        <View className="py-12 items-center justify-center">
+          <ActivityIndicator size="large" color="#8B3DFF" />
+          <Text className="text-gray-400 text-[13px] mt-3">Loading players...</Text>
+        </View>
+      ) : players.length === 0 ? (
+        <View className="py-12 items-center justify-center px-6">
+          <Text className="text-white text-[15px] font-semibold mb-1.5">No players available</Text>
+          <Text className="text-gray-400 text-[12px] text-center">
+            {searchTerm || selectedPositionId
+              ? 'No free agents match this search. Try clearing the filters.'
+              : 'Players appear here once their team has a game coming up and they are not already rostered.'}
+          </Text>
+        </View>
+      ) : (
+        <>
+          <Text className="text-gray-500 text-[11px] mb-3">
+            {`Showing ${players.length}${totalItems ? ` of ${totalItems}` : ''} free agents`}
+          </Text>
+
+          {players.map((player: any, index: number) => (
+            <TouchableOpacity
+              key={`${player.id}-${index}`}
+              className="flex-row items-center justify-between border-b border-[#222] pb-4 mb-4"
+              activeOpacity={0.7}
+              onPress={() => onSelectPlayer && onSelectPlayer(player)}
+            >
+              <View className="flex-row items-center flex-1">
+                {player.avatarUri ? (
+                  <Image source={{ uri: player.avatarUri }} className="w-11 h-11 rounded-full mr-4 bg-[#333]" />
+                ) : (
+                  <View className="w-11 h-11 rounded-full mr-4 bg-[#222] border border-[#333] justify-center items-center">
+                    <User color="#666" size={18} />
+                  </View>
+                )}
+                <View className="flex-1">
+                  <Text className="text-white text-[15px] mb-1" numberOfLines={1}>{player.name}</Text>
+                  <Text className="text-gray-400 text-[12px]">{player.subtitle}</Text>
+                </View>
+              </View>
+
+              {player.value !== null && player.value !== undefined && (
+                <View className="items-end justify-center ml-3">
+                  <Text className="text-[#FFB84D] text-[14px] font-semibold">{`$${player.value}`}</Text>
+                  <Text className="text-gray-600 text-[9px] uppercase font-bold">Value</Text>
+                </View>
+              )}
+            </TouchableOpacity>
+          ))}
+
+          {hasMore && (
+            <TouchableOpacity
+              className="border border-[#333] rounded-full py-3 items-center mb-4"
+              onPress={onLoadMore}
+              disabled={isFetching}
+              activeOpacity={0.7}
+            >
+              {isFetching ? (
+                <ActivityIndicator size="small" color="#8B3DFF" />
+              ) : (
+                <Text className="text-gray-300 text-[13px] font-medium">Load more</Text>
+              )}
+            </TouchableOpacity>
+          )}
+        </>
+      )}
     </View>
   );
 };
@@ -614,11 +677,11 @@ export const LeagueTab = ({ leagueId, userTeamId, league }: any) => {
 
         <View className="bg-[#111] border border-[#222] rounded-[20px] p-3">
           {standingsList.length > 0 ? (
-            standingsList.map((item: any) => {
+            standingsList.map((item: any, idx: number) => {
               const isMyTeam = String(item.fantasyTeamId) === String(userTeamId);
               return (
                 <View
-                  key={item.fantasyTeamId || item.rank}
+                  key={`${item.fantasyTeamId || item.rank || 'team'}-${idx}`}
                   className={`flex-row items-center justify-between p-3 rounded-[16px] mb-2 border ${
                     isMyTeam ? 'bg-[#8B3DFF]/20 border-[#8B3DFF]' : 'bg-[#181818] border-[#222]'
                   }`}
@@ -659,7 +722,7 @@ export const LeagueTab = ({ leagueId, userTeamId, league }: any) => {
 
         <View className="bg-[#111] border border-[#222] rounded-[20px] p-3">
           {historyList.length > 0 ? (
-            historyList.map((matchup: any) => {
+            historyList.map((matchup: any, idx: number) => {
               const resultColor =
                 matchup.result === 'WIN'
                   ? 'text-emerald-400 bg-emerald-400/10 border-emerald-400/40'
@@ -668,7 +731,7 @@ export const LeagueTab = ({ leagueId, userTeamId, league }: any) => {
                   : 'text-amber-400 bg-amber-400/10 border-amber-400/40';
 
               return (
-                <View key={matchup.matchupId} className="flex-row items-center justify-between border-b border-[#222] py-3 last:border-b-0 px-1">
+                <View key={`${matchup.matchupId || 'matchup'}-${idx}`} className="flex-row items-center justify-between border-b border-[#222] py-3 last:border-b-0 px-1">
                   <View className="flex-1">
                     <Text className="text-[#E0B566] text-[11px] font-bold uppercase mb-0.5">Week {matchup.weekNumber}</Text>
                     <Text className="text-white text-[14px] font-semibold">vs {matchup.opponentTeamName}</Text>
