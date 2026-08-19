@@ -18,6 +18,7 @@ import FantasyLeagueScreen from './src/screens/Home/FantasyLeagueScreen';
 import CreateLeagueScreen from './src/screens/Home/CreateLeagueScreen';
 import LeagueDetailScreen from './src/screens/Home/LeagueDetailScreen';
 import DraftRoomScreen from './src/screens/Home/DraftRoomScreen';
+import TeamRosterScreen from './src/screens/Home/TeamRosterScreen';
 import CreatePostScreen from './src/screens/Home/CreatePostScreen';
 import ProfileScreen from './src/screens/Profile/ProfileScreen';
 import { Provider, useDispatch, useSelector } from 'react-redux';
@@ -50,6 +51,7 @@ export type RootStackParamList = {
   CreateLeague: undefined;
   LeagueDetail: { leagueId: string };
   DraftRoom: { leagueId: string };
+  TeamRoster: { leagueId: string; teamId: string; teamName?: string };
   CreatePost: undefined;
   Profile: undefined;
   CoinStore: undefined;
@@ -106,6 +108,7 @@ function AppContent() {
               <Stack.Screen name="CreateLeague" component={CreateLeagueScreen} />
               <Stack.Screen name="LeagueDetail" component={LeagueDetailScreen} />
               <Stack.Screen name="DraftRoom" component={DraftRoomScreen} />
+              <Stack.Screen name="TeamRoster" component={TeamRosterScreen} />
               <Stack.Screen name="CreatePost" component={CreatePostScreen} />
               <Stack.Screen name="Profile" component={ProfileScreen} />
               <Stack.Screen name="CoinStore" component={CoinStoreScreen} />

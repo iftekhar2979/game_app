@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, TextInput, KeyboardAvoidingView, Platform, ScrollView, Modal, FlatList, Alert, ActivityIndicator, Image } from 'react-native';
+import React, { useState, useEffect, useMemo } from 'react';
+import { View, Text, TouchableOpacity, TextInput, KeyboardAvoidingView, Platform, ScrollView, Modal, FlatList, ActivityIndicator, Image } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ChevronLeft, User, Users, ChevronDown, Calendar, Clock, Lock, Unlock, Shield, Camera } from 'lucide-react-native';
 import DatePicker from 'react-native-date-picker';
@@ -11,6 +11,8 @@ import { useGetActiveSeasonsQuery } from '../../store/api/seasonApi';
 import { useCreateLeagueMutation } from '../../store/api/leagueApi';
 import { useLazyGetPreSignedUrlQuery } from '../../store/api/usersApi';
 import { showToast } from '../../utils/toast';
+import { DRAFT_TYPE_OPTIONS, buildDraftSettings } from '../../constants/draftTypes';
+import type { DraftTypeValue } from '../../constants/draftTypes';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
@@ -96,7 +98,7 @@ export default function CreateLeagueScreen() {
   const [visibility, setVisibility] = useState<'public' | 'private'>('public');
 
   // Draft Settings
-  const [draftType, setDraftType] = useState<'auction' | 'snake' | 'random'>('auction');
+  const [draftType, setDraftType] = useState<DraftTypeValue>('auction');
   const [startingBudget, setStartingBudget] = useState('200');
   const [minimumBid, setMinimumBid] = useState('1');
   const [bidIncrement, setBidIncrement] = useState('1');
@@ -131,15 +133,18 @@ export default function CreateLeagueScreen() {
   };
 
   const memberOptions = ['4', '6', '8', '10', '12', '14', '16', '18', '20'];
-  const draftTypeOptions = ['auction', 'snake', 'random'] as const;
+  const draftTypeOptions = DRAFT_TYPE_OPTIONS;
 
   const [selectedSeasonId, setSelectedSeasonId] = useState<string>('');
 
-  const seasonsList: any[] = Array.isArray(activeSeasons)
-    ? activeSeasons
-    : (activeSeasons as any)?.data && Array.isArray((activeSeasons as any).data)
-      ? (activeSeasons as any).data
-      : [];
+  // Memoised so the auto-select effect below does not re-run on every render.
+  const seasonsList: any[] = useMemo(() => (
+    Array.isArray(activeSeasons)
+      ? activeSeasons
+      : (activeSeasons as any)?.data && Array.isArray((activeSeasons as any).data)
+        ? (activeSeasons as any).data
+        : []
+  ), [activeSeasons]);
 
   useEffect(() => {
     if (!selectedSeasonId && seasonsList.length > 0) {
@@ -148,6 +153,16 @@ export default function CreateLeagueScreen() {
   }, [seasonsList, selectedSeasonId]);
 
   const activeSeasonObj = seasonsList.find((s) => (s._id || s.id) === selectedSeasonId) || seasonsList[0];
+  const hasSeason = seasonsList.length > 0;
+  const canPickSeason = seasonsList.length > 1;
+  const [isSeasonModalVisible, setIsSeasonModalVisible] = useState(false);
+
+  const formatDeadline = (value?: string) => {
+    if (!value) return null;
+    const date = new Date(value);
+    return Number.isNaN(date.getTime()) ? null : date.toLocaleDateString();
+  };
+  const registrationDeadline = formatDeadline(activeSeasonObj?.registrationEndsAt);
 
   const handleCreateLeague = async () => {
     if (!leagueName.trim() || !fantasyTeamName.trim()) {
@@ -204,17 +219,16 @@ export default function CreateLeagueScreen() {
         visibility,
         maxTeams: parseInt(maxTeams, 10),
         fantasyTeamName,
-        draftSettings: {
+        draftSettings: buildDraftSettings({
           type: draftType,
-          orderStrategy: 'random',
           startingBudget: parseInt(startingBudget, 10),
           minimumBid: parseInt(minimumBid, 10),
           bidIncrement: parseInt(bidIncrement, 10),
-          nominationDurationSeconds: Math.min(300, Math.max(10, parseInt(nominationSeconds, 10) || 30)),
-          biddingDurationSeconds: Math.min(300, Math.max(10, parseInt(biddingSeconds, 10) || 15)),
+          nominationDurationSeconds: parseInt(nominationSeconds, 10),
+          biddingDurationSeconds: parseInt(biddingSeconds, 10),
           pickDurationSeconds,
           draftStartsAt,
-        },
+        }),
       }).unwrap();
 
       showToast.success('Success', 'League created successfully!');
@@ -245,21 +259,61 @@ export default function CreateLeagueScreen() {
             <ActivityIndicator size="large" color="#B366FF" />
             <Text className="text-[#999] mt-4">Loading active seasons...</Text>
           </View>
+        ) : !hasSeason ? (
+          // Nothing to create a league against, so say so instead of letting the
+          // whole form be filled in and rejected on submit.
+          <View className="flex-1 justify-center items-center px-8">
+            <View className="w-16 h-16 rounded-full border border-[#333] bg-[#120824] justify-center items-center mb-4">
+              <Calendar color="#B366FF" size={26} />
+            </View>
+            <Text className="text-white text-base font-bold mb-2 text-center">
+              No season is open for registration
+            </Text>
+            <Text className="text-[#999] text-xs text-center mb-6">
+              Leagues can only be created while a season is accepting registrations. Check
+              back once the next season opens.
+            </Text>
+            <TouchableOpacity
+              className="border border-[#B366FF] px-5 py-2.5 rounded-full"
+              onPress={() => navigation.goBack()}
+              activeOpacity={0.8}
+            >
+              <Text className="text-[#B366FF] text-sm font-medium">Go back</Text>
+            </TouchableOpacity>
+          </View>
         ) : (
           <ScrollView contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 10, paddingBottom: 40 }} keyboardShouldPersistTaps="handled">
             
-            {/* Active Season Info Card */}
+            {/* Target season — every field comes from the season record itself. */}
             {activeSeasonObj && (
-              <View className="border border-[#B366FF]/40 rounded-2xl bg-[#120824] p-4 mb-6 flex-row items-center justify-between">
+              <TouchableOpacity
+                className="border border-[#B366FF]/40 rounded-2xl bg-[#120824] p-4 mb-6 flex-row items-center justify-between"
+                activeOpacity={canPickSeason ? 0.7 : 1}
+                disabled={!canPickSeason}
+                onPress={() => setIsSeasonModalVisible(true)}
+              >
                 <View className="flex-1">
                   <Text className="text-[#B366FF] text-xs uppercase font-bold tracking-wider mb-1">Target Season</Text>
-                  <Text className="text-white text-base font-bold">{activeSeasonObj.name || 'Active Season'}</Text>
-                  <Text className="text-[#999] text-xs mt-0.5">Registration open for fantasy leagues</Text>
+                  <Text className="text-white text-base font-bold">{activeSeasonObj.name}</Text>
+                  <Text className="text-[#999] text-xs mt-0.5">
+                    {registrationDeadline
+                      ? `Registration closes ${registrationDeadline}`
+                      : 'Open for registration'}
+                  </Text>
+                  {canPickSeason && (
+                    <Text className="text-[#B366FF] text-[11px] mt-1">
+                      {`Tap to choose from ${seasonsList.length} seasons`}
+                    </Text>
+                  )}
                 </View>
-                <View className="bg-[#B366FF]/20 px-3 py-1.5 rounded-full border border-[#B366FF]/30">
-                  <Text className="text-[#B366FF] text-xs font-semibold">Active</Text>
-                </View>
-              </View>
+                {canPickSeason ? (
+                  <ChevronDown color="#B366FF" size={20} />
+                ) : (
+                  <View className="bg-[#B366FF]/20 px-3 py-1.5 rounded-full border border-[#B366FF]/30">
+                    <Text className="text-[#B366FF] text-xs font-semibold">Open</Text>
+                  </View>
+                )}
+              </TouchableOpacity>
             )}
 
             {/* League Logo Upload Card */}
@@ -448,22 +502,57 @@ export default function CreateLeagueScreen() {
         )}
 
         {/* Bottom Button */}
-        <View className="px-5 pb-[30px] pt-2.5">
-          <TouchableOpacity
-            className={`bg-[#8B3DFF] rounded-[30px] h-14 justify-center items-center ${isCreating || isLoadingSeasons ? 'opacity-50' : ''}`}
-            activeOpacity={0.8}
-            onPress={handleCreateLeague}
-            disabled={isCreating || isLoadingSeasons}
-          >
-            {isCreating ? (
-              <ActivityIndicator color="#fff" />
-            ) : (
-              <Text className="text-white text-base font-semibold">Create League</Text>
-            )}
-          </TouchableOpacity>
-        </View>
+        {hasSeason && (
+          <View className="px-5 pb-[30px] pt-2.5">
+            <TouchableOpacity
+              className={`bg-[#8B3DFF] rounded-[30px] h-14 justify-center items-center ${
+                isCreating || isLoadingSeasons ? 'opacity-50' : ''
+              }`}
+              activeOpacity={0.8}
+              onPress={handleCreateLeague}
+              disabled={isCreating || isLoadingSeasons}
+            >
+              {isCreating ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <Text className="text-white text-base font-semibold">Create League</Text>
+              )}
+            </TouchableOpacity>
+          </View>
+        )}
 
         {/* Modals */}
+        <Modal visible={isSeasonModalVisible} transparent={true} animationType="fade" onRequestClose={() => setIsSeasonModalVisible(false)}>
+          <TouchableOpacity className="flex-1 bg-black/50 justify-center items-center" activeOpacity={1} onPress={() => setIsSeasonModalVisible(false)}>
+            <View className="bg-[#1a1a1a] rounded-2xl w-4/5 max-h-[60%] p-5 border border-[#333]">
+              <Text className="text-white text-lg font-semibold mb-4 text-center">Target Season</Text>
+              <FlatList
+                data={seasonsList}
+                keyExtractor={(item) => String(item._id || item.id)}
+                renderItem={({ item }) => {
+                  const id = String(item._id || item.id);
+                  const isSelected = id === selectedSeasonId;
+                  const closes = formatDeadline(item.registrationEndsAt);
+                  return (
+                    <TouchableOpacity
+                      className="py-3 border-b border-[#333]"
+                      onPress={() => { setSelectedSeasonId(id); setIsSeasonModalVisible(false); }}
+                    >
+                      <Text className={`text-base ${isSelected ? 'text-[#B366FF] font-semibold' : 'text-white'}`}>
+                        {item.name}
+                      </Text>
+                      {!!closes && (
+                        <Text className="text-[#777] text-xs mt-0.5">{`Registration closes ${closes}`}</Text>
+                      )}
+                    </TouchableOpacity>
+                  );
+                }}
+                className="grow-0"
+              />
+            </View>
+          </TouchableOpacity>
+        </Modal>
+
         <Modal visible={isMemberModalVisible} transparent={true} animationType="fade" onRequestClose={() => setIsMemberModalVisible(false)}>
           <TouchableOpacity className="flex-1 bg-black/50 justify-center items-center" activeOpacity={1} onPress={() => setIsMemberModalVisible(false)}>
             <View className="bg-[#1a1a1a] rounded-2xl w-4/5 max-h-[60%] p-5 border border-[#333]">
@@ -491,11 +580,25 @@ export default function CreateLeagueScreen() {
               <Text className="text-white text-lg font-semibold mb-4 text-center">Draft Type</Text>
               {draftTypeOptions.map((item) => (
                 <TouchableOpacity
-                  key={item}
+                  key={item.value}
                   className="py-3 border-b border-[#333] items-center"
-                  onPress={() => { setDraftType(item); setIsDraftTypeModalVisible(false); }}
+                  disabled={!item.supported}
+                  onPress={() => { setDraftType(item.value); setIsDraftTypeModalVisible(false); }}
                 >
-                  <Text className={`text-base capitalize ${draftType === item ? 'text-[#B366FF] font-semibold' : 'text-[#999]'}`}>{item}</Text>
+                  <Text
+                    className={`text-base capitalize ${
+                      !item.supported
+                        ? 'text-[#555]'
+                        : draftType === item.value
+                        ? 'text-[#B366FF] font-semibold'
+                        : 'text-[#999]'
+                    }`}
+                  >
+                    {item.value}
+                  </Text>
+                  {!item.supported && (
+                    <Text className="text-[#555] text-[11px] mt-0.5">Not supported yet</Text>
+                  )}
                 </TouchableOpacity>
               ))}
             </View>

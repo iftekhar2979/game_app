@@ -1,8 +1,10 @@
 import { baseApi } from './baseApi';
 
 export interface DraftSettingsPayload {
-  type: 'auction' | 'snake' | 'random';
-  orderStrategy: 'random' | 'manual';
+  // Matches the server DraftType enum; only 'auction' is executable today.
+  type: 'auction' | 'snake' | 'linear' | 'offline';
+  // Mirrors the server DraftOrderStrategy enum — separate from DraftType.
+  orderStrategy: 'random' | 'manual' | 'reverse_standings';
   startingBudget: number;
   minimumBid: number;
   bidIncrement: number;
@@ -48,6 +50,196 @@ export interface LeagueItem {
   logoUri?: string;
 }
 
+export interface RosterPlayer {
+  ownershipId: string;
+  seasonAthleteId: string;
+  athleteId: string | null;
+  name: string;
+  firstName: string | null;
+  lastName: string | null;
+  photoUrl: string | null;
+  positionCode: string;
+  assignedPositionId: string | null;
+  assignedPosition: string | null;
+  eligiblePositions: { _id: string; code: string | null; name: string | null }[];
+  nflTeam: string | null;
+  nflTeamLogoUrl: string | null;
+  openingValue: number | null;
+  lineupStatus: 'starter' | 'bench' | 'injured_reserve' | 'taxi_squad';
+  acquisitionMethod: string;
+  acquisitionCost: number;
+  acquiredAt: string | null;
+}
+
+export interface TeamRosterSummary {
+  _id: string;
+  leagueId: string;
+  ownerId: string;
+  name: string;
+  logoUrl: string | null;
+  isOwnedByMe: boolean;
+  rosterCount: number;
+  draftBudgetRemaining: number;
+  faabBalance: number;
+  totalPoints: number;
+  pointsAgainst: number;
+  wins: number;
+  losses: number;
+  ties: number;
+  currentRank: number | null;
+  waiverPriority: number | null;
+}
+
+export interface TeamOwner {
+  _id: string;
+  fullName: string | null;
+  avatarUrl: string | null;
+  totalScore: number | null;
+  isMe: boolean;
+  leagueRole: string | null;
+  joinedAt: string | null;
+}
+
+export interface TeamRosterResponse {
+  owner: TeamOwner;
+  team: TeamRosterSummary;
+  rosterCount: number;
+  starterCount: number;
+  benchCount: number;
+  starters: RosterPlayer[];
+  bench: RosterPlayer[];
+  players: RosterPlayer[];
+}
+
+export interface AvailableAthlete {
+  _id: string;
+  openingValue: number | null;
+  isEligible: boolean;
+  athlete: {
+    _id?: string;
+    displayName?: string;
+    firstName?: string;
+    lastName?: string;
+    photoUrl?: string;
+  };
+  organizationId?: { _id: string; name?: string; shortName?: string; logoUrl?: string };
+  eligiblePositionIds?: { _id: string; code?: string; name?: string }[];
+}
+
+export interface Pagination {
+  currentPage: number;
+  totalItems: number;
+  totalPages: number;
+  nextPage: number | null;
+  previousPage: number | null;
+  itemsPerPage: number;
+}
+
+export interface AvailableAthletesPage {
+  items: AvailableAthlete[];
+  pagination: Pagination | null;
+}
+
+export interface AvailableAthletesArgs {
+  leagueId: string;
+  term?: string;
+  positionId?: string;
+  page?: number;
+  limit?: number;
+}
+
+export interface RosterSettingsSlot {
+  positionId: string;
+  code: string | null;
+  name: string | null;
+  minimum: number;
+  maximum: number;
+  starterCount: number;
+}
+
+export interface RosterSettings {
+  leagueId: string;
+  rosterTemplateId: string;
+  isLeagueOwned: boolean;
+  canEdit: boolean;
+  lockedReason: string | null;
+  slots: RosterSettingsSlot[];
+  benchSize: number;
+  starterCount: number;
+  totalRosterSize: number;
+}
+
+export interface UpdateRosterSettingsPayload {
+  leagueId: string;
+  slots: { positionId: string; minimum: number; maximum: number; starterCount: number }[];
+  benchSize: number;
+}
+
+export const LEAGUE_STATUSES = [
+  'draft',
+  'registration_open',
+  'registration_closed',
+  'auction_scheduled',
+  'auction_active',
+  'active',
+  'completed',
+  'cancelled',
+] as const;
+
+export type LeagueStatusValue = (typeof LEAGUE_STATUSES)[number];
+
+export interface PartialDraftSettings {
+  startingBudget?: number;
+  minimumBid?: number;
+  bidIncrement?: number;
+  nominationDurationSeconds?: number;
+  biddingDurationSeconds?: number;
+  pickDurationSeconds?: number;
+  draftStartsAt?: string;
+}
+
+export interface UpdateLeaguePayload {
+  id: string;
+  name?: string;
+  description?: string;
+  logoUrl?: string;
+  maxTeams?: number;
+  status?: LeagueStatusValue;
+  draftSettings?: PartialDraftSettings;
+}
+
+export interface DraftTeamRef {
+  fantasyTeamId: string;
+  name: string | null;
+  ownerId: string | null;
+}
+
+export interface DraftState {
+  leagueId: string;
+  type: 'auction' | 'snake' | 'linear' | 'offline' | null;
+  orderStrategy: string | null;
+  status: 'pending' | 'active' | 'completed' | 'cancelled';
+  isTurnOrdered: boolean;
+  order: DraftTeamRef[];
+  currentPick: number | null;
+  currentRound: number | null;
+  currentTeam: DraftTeamRef | null;
+  nextTeam: DraftTeamRef | null;
+  totalPicks: number;
+  totalRounds: number;
+  startedAt?: string | null;
+  completedAt?: string | null;
+}
+
+export interface DraftPickRecord {
+  pickNumber: number;
+  round: number;
+  fantasyTeamId: string;
+  teamName: string | null;
+  seasonAthleteId: string;
+  pickedAt: string;
+}
+
 export interface JoinLeaguePayload {
   id: string;
   fantasyTeamName: string;
@@ -69,7 +261,7 @@ export const leagueApi = baseApi.injectEndpoints({
       },
       invalidatesTags: ['League'],
     }),
-    updateLeague: builder.mutation<any, { id: string; maxTeams?: number; status?: string; name?: string }>({
+    updateLeague: builder.mutation<any, UpdateLeaguePayload>({
       query: ({ id, ...body }) => ({
         url: `leagues/${id}`,
         method: 'PATCH',
@@ -120,14 +312,51 @@ export const leagueApi = baseApi.injectEndpoints({
       },
       providesTags: (result, error, id) => [{ type: 'League', id }],
     }),
-    getAvailableAthletes: builder.query<any, string>({
-      query: (id) => ({
-        url: `leagues/${id}/available-athletes`,
+    // Paginated free-agent pool. Pages accumulate into a single cache entry so the
+    // Players tab can append with "Load more"; changing the search term or position
+    // filter starts a fresh entry.
+    getAvailableAthletes: builder.query<AvailableAthletesPage, AvailableAthletesArgs>({
+      query: ({ leagueId, term, positionId, page = 1, limit = 20 }) => ({
+        url: `leagues/${leagueId}/available-athletes`,
+        params: {
+          page,
+          limit,
+          ...(term ? { term } : {}),
+          ...(positionId ? { positionId } : {}),
+        },
+      }),
+      transformResponse: (response: any): AvailableAthletesPage => {
+        const raw = response?.data !== undefined ? response.data : response;
+        const items = Array.isArray(raw) ? raw : Array.isArray(raw?.data) ? raw.data : [];
+        return { items, pagination: raw?.pagination ?? response?.pagination ?? null };
+      },
+      serializeQueryArgs: ({ endpointName, queryArgs }) =>
+        `${endpointName}-${queryArgs.leagueId}-${queryArgs.term || ''}-${queryArgs.positionId || ''}`,
+      merge: (currentCache, newItems) => {
+        const page = newItems.pagination?.currentPage ?? 1;
+        if (page <= 1) {
+          currentCache.items = newItems.items;
+        } else {
+          const existingIds = new Set(currentCache.items.map((i: any) => i._id || i.id));
+          const uniqueNewItems = (newItems.items || []).filter((i: any) => !existingIds.has(i._id || i.id));
+          currentCache.items = [...currentCache.items, ...uniqueNewItems];
+        }
+        currentCache.pagination = newItems.pagination;
+      },
+      forceRefetch: ({ currentArg, previousArg }) => currentArg?.page !== previousArg?.page,
+      providesTags: (result, error, { leagueId }) => [{ type: 'League', id: leagueId }],
+    }),
+    getAthletePositions: builder.query<{ _id: string; code: string; name: string }[], void>({
+      query: () => ({
+        url: 'athlete-positions',
+        params: { limit: 100 },
       }),
       transformResponse: (response: any) => {
-        return response?.data || response;
+        const raw = response?.data !== undefined ? response.data : response;
+        if (Array.isArray(raw)) return raw;
+        if (Array.isArray(raw?.data)) return raw.data;
+        return [];
       },
-      providesTags: (result, error, id) => [{ type: 'League', id }],
     }),
     getSeasonAthleteDetails: builder.query<any, { seasonId: string; athleteId: string }>({
       query: ({ seasonId, athleteId }) => ({
@@ -145,6 +374,64 @@ export const leagueApi = baseApi.injectEndpoints({
         return response?.data || response;
       },
       providesTags: (result, error, id) => [{ type: 'League', id }],
+    }),
+    getRosterSettings: builder.query<RosterSettings, string>({
+      query: (leagueId) => ({
+        url: `leagues/${leagueId}/roster-settings`,
+      }),
+      transformResponse: (response: any) => {
+        return response?.data || response;
+      },
+      providesTags: (result, error, leagueId) => [{ type: 'League', id: leagueId }],
+    }),
+    updateRosterSettings: builder.mutation<RosterSettings, UpdateRosterSettingsPayload>({
+      query: ({ leagueId, ...body }) => ({
+        url: `leagues/${leagueId}/roster-settings`,
+        method: 'PATCH',
+        body,
+      }),
+      transformResponse: (response: any) => {
+        return response?.data || response;
+      },
+      invalidatesTags: (result, error, { leagueId }) => [{ type: 'League', id: leagueId }, 'League'],
+    }),
+    getDraftState: builder.query<DraftState, string>({
+      query: (leagueId) => ({ url: `leagues/${leagueId}/draft` }),
+      transformResponse: (response: any) => response?.data || response,
+      providesTags: (result, error, leagueId) => [{ type: 'League', id: leagueId }],
+    }),
+    startDraft: builder.mutation<DraftState, string>({
+      query: (leagueId) => ({ url: `leagues/${leagueId}/draft/start`, method: 'POST' }),
+      transformResponse: (response: any) => response?.data || response,
+      invalidatesTags: (result, error, leagueId) => [{ type: 'League', id: leagueId }],
+    }),
+    getDraftPicks: builder.query<DraftPickRecord[], string>({
+      query: (leagueId) => ({ url: `leagues/${leagueId}/draft/picks` }),
+      transformResponse: (response: any) => {
+        const raw = response?.data !== undefined ? response.data : response;
+        if (Array.isArray(raw)) return raw;
+        if (Array.isArray(raw?.data)) return raw.data;
+        return [];
+      },
+      providesTags: (result, error, leagueId) => [{ type: 'League', id: leagueId }],
+    }),
+    getMyTeamRoster: builder.query<TeamRosterResponse, string>({
+      query: (leagueId) => ({
+        url: `leagues/${leagueId}/my-team/roster`,
+      }),
+      transformResponse: (response: any) => {
+        return response?.data || response;
+      },
+      providesTags: (result, error, leagueId) => [{ type: 'League', id: leagueId }],
+    }),
+    getTeamRoster: builder.query<TeamRosterResponse, { leagueId: string; teamId: string }>({
+      query: ({ leagueId, teamId }) => ({
+        url: `leagues/${leagueId}/teams/${teamId}/roster`,
+      }),
+      transformResponse: (response: any) => {
+        return response?.data || response;
+      },
+      providesTags: (result, error, { leagueId }) => [{ type: 'League', id: leagueId }],
     }),
     addFreeAgent: builder.mutation<any, { leagueId: string; teamId: string; seasonAthleteId: string }>({
       query: ({ leagueId, teamId, seasonAthleteId }) => ({
@@ -223,13 +510,22 @@ export const leagueApi = baseApi.injectEndpoints({
 
 export const {
   useCreateLeagueMutation,
+  useUpdateLeagueMutation,
   useGetLeaguesQuery,
   useGetLeagueDetailsQuery,
   useJoinLeagueMutation,
   useGetLeagueMembersQuery,
   useGetAvailableAthletesQuery,
+  useGetAthletePositionsQuery,
   useGetSeasonAthleteDetailsQuery,
   useGetLeagueRostersQuery,
+  useGetRosterSettingsQuery,
+  useUpdateRosterSettingsMutation,
+  useGetDraftStateQuery,
+  useStartDraftMutation,
+  useGetDraftPicksQuery,
+  useGetMyTeamRosterQuery,
+  useGetTeamRosterQuery,
   useAddFreeAgentMutation,
   useDraftPickMutation,
   useUpdateLineupMutation,

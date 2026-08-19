@@ -15,6 +15,8 @@ import {
   useGetLeagueRostersQuery,
   useJoinLeagueMutation,
   useDraftPickMutation,
+  useGetDraftStateQuery,
+  useStartDraftMutation,
 } from '../../store/api/leagueApi';
 import { getSocket, joinLeagueRoom, leaveLeagueRoom } from '../../services/socketService';
 import { showToast } from '../../utils/toast';
@@ -27,13 +29,6 @@ const MOCK_USERS = [
   { id: '2', name: 'Walter', avatarUri: 'https://i.pravatar.cc/150?img=2' },
   { id: '3', name: 'Noah', avatarUri: 'https://i.pravatar.cc/150?img=3' },
   { id: '4', name: 'Leonardo', avatarUri: 'https://i.pravatar.cc/150?img=4' },
-];
-
-const MOCK_PLAYERS = [
-  { id: 'p1', name: 'Noah Okafor', rostered: '17%', points: '+10', avatarUri: 'https://i.pravatar.cc/150?img=12' },
-  { id: 'p2', name: 'Leonardo Trossard', rostered: '32%', points: '+9', avatarUri: 'https://i.pravatar.cc/150?img=13' },
-  { id: 'p3', name: 'Walter bentiez', rostered: '4%', points: '+5', avatarUri: 'https://i.pravatar.cc/150?img=14' },
-  { id: 'p4', name: '2026 Final cheer', rostered: '1%', points: '+3', avatarUri: 'https://i.pravatar.cc/150?img=15' },
 ];
 
 export default function DraftRoomScreen() {
@@ -54,6 +49,10 @@ export default function DraftRoomScreen() {
       (state.auth?.user as any)?.userId
   );
   const [draftPick, { isLoading: isDrafting }] = useDraftPickMutation();
+  const { data: draftState, refetch: refetchDraftState } = useGetDraftStateQuery(leagueId, {
+    skip: isMockId,
+  });
+  const [startDraft, { isLoading: isStartingDraft }] = useStartDraftMutation();
   const [joinLeagueMutation, { isLoading: isJoining }] = useJoinLeagueMutation();
 
   const { data: apiLeagueData } = useGetLeagueDetailsQuery(leagueId, {
@@ -66,9 +65,10 @@ export default function DraftRoomScreen() {
   const { data: apiRostersData } = useGetLeagueRostersQuery(leagueId, {
     skip: isMockId,
   });
-  const { data: apiAthletesData, isLoading: isLoadingAthletes, refetch: refetchAvailableAthletes } = useGetAvailableAthletesQuery(leagueId, {
-    skip: isMockId,
-  });
+  const { data: apiAthletesData, isLoading: isLoadingAthletes, refetch: refetchAvailableAthletes } = useGetAvailableAthletesQuery(
+    { leagueId, limit: 50 },
+    { skip: isMockId },
+  );
 
   const callerInfo = (apiLeagueData as any)?.caller;
 
@@ -138,15 +138,43 @@ export default function DraftRoomScreen() {
         }
       };
 
+      // The server is the source of truth for whose turn it is; just re-read it.
+      const handleDraftUpdated = (data: any) => {
+        if (data && String(data.leagueId) === String(leagueId)) {
+          if (refetchDraftState) refetchDraftState();
+          if (refetchAvailableAthletes) refetchAvailableAthletes();
+        }
+      };
+
       socket.on('playerAcquired', handlePlayerAcquired);
+      socket.on('draftUpdated', handleDraftUpdated);
       return () => {
         socket.off('playerAcquired', handlePlayerAcquired);
+        socket.off('draftUpdated', handleDraftUpdated);
         leaveLeagueRoom(leagueId);
       };
     } catch (e) {
       console.warn('DraftRoom socket error:', e);
     }
-  }, [leagueId, isMockId, refetchAvailableAthletes]);
+  }, [leagueId, isMockId, refetchAvailableAthletes, refetchDraftState]);
+
+  // Every value below is read from the server. No snake maths on the client.
+  const isSnakeDraft = draftState?.isTurnOrdered === true;
+  const isDraftRunning = draftState?.status === 'active';
+  const isMyTurn =
+    !isSnakeDraft ||
+    (isDraftRunning &&
+      !!userTeamId &&
+      String(draftState?.currentTeam?.fantasyTeamId) === String(userTeamId));
+
+  const handleStartDraft = async () => {
+    try {
+      await startDraft(leagueId).unwrap();
+      showToast.success('Draft started', 'The pick order has been generated.');
+    } catch (err: any) {
+      showToast.error('Could not start draft', err?.data?.message || err?.message);
+    }
+  };
 
   const teamsList = useMemo(() => {
     const memberList = Array.isArray(apiMembersData)
@@ -179,31 +207,27 @@ export default function DraftRoomScreen() {
   }, [apiMembersData]);
 
   const playersList = useMemo(() => {
-    const rawList = Array.isArray(apiAthletesData)
-      ? apiAthletesData
-      : Array.isArray(apiAthletesData?.data)
-      ? apiAthletesData.data
-      : [];
+    const rawList = apiAthletesData?.items || [];
 
-    if (rawList.length > 0) {
-      return rawList.map((item: any, idx: number) => {
-        const athlete = item.athlete || item;
-        const name = athlete.name || athlete.fullName || `${athlete.firstName || ''} ${athlete.lastName || ''}`.trim() || `Athlete ${idx + 1}`;
-        const rosteredPercent = item.rosteredPercentage ?? (15 + (idx * 3) % 40);
-        const points = item.projectedPoints ? `+${item.projectedPoints}` : `+${(idx % 12) + 3}`;
-        const avatarUri = athlete.photoUrl || athlete.avatarUri || athlete.avatarUrl || `https://i.pravatar.cc/150?img=${(idx % 20) + 1}`;
+    return rawList.map((item: any, idx: number) => {
+      const athlete = item.athlete || item.athleteId || {};
+      const name =
+        athlete.displayName ||
+        `${athlete.firstName || ''} ${athlete.lastName || ''}`.trim() ||
+        'Unknown Player';
 
-        return {
-          id: item._id || item.id || `p-${idx}`,
-          name,
-          rostered: `${rosteredPercent}%`,
-          points,
-          avatarUri,
-        };
-      });
-    }
+      const positionCode = item.eligiblePositionIds?.[0]?.code;
+      const nflTeam = item.organizationId?.shortName || item.organizationId?.name;
 
-    return MOCK_PLAYERS;
+      return {
+        id: item._id || item.id || `p-${idx}`,
+        seasonAthleteId: item._id,
+        name,
+        subtitle: [positionCode, nflTeam].filter(Boolean).join(' • ') || 'Free agent',
+        value: item.openingValue ?? null,
+        avatarUri: athlete.photoUrl || null,
+      };
+    });
   }, [apiAthletesData]);
 
   const [modalVisible, setModalVisible] = useState(false);
@@ -265,6 +289,71 @@ export default function DraftRoomScreen() {
       </View>
 
       <ScrollView className="flex-1" showsVerticalScrollIndicator={false}>
+        {/* Server-driven draft status */}
+        {isSnakeDraft && (
+          <View className="mx-5 mt-4 bg-[#111] border border-[#222] rounded-2xl p-4">
+            <View className="flex-row items-center justify-between mb-2">
+              <Text className="text-white text-[15px] font-bold capitalize">
+                {`${draftState?.type} draft`}
+              </Text>
+              <View className="bg-[#1e1a2b] border border-[#8B3DFF]/50 px-2.5 py-0.5 rounded-full">
+                <Text className="text-[#8B3DFF] text-[10px] font-bold uppercase">
+                  {draftState?.status}
+                </Text>
+              </View>
+            </View>
+
+            {isDraftRunning ? (
+              <>
+                <Text className="text-gray-400 text-[12px]">
+                  {`Round ${draftState?.currentRound} of ${draftState?.totalRounds} • Pick ${draftState?.currentPick} of ${draftState?.totalPicks}`}
+                </Text>
+                <View className="flex-row items-center mt-2.5 pt-2.5 border-t border-[#222]">
+                  <View className="flex-1">
+                    <Text className="text-gray-500 text-[10px] uppercase font-bold">On the clock</Text>
+                    <Text className="text-white text-[15px] font-semibold" numberOfLines={1}>
+                      {draftState?.currentTeam?.name || 'TBD'}
+                    </Text>
+                  </View>
+                  {!!draftState?.nextTeam && (
+                    <View className="flex-1">
+                      <Text className="text-gray-500 text-[10px] uppercase font-bold">Next</Text>
+                      <Text className="text-gray-300 text-[13px]" numberOfLines={1}>
+                        {draftState.nextTeam.name}
+                      </Text>
+                    </View>
+                  )}
+                </View>
+                {!isMyTurn && (
+                  <Text className="text-amber-400 text-[11px] mt-2.5">
+                    Waiting for another team to pick.
+                  </Text>
+                )}
+              </>
+            ) : draftState?.status === 'completed' ? (
+              <Text className="text-gray-400 text-[12px]">This draft has finished.</Text>
+            ) : (
+              <>
+                <Text className="text-gray-400 text-[12px] mb-3">
+                  The pick order is generated when the draft starts.
+                </Text>
+                <TouchableOpacity
+                  className={`bg-[#8B3DFF] rounded-full py-3 items-center ${isStartingDraft ? 'opacity-50' : ''}`}
+                  disabled={isStartingDraft}
+                  onPress={handleStartDraft}
+                  activeOpacity={0.8}
+                >
+                  {isStartingDraft ? (
+                    <ActivityIndicator size="small" color="#fff" />
+                  ) : (
+                    <Text className="text-white text-[14px] font-semibold">Start draft</Text>
+                  )}
+                </TouchableOpacity>
+              </>
+            )}
+          </View>
+        )}
+
         {/* Top Teams Header */}
         <View className="my-4">
           <Text className="text-gray-400 text-[12px] px-5 mb-2 font-medium">League Managers ({teamsList.length})</Text>
@@ -318,10 +407,17 @@ export default function DraftRoomScreen() {
           {/* Player List */}
           {isLoadingAthletes ? (
             <ActivityIndicator color="#8B3DFF" size="large" style={{ marginVertical: 30 }} />
+          ) : playersList.length === 0 ? (
+            <View className="py-10 items-center justify-center px-4">
+              <Text className="text-white text-[14px] font-semibold mb-1.5">No players available</Text>
+              <Text className="text-gray-400 text-[12px] text-center">
+                Players appear here once their team has a game coming up and they are not already rostered.
+              </Text>
+            </View>
           ) : (
-            playersList.map((player: any) => (
+            playersList.map((player: any, idx: number) => (
               <TouchableOpacity
-                key={player.id}
+                key={`${player.id}-${idx}`}
                 className="flex-row items-center justify-between bg-[#141414] border border-[#262626] p-3.5 rounded-2xl mb-3"
                 activeOpacity={0.8}
                 disabled={isDrafting}
@@ -336,6 +432,17 @@ export default function DraftRoomScreen() {
                         player._id ||
                         player.id;
 
+                  if (isSnakeDraft && !isDraftRunning) {
+                    showToast.error('Draft not open', 'The draft has not started yet.');
+                    return;
+                  }
+                  if (isSnakeDraft && !isMyTurn) {
+                    showToast.error(
+                      'Not your turn',
+                      `${draftState?.currentTeam?.name || 'Another team'} is on the clock.`,
+                    );
+                    return;
+                  }
                   if (!leagueId || !userTeamId) {
                     Alert.alert(
                       'Not Joined Yet',
@@ -376,7 +483,7 @@ export default function DraftRoomScreen() {
                   <Image source={{ uri: player.avatarUri }} className="w-11 h-11 rounded-full bg-[#222] border border-[#333] mr-3" />
                   <View className="flex-1">
                     <Text className="text-white text-[15px] font-semibold mb-0.5" numberOfLines={1}>{player.name}</Text>
-                    <Text className="text-gray-400 text-[12px]">Rostered: {player.rostered}</Text>
+                    <Text className="text-gray-400 text-[12px]">{player.subtitle}</Text>
                   </View>
                 </View>
                 <View className="bg-[#8B3DFF]/20 px-3 py-1.5 rounded-xl border border-[#8B3DFF]/40">
@@ -410,12 +517,19 @@ export default function DraftRoomScreen() {
 
             {/* Player List */}
             <ScrollView showsVerticalScrollIndicator={false} className="flex-1">
-              {playersList.map((player: any) => (
+              {playersList.length === 0 && (
+                <View className="py-10 items-center justify-center px-4">
+                  <Text className="text-gray-400 text-[12px] text-center">
+                    No players are available to draft right now.
+                  </Text>
+                </View>
+              )}
+              {playersList.map((player: any, idx: number) => (
                 <TouchableOpacity
-                  key={player.id}
+                  key={`${player.id}-${idx}`}
                   className="flex-row items-center justify-between bg-[#242424] border border-[#333] p-3.5 rounded-2xl mb-3"
                   activeOpacity={0.7}
-                  disabled={isDrafting}
+                  disabled={isDrafting || (isSnakeDraft && !isMyTurn)}
                   onPress={async () => {
                     const seasonAthleteId =
                       typeof player.seasonAthleteId === 'string'
@@ -427,6 +541,17 @@ export default function DraftRoomScreen() {
                           player._id ||
                           player.id;
 
+                    if (isSnakeDraft && !isDraftRunning) {
+                      showToast.error('Draft not open', 'The draft has not started yet.');
+                      return;
+                    }
+                    if (isSnakeDraft && !isMyTurn) {
+                      showToast.error(
+                        'Not your turn',
+                        `${draftState?.currentTeam?.name || 'Another team'} is on the clock.`,
+                      );
+                      return;
+                    }
                     if (!leagueId || !userTeamId) {
                       Alert.alert(
                         'Not Joined Yet',
@@ -468,7 +593,7 @@ export default function DraftRoomScreen() {
                     <Image source={{ uri: player.avatarUri }} className="w-12 h-12 rounded-full bg-[#333] mr-3" />
                     <View className="flex-1">
                       <Text className="text-white text-[15px] font-semibold mb-0.5" numberOfLines={1}>{player.name}</Text>
-                      <Text className="text-gray-400 text-[12px]">Rostered {player.rostered}</Text>
+                      <Text className="text-gray-400 text-[12px]">{player.subtitle}</Text>
                     </View>
                   </View>
                   <View className="bg-[#8B3DFF] px-4 py-2 rounded-xl">

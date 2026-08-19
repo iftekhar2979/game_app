@@ -1,8 +1,10 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { View, Text, Image, TouchableOpacity, ScrollView, Modal, Pressable, TextInput, ActivityIndicator, Alert } from 'react-native';
-import { ChevronLeft, ChevronDown, Upload, User, Users, Plus, Minus, Unlock, ShieldAlert, CheckCircle } from 'lucide-react-native';
+import { ChevronLeft, ChevronDown, User, Plus, Minus, Unlock, ShieldAlert, Calendar } from 'lucide-react-native';
+import DatePicker from 'react-native-date-picker';
 import { useGetAthleteGameLogQuery } from '../../store/api/seasonApi';
-import { useAddFreeAgentMutation, useUpdateLineupMutation, useDropPlayerMutation } from '../../store/api/leagueApi';
+import { useAddFreeAgentMutation, useUpdateLineupMutation, useDropPlayerMutation, useGetRosterSettingsQuery, useUpdateRosterSettingsMutation, useUpdateLeagueMutation } from '../../store/api/leagueApi';
+import type { LeagueStatusValue } from '../../store/api/leagueApi';
 import { showToast } from '../../utils/toast';
 
 export interface LeagueSettingsModalProps {
@@ -86,7 +88,7 @@ export const LeagueSettingsModal = ({ isVisible, onClose, onOptionSelect }: Leag
         <Pressable className="w-full bg-[#1e1e1e] rounded-[16px] border border-[#333] overflow-hidden">
           {SETTINGS_OPTIONS.map((option, index) => (
             <TouchableOpacity
-              key={option.id}
+              key={`${option.id}-${index}`}
               className={`p-4 ${index !== SETTINGS_OPTIONS.length - 1 ? 'border-b border-[#333]' : ''}`}
               activeOpacity={0.7}
               onPress={() => {
@@ -105,94 +107,687 @@ export const LeagueSettingsModal = ({ isVisible, onClose, onOptionSelect }: Leag
   );
 };
 
-export const LeagueSettingsSubModal = ({ isVisible, onClose }: any) => {
+const STATUS_OPTIONS: { value: LeagueStatusValue; label: string; hint: string }[] = [
+  { value: 'draft', label: 'Draft', hint: 'Not published yet' },
+  { value: 'registration_open', label: 'Registration open', hint: 'Managers can join' },
+  { value: 'registration_closed', label: 'Registration closed', hint: 'Roster is set, draft can be scheduled' },
+  { value: 'auction_scheduled', label: 'Auction scheduled', hint: 'Draft picks allowed' },
+  { value: 'auction_active', label: 'Auction active', hint: 'Draft picks allowed' },
+  { value: 'active', label: 'Active', hint: 'Normal play — free agent adds allowed' },
+  { value: 'completed', label: 'Completed', hint: 'Locks all league settings' },
+  { value: 'cancelled', label: 'Cancelled', hint: 'Locks all league settings' },
+];
+
+const SettingsField = ({
+  label,
+  children,
+}: {
+  label: string;
+  children: React.ReactNode;
+}) => (
+  <View className="mb-4">
+    <Text className="text-gray-400 text-[12px] mb-2">{label}</Text>
+    {children}
+  </View>
+);
+
+export const LeagueSettingsSubModal = ({ isVisible, onClose, leagueId, league, canEdit }: any) => {
+  const [updateLeague, { isLoading: isSaving }] = useUpdateLeagueMutation();
+
+  const [name, setName] = useState('');
+  const [description, setDescription] = useState('');
+  const [maxTeams, setMaxTeams] = useState('');
+  const [status, setStatus] = useState<LeagueStatusValue | ''>('');
+  const [isStatusPickerOpen, setIsStatusPickerOpen] = useState(false);
+
+  // The parent rebuilds `league` on every render and re-renders once a second for
+  // the draft countdown, so this must not depend on the league object itself —
+  // doing so would overwrite whatever is being typed. Seed on open only.
+  const leagueRef = useRef(league);
+  leagueRef.current = league;
+
+  useEffect(() => {
+    if (!isVisible) return;
+    const current = leagueRef.current;
+    if (!current) return;
+    setName(current.name || '');
+    setDescription(current.description || '');
+    setMaxTeams(String(current.maxTeams ?? ''));
+    setStatus((current.rawStatus || current.status || '') as LeagueStatusValue);
+    setIsStatusPickerOpen(false);
+  }, [isVisible]);
+
+  const isTerminal = status === 'completed' || status === 'cancelled';
+  const currentStatus = (league?.rawStatus || league?.status || '') as string;
+  const isLockedByStatus = currentStatus === 'completed' || currentStatus === 'cancelled';
+  const editable = canEdit !== false && !isLockedByStatus;
+
+  const parsedMaxTeams = parseInt(maxTeams, 10);
+  const isDirty =
+    !!league &&
+    (name !== (league.name || '') ||
+      description !== (league.description || '') ||
+      parsedMaxTeams !== league.maxTeams ||
+      status !== currentStatus);
+
+  const handleSave = async () => {
+    if (!name.trim()) {
+      showToast.error('Name required', 'Give the league a name before saving.');
+      return;
+    }
+    if (Number.isNaN(parsedMaxTeams) || parsedMaxTeams < 4 || parsedMaxTeams > 20) {
+      showToast.error('Invalid capacity', 'Teams must be between 4 and 20.');
+      return;
+    }
+
+    try {
+      await updateLeague({
+        id: leagueId,
+        name: name.trim(),
+        description: description.trim(),
+        maxTeams: parsedMaxTeams,
+        ...(status ? { status: status as LeagueStatusValue } : {}),
+      }).unwrap();
+
+      showToast.success('League updated', `Settings saved for ${name.trim()}.`);
+      onClose();
+    } catch (err: any) {
+      const msg = err?.data?.message || err?.message || 'Failed to update the league.';
+      showToast.error('Update Failed', Array.isArray(msg) ? msg.join('\n') : msg);
+    }
+  };
+
   return (
     <Modal visible={isVisible} transparent={true} animationType="slide" onRequestClose={onClose}>
       <View className="flex-1 bg-black pt-12 px-5">
-        <View className="flex-row items-center mb-10">
+        <View className="flex-row items-center mb-6">
           <TouchableOpacity onPress={onClose} className="w-10 h-10 border border-[#333] rounded-xl justify-center items-center mr-4">
             <ChevronLeft color="#fff" size={24} />
           </TouchableOpacity>
           <Text className="text-white text-[20px] font-medium">League settings</Text>
         </View>
 
-        <TouchableOpacity className="border border-[#8B3DFF] rounded-[16px] py-10 mb-6 items-center justify-center">
-           <View className="w-10 h-10 border border-gray-400 rounded-full items-center justify-center mb-3">
-             <Upload color="#ccc" size={18} />
-           </View>
-           <Text className="text-gray-300 text-[14px]">Upload league logo</Text>
-        </TouchableOpacity>
-
-        <View className="border border-[#8B3DFF] rounded-[16px] flex-row items-center px-4 h-[56px] mb-4">
-          <User color="#ccc" size={18} className="mr-3" />
-          <Text className="text-gray-400 text-[14px]">League name</Text>
-        </View>
-
-        <View className="border border-[#8B3DFF] rounded-[16px] flex-row items-center justify-between px-4 h-[56px] mb-8">
-          <View className="flex-row items-center">
-            <Users color="#ccc" size={18} className="mr-3" />
-            <Text className="text-gray-400 text-[14px]">Member of teams</Text>
+        {!editable && (
+          <View className="bg-[#1a1a1a] border border-[#333] rounded-2xl px-4 py-3 mb-4">
+            <Text className="text-gray-400 text-[12px]">
+              {isLockedByStatus
+                ? `Settings cannot be changed once a league is ${currentStatus}.`
+                : 'Only the league commissioner can change these settings.'}
+            </Text>
           </View>
-          <ChevronDown color="#ccc" size={20} />
-        </View>
-        
-        <View className="flex-1 justify-end pb-8">
-          <TouchableOpacity className="bg-[#8B3DFF] rounded-full h-[56px] justify-center items-center" onPress={onClose}>
-            <Text className="text-white text-[16px] font-medium">Save changes</Text>
-          </TouchableOpacity>
-        </View>
+        )}
+
+        <ScrollView showsVerticalScrollIndicator={false} className="flex-1">
+          <SettingsField label="League name">
+            <TextInput
+              className="border border-[#8B3DFF] rounded-[16px] px-4 h-[56px] text-white text-[14px]"
+              value={name}
+              onChangeText={setName}
+              editable={editable}
+              placeholder="League name"
+              placeholderTextColor="#666"
+            />
+          </SettingsField>
+
+          <SettingsField label="Description">
+            <TextInput
+              className="border border-[#333] rounded-[16px] px-4 py-3 text-white text-[14px] min-h-[80px]"
+              value={description}
+              onChangeText={setDescription}
+              editable={editable}
+              multiline
+              textAlignVertical="top"
+              placeholder="What is this league about?"
+              placeholderTextColor="#666"
+            />
+          </SettingsField>
+
+          <SettingsField label="Maximum teams (4–20)">
+            <TextInput
+              className="border border-[#333] rounded-[16px] px-4 h-[56px] text-white text-[14px]"
+              value={maxTeams}
+              onChangeText={setMaxTeams}
+              editable={editable}
+              keyboardType="number-pad"
+              placeholder="12"
+              placeholderTextColor="#666"
+            />
+            {!!league?.joinedTeamCount && (
+              <Text className="text-gray-500 text-[11px] mt-1.5">
+                {`${league.joinedTeamCount} teams have joined — capacity cannot go below that.`}
+              </Text>
+            )}
+          </SettingsField>
+
+          <SettingsField label="League status">
+            <TouchableOpacity
+              className="border border-[#333] rounded-[16px] flex-row items-center justify-between px-4 h-[56px]"
+              disabled={!editable}
+              onPress={() => setIsStatusPickerOpen((open) => !open)}
+              activeOpacity={0.7}
+            >
+              <Text className="text-white text-[14px]">
+                {STATUS_OPTIONS.find((o) => o.value === status)?.label || 'Select status'}
+              </Text>
+              <ChevronDown color="#ccc" size={20} />
+            </TouchableOpacity>
+
+            {isStatusPickerOpen && (
+              <View className="border border-[#333] rounded-[16px] mt-2 overflow-hidden">
+                {STATUS_OPTIONS.map((option, index) => {
+                  const isSelected = option.value === status;
+                  return (
+                    <TouchableOpacity
+                      key={option.value}
+                      className={`px-4 py-3 ${index !== STATUS_OPTIONS.length - 1 ? 'border-b border-[#262626]' : ''} ${
+                        isSelected ? 'bg-[#8B3DFF]/15' : ''
+                      }`}
+                      onPress={() => {
+                        setStatus(option.value);
+                        setIsStatusPickerOpen(false);
+                      }}
+                      activeOpacity={0.7}
+                    >
+                      <Text className={`${isSelected ? 'text-[#8B3DFF]' : 'text-white'} text-[14px] font-medium`}>
+                        {option.label}
+                      </Text>
+                      <Text className="text-gray-500 text-[11px] mt-0.5">{option.hint}</Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            )}
+
+            {isTerminal && status !== currentStatus && (
+              <Text className="text-amber-400 text-[11px] mt-2">
+                Saving this locks every league setting, including this screen.
+              </Text>
+            )}
+          </SettingsField>
+        </ScrollView>
+
+        {editable && (
+          <View className="py-8 bg-black">
+            <TouchableOpacity
+              className={`rounded-full h-[56px] justify-center items-center ${
+                isDirty && !isSaving ? 'bg-[#8B3DFF]' : 'bg-[#3a2a5c]'
+              }`}
+              disabled={!isDirty || isSaving}
+              onPress={handleSave}
+              activeOpacity={0.8}
+            >
+              {isSaving ? (
+                <ActivityIndicator size="small" color="#fff" />
+              ) : (
+                <Text className="text-white text-[16px] font-medium">
+                  {isDirty ? 'Save changes' : 'No changes to save'}
+                </Text>
+              )}
+            </TouchableOpacity>
+          </View>
+        )}
       </View>
     </Modal>
   );
 };
 
-export const RosterSettingsSubModal = ({ isVisible, onClose }: any) => {
-  const ROSTER_POSITIONS = [
-    'QUARTERBACK (QB)',
-    'RUNNINGBACK (RB)',
-    'WIDERECEIVER (WD)',
-    'TIGHTEND (TE)',
-    'FLEX (W/R/T)',
-    'FLEX (W/R/T)',
-    'KICKER (K)',
-    'DEFENSE (DEF)',
-    'DL',
-    'LB'
-  ];
+const NumberField = ({
+  label,
+  hint,
+  value,
+  onChangeText,
+  editable,
+}: {
+  label: string;
+  hint?: string;
+  value: string;
+  onChangeText: (next: string) => void;
+  editable: boolean;
+}) => (
+  <View className="mb-4">
+    <Text className="text-gray-400 text-[12px] mb-2">{label}</Text>
+    <TextInput
+      className="border border-[#333] rounded-[16px] px-4 h-[56px] text-white text-[14px]"
+      value={value}
+      onChangeText={onChangeText}
+      editable={editable}
+      keyboardType="number-pad"
+      placeholderTextColor="#666"
+    />
+    {!!hint && <Text className="text-gray-500 text-[11px] mt-1.5">{hint}</Text>}
+  </View>
+);
+
+export const DraftSettingsSubModal = ({ isVisible, onClose, leagueId, league, canEdit }: any) => {
+  const [updateLeague, { isLoading: isSaving }] = useUpdateLeagueMutation();
+
+  const settings = league?.draftSettings || {};
+
+  const [startingBudget, setStartingBudget] = useState('');
+  const [minimumBid, setMinimumBid] = useState('');
+  const [bidIncrement, setBidIncrement] = useState('');
+  const [nominationSeconds, setNominationSeconds] = useState('');
+  const [biddingSeconds, setBiddingSeconds] = useState('');
+  const [pickSeconds, setPickSeconds] = useState('');
+  const [draftStartsAt, setDraftStartsAt] = useState<Date | null>(null);
+  const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
+
+  // Seed on open only — see the note in LeagueSettingsSubModal.
+  const leagueRef = useRef(league);
+  leagueRef.current = league;
+
+  useEffect(() => {
+    if (!isVisible) return;
+    const d = leagueRef.current?.draftSettings;
+    if (!d) return;
+    setStartingBudget(String(d.startingBudget ?? ''));
+    setMinimumBid(String(d.minimumBid ?? ''));
+    setBidIncrement(String(d.bidIncrement ?? ''));
+    setNominationSeconds(String(d.nominationDurationSeconds ?? ''));
+    setBiddingSeconds(String(d.biddingDurationSeconds ?? ''));
+    setPickSeconds(String(d.pickDurationSeconds ?? ''));
+    setDraftStartsAt(d.draftStartsAt ? new Date(d.draftStartsAt) : null);
+    setIsDatePickerOpen(false);
+  }, [isVisible]);
+
+  const currentStatus = (league?.rawStatus || league?.status || '') as string;
+  const isLockedByStatus = currentStatus === 'completed' || currentStatus === 'cancelled';
+  const editable = canEdit !== false && !isLockedByStatus;
+
+  const originalDate = settings.draftStartsAt ? new Date(settings.draftStartsAt).getTime() : null;
+  const isDirty =
+    !!league &&
+    (startingBudget !== String(settings.startingBudget ?? '') ||
+      minimumBid !== String(settings.minimumBid ?? '') ||
+      bidIncrement !== String(settings.bidIncrement ?? '') ||
+      nominationSeconds !== String(settings.nominationDurationSeconds ?? '') ||
+      biddingSeconds !== String(settings.biddingDurationSeconds ?? '') ||
+      pickSeconds !== String(settings.pickDurationSeconds ?? '') ||
+      (draftStartsAt?.getTime() ?? null) !== originalDate);
+
+  const handleSave = async () => {
+    const budget = parseInt(startingBudget, 10);
+    const bid = parseInt(minimumBid, 10);
+    const increment = parseInt(bidIncrement, 10);
+
+    if ([budget, bid, increment].some((n) => Number.isNaN(n) || n < 1)) {
+      showToast.error('Invalid amounts', 'Budget, minimum bid and increment must be at least 1.');
+      return;
+    }
+    if (bid > budget || increment > budget) {
+      showToast.error('Invalid amounts', 'Minimum bid and increment cannot exceed the starting budget.');
+      return;
+    }
+
+    // Only send the date when it changed; the server rejects a past date it is
+    // being asked to set, but leaves an existing one alone.
+    const dateChanged = (draftStartsAt?.getTime() ?? null) !== originalDate;
+
+    try {
+      await updateLeague({
+        id: leagueId,
+        draftSettings: {
+          startingBudget: budget,
+          minimumBid: bid,
+          bidIncrement: increment,
+          nominationDurationSeconds: Math.min(300, Math.max(10, parseInt(nominationSeconds, 10) || 30)),
+          biddingDurationSeconds: Math.min(300, Math.max(10, parseInt(biddingSeconds, 10) || 30)),
+          pickDurationSeconds: Math.min(600, Math.max(1, parseInt(pickSeconds, 10) || 60)),
+          ...(dateChanged && draftStartsAt ? { draftStartsAt: draftStartsAt.toISOString() } : {}),
+        },
+      }).unwrap();
+
+      showToast.success('Draft settings saved', 'Auction rules updated for this league.');
+      onClose();
+    } catch (err: any) {
+      const msg = err?.data?.message || err?.message || 'Failed to update draft settings.';
+      showToast.error('Update Failed', Array.isArray(msg) ? msg.join('\n') : msg);
+    }
+  };
 
   return (
     <Modal visible={isVisible} transparent={true} animationType="slide" onRequestClose={onClose}>
       <View className="flex-1 bg-black pt-12 px-5">
-        <View className="flex-row items-center mb-8">
+        <View className="flex-row items-center mb-6">
           <TouchableOpacity onPress={onClose} className="w-10 h-10 border border-[#333] rounded-xl justify-center items-center mr-4">
             <ChevronLeft color="#fff" size={24} />
           </TouchableOpacity>
-          <Text className="text-white text-[20px] font-medium">Roster settings</Text>
+          <View className="flex-1">
+            <Text className="text-white text-[20px] font-medium">Draft settings</Text>
+            <Text className="text-gray-400 text-[12px]">Auction draft</Text>
+          </View>
         </View>
+
+        {!editable && (
+          <View className="bg-[#1a1a1a] border border-[#333] rounded-2xl px-4 py-3 mb-4">
+            <Text className="text-gray-400 text-[12px]">
+              {isLockedByStatus
+                ? `Draft settings cannot be changed once a league is ${currentStatus}.`
+                : 'Only the league commissioner can change draft settings.'}
+            </Text>
+          </View>
+        )}
 
         <ScrollView showsVerticalScrollIndicator={false} className="flex-1">
-          {ROSTER_POSITIONS.map((pos, index) => (
-            <View key={index} className="flex-row items-center mb-4">
-              <View className="flex-row items-center bg-[#333] rounded-full px-2 py-1.5 mr-4 w-[110px] justify-between">
-                <TouchableOpacity className="bg-[#e0e0e0] w-6 h-6 rounded-full items-center justify-center">
-                  <Minus color="#000" size={16} />
-                </TouchableOpacity>
-                <Text className="text-white mx-2 font-medium">1</Text>
-                <TouchableOpacity className="bg-[#e0e0e0] w-6 h-6 rounded-full items-center justify-center">
-                  <Plus color="#000" size={16} />
-                </TouchableOpacity>
-              </View>
-              <View className="w-9 h-9 rounded-full bg-[#444] mr-4" />
-              <Text className="text-white text-[13px]">{pos}</Text>
-            </View>
-          ))}
+          <NumberField
+            label="Starting budget"
+            hint="Credits each team gets for the auction"
+            value={startingBudget}
+            onChangeText={setStartingBudget}
+            editable={editable}
+          />
+          <NumberField
+            label="Minimum bid"
+            value={minimumBid}
+            onChangeText={setMinimumBid}
+            editable={editable}
+          />
+          <NumberField
+            label="Bid increment"
+            value={bidIncrement}
+            onChangeText={setBidIncrement}
+            editable={editable}
+          />
+          <NumberField
+            label="Nomination timer (seconds)"
+            hint="10–300"
+            value={nominationSeconds}
+            onChangeText={setNominationSeconds}
+            editable={editable}
+          />
+          <NumberField
+            label="Bidding timer (seconds)"
+            hint="10–300"
+            value={biddingSeconds}
+            onChangeText={setBiddingSeconds}
+            editable={editable}
+          />
+          <NumberField
+            label="Pick timer (seconds)"
+            hint="1–600"
+            value={pickSeconds}
+            onChangeText={setPickSeconds}
+            editable={editable}
+          />
+
+          <View className="mb-8">
+            <Text className="text-gray-400 text-[12px] mb-2">Draft starts at</Text>
+            <TouchableOpacity
+              className="border border-[#333] rounded-[16px] flex-row items-center justify-between px-4 h-[56px]"
+              disabled={!editable}
+              onPress={() => setIsDatePickerOpen(true)}
+              activeOpacity={0.7}
+            >
+              <Text className={`${draftStartsAt ? 'text-white' : 'text-gray-500'} text-[14px]`}>
+                {draftStartsAt ? draftStartsAt.toLocaleString() : 'Not scheduled'}
+              </Text>
+              <Calendar color="#ccc" size={18} />
+            </TouchableOpacity>
+            <Text className="text-gray-500 text-[11px] mt-1.5">
+              A new draft time must be in the future and on or before the season start.
+            </Text>
+          </View>
         </ScrollView>
 
-        <View className="py-8 bg-black">
-          <TouchableOpacity className="bg-[#8B3DFF] rounded-full h-[56px] justify-center items-center" onPress={onClose}>
-            <Text className="text-white text-[16px] font-medium">Save changes</Text>
+        {editable && (
+          <View className="py-8 bg-black">
+            <TouchableOpacity
+              className={`rounded-full h-[56px] justify-center items-center ${
+                isDirty && !isSaving ? 'bg-[#8B3DFF]' : 'bg-[#3a2a5c]'
+              }`}
+              disabled={!isDirty || isSaving}
+              onPress={handleSave}
+              activeOpacity={0.8}
+            >
+              {isSaving ? (
+                <ActivityIndicator size="small" color="#fff" />
+              ) : (
+                <Text className="text-white text-[16px] font-medium">
+                  {isDirty ? 'Save changes' : 'No changes to save'}
+                </Text>
+              )}
+            </TouchableOpacity>
+          </View>
+        )}
+
+        <DatePicker
+          modal
+          open={isDatePickerOpen}
+          date={draftStartsAt || new Date()}
+          mode="datetime"
+          theme="dark"
+          onConfirm={(date) => {
+            setIsDatePickerOpen(false);
+            setDraftStartsAt(date);
+          }}
+          onCancel={() => setIsDatePickerOpen(false)}
+        />
+      </View>
+    </Modal>
+  );
+};
+
+const Stepper = ({
+  value,
+  onChange,
+  min = 0,
+  max = 50,
+  disabled = false,
+}: {
+  value: number;
+  onChange: (next: number) => void;
+  min?: number;
+  max?: number;
+  disabled?: boolean;
+}) => (
+  <View className="flex-row items-center bg-[#333] rounded-full px-2 py-1.5 w-[104px] justify-between">
+    <TouchableOpacity
+      className={`w-6 h-6 rounded-full items-center justify-center ${
+        disabled || value <= min ? 'bg-[#555]' : 'bg-[#e0e0e0]'
+      }`}
+      disabled={disabled || value <= min}
+      onPress={() => onChange(value - 1)}
+      activeOpacity={0.7}
+    >
+      <Minus color={disabled || value <= min ? '#888' : '#000'} size={16} />
+    </TouchableOpacity>
+    <Text className="text-white mx-2 font-medium">{value}</Text>
+    <TouchableOpacity
+      className={`w-6 h-6 rounded-full items-center justify-center ${
+        disabled || value >= max ? 'bg-[#555]' : 'bg-[#e0e0e0]'
+      }`}
+      disabled={disabled || value >= max}
+      onPress={() => onChange(value + 1)}
+      activeOpacity={0.7}
+    >
+      <Plus color={disabled || value >= max ? '#888' : '#000'} size={16} />
+    </TouchableOpacity>
+  </View>
+);
+
+export const RosterSettingsSubModal = ({ isVisible, onClose, leagueId }: any) => {
+  const { data, isLoading, isError, error, refetch } = useGetRosterSettingsQuery(leagueId, {
+    skip: !isVisible || !leagueId,
+    refetchOnMountOrArgChange: true,
+  });
+  const [updateRosterSettings, { isLoading: isSaving }] = useUpdateRosterSettingsMutation();
+
+  const [slots, setSlots] = useState<any[]>([]);
+  const [benchSize, setBenchSize] = useState(0);
+
+  // Reset the draft whenever fresh settings arrive, so an abandoned edit is discarded.
+  useEffect(() => {
+    if (data) {
+      setSlots(data.slots.map((slot: any) => ({ ...slot })));
+      setBenchSize(data.benchSize);
+    }
+  }, [data]);
+
+  const canEdit = !!data?.canEdit;
+  const starterTotal = useMemo(
+    () => slots.reduce((sum, slot) => sum + slot.starterCount, 0),
+    [slots],
+  );
+  const totalRosterSize = starterTotal + benchSize;
+
+  const isDirty = useMemo(() => {
+    if (!data) return false;
+    if (benchSize !== data.benchSize) return true;
+    return slots.some((slot, idx) => {
+      const original = data.slots[idx];
+      return (
+        !original ||
+        slot.starterCount !== original.starterCount ||
+        slot.minimum !== original.minimum ||
+        slot.maximum !== original.maximum
+      );
+    });
+  }, [slots, benchSize, data]);
+
+  const updateSlot = (positionId: string, field: string, next: number) => {
+    setSlots((prev) =>
+      prev.map((slot) => {
+        if (slot.positionId !== positionId) return slot;
+        const updated = { ...slot, [field]: next };
+        // Keep each slot internally consistent: minimum <= starters <= maximum.
+        if (field === 'maximum') {
+          updated.starterCount = Math.min(updated.starterCount, next);
+          updated.minimum = Math.min(updated.minimum, next);
+        } else {
+          updated.maximum = Math.max(updated.maximum, next);
+        }
+        return updated;
+      }),
+    );
+  };
+
+  const handleSave = async () => {
+    try {
+      await updateRosterSettings({
+        leagueId,
+        benchSize,
+        slots: slots.map((slot) => ({
+          positionId: slot.positionId,
+          minimum: slot.minimum,
+          maximum: slot.maximum,
+          starterCount: slot.starterCount,
+        })),
+      }).unwrap();
+
+      showToast.success('Roster settings saved', `Teams now carry ${totalRosterSize} players.`);
+      onClose();
+    } catch (err: any) {
+      const msg = err?.data?.message || err?.message || 'Failed to save roster settings.';
+      showToast.error('Save Failed', msg);
+    }
+  };
+
+  return (
+    <Modal visible={isVisible} transparent={true} animationType="slide" onRequestClose={onClose}>
+      <View className="flex-1 bg-black pt-12 px-5">
+        <View className="flex-row items-center mb-6">
+          <TouchableOpacity onPress={onClose} className="w-10 h-10 border border-[#333] rounded-xl justify-center items-center mr-4">
+            <ChevronLeft color="#fff" size={24} />
           </TouchableOpacity>
+          <View className="flex-1">
+            <Text className="text-white text-[20px] font-medium">Roster settings</Text>
+            {!!data && (
+              <Text className="text-gray-400 text-[12px]">
+                {`${starterTotal} starters + ${benchSize} bench = ${totalRosterSize} per team`}
+              </Text>
+            )}
+          </View>
         </View>
+
+        {isLoading ? (
+          <View className="flex-1 items-center justify-center">
+            <ActivityIndicator size="large" color="#8B3DFF" />
+            <Text className="text-gray-400 text-[13px] mt-3">Loading roster settings...</Text>
+          </View>
+        ) : isError || !data ? (
+          <View className="flex-1 items-center justify-center px-6">
+            <Text className="text-white text-[15px] font-semibold mb-2">Settings unavailable</Text>
+            <Text className="text-gray-400 text-[12px] text-center mb-4">
+              {(error as any)?.data?.message || 'Roster settings could not be loaded.'}
+            </Text>
+            <TouchableOpacity className="bg-[#8B3DFF] px-5 py-2.5 rounded-full" onPress={() => refetch()}>
+              <Text className="text-white text-[13px] font-medium">Retry</Text>
+            </TouchableOpacity>
+          </View>
+        ) : (
+          <>
+            {!canEdit && (
+              <View className="bg-[#1a1a1a] border border-[#333] rounded-2xl px-4 py-3 mb-4">
+                <Text className="text-gray-400 text-[12px]">
+                  {data.lockedReason || 'Only the league commissioner can change roster settings.'}
+                </Text>
+              </View>
+            )}
+
+            <ScrollView showsVerticalScrollIndicator={false} className="flex-1">
+              <View className="flex-row px-1 mb-2">
+                <Text className="text-gray-500 text-[10px] uppercase font-bold w-[104px]">Starters</Text>
+                <Text className="text-gray-500 text-[10px] uppercase font-bold ml-4 flex-1">Position</Text>
+                <Text className="text-gray-500 text-[10px] uppercase font-bold">Max</Text>
+              </View>
+
+              {slots.map((slot, idx) => (
+                <View key={`${slot.positionId}-${idx}`} className="flex-row items-center mb-4">
+                  <Stepper
+                    value={slot.starterCount}
+                    min={0}
+                    max={slot.maximum}
+                    disabled={!canEdit}
+                    onChange={(next) => updateSlot(slot.positionId, 'starterCount', next)}
+                  />
+                  <View className="flex-1 mx-4">
+                    <Text className="text-white text-[13px]" numberOfLines={1}>
+                      {slot.name || slot.code || 'Position'}
+                    </Text>
+                    <Text className="text-gray-500 text-[11px]">
+                      {`${slot.code ? `${slot.code} • ` : ''}min ${slot.minimum}`}
+                    </Text>
+                  </View>
+                  <Stepper
+                    value={slot.maximum}
+                    min={Math.max(slot.starterCount, slot.minimum)}
+                    disabled={!canEdit}
+                    onChange={(next) => updateSlot(slot.positionId, 'maximum', next)}
+                  />
+                </View>
+              ))}
+
+              <View className="flex-row items-center mb-4 pt-4 border-t border-[#222]">
+                <Stepper value={benchSize} min={0} disabled={!canEdit} onChange={setBenchSize} />
+                <View className="flex-1 ml-4">
+                  <Text className="text-white text-[13px]">Bench</Text>
+                  <Text className="text-gray-500 text-[11px]">Reserves beyond the starting lineup</Text>
+                </View>
+              </View>
+            </ScrollView>
+
+            {canEdit && (
+              <View className="py-8 bg-black">
+                <TouchableOpacity
+                  className={`rounded-full h-[56px] justify-center items-center ${
+                    isDirty && !isSaving ? 'bg-[#8B3DFF]' : 'bg-[#3a2a5c]'
+                  }`}
+                  disabled={!isDirty || isSaving}
+                  onPress={handleSave}
+                  activeOpacity={0.8}
+                >
+                  {isSaving ? (
+                    <ActivityIndicator size="small" color="#fff" />
+                  ) : (
+                    <Text className="text-white text-[16px] font-medium">
+                      {isDirty ? 'Save changes' : 'No changes to save'}
+                    </Text>
+                  )}
+                </TouchableOpacity>
+              </View>
+            )}
+          </>
+        )}
       </View>
     </Modal>
   );
@@ -221,7 +816,7 @@ export const MemberSettingsSubModal = ({ isVisible, onClose }: any) => {
         <ScrollView showsVerticalScrollIndicator={false} className="flex-1">
           {MEMBERS.map((member, index) => (
             <View 
-              key={member.id} 
+              key={`${member.id}-${index}`} 
               className={`flex-row items-center justify-between py-4 ${index !== MEMBERS.length - 1 ? 'border-b border-[#333]' : 'border-b border-[#333]'}`}
             >
               <View className="flex-row items-center">
@@ -255,9 +850,9 @@ export const AddTeamModal = ({ isVisible, onClose, teamMembers, onAddTeam }: any
         <View className="bg-[#1a1a1a] rounded-t-[32px] p-6 border-t border-[#333] h-[60%] w-full">
           <Text className="text-white text-[18px] font-medium mb-6 text-center">Add Team to slot</Text>
           <ScrollView showsVerticalScrollIndicator={false}>
-            {teamMembers.map((team: any) => (
+            {teamMembers.map((team: any, index: number) => (
               <TouchableOpacity
-                key={team.id}
+                key={`${team.id}-${index}`}
                 className="flex-row items-center border-b border-[#333] pb-4 mb-4"
                 onPress={() => onAddTeam(team)}
               >
@@ -389,11 +984,17 @@ export const PlayerDetailModal = ({ isVisible, onClose, selectedPlayer, seasonId
 
             {/* Player Header Info */}
             <View className="flex-row items-center mb-5">
-              <Image 
-                source={{ uri: selectedPlayer?.avatarUri || selectedPlayer?.photoUrl || selectedPlayer?.athlete?.photoUrl || 'https://i.pravatar.cc/150?img=11' }} 
-                className="w-16 h-16 rounded-full border-2 border-[#1e1e1e] mr-3 bg-white"
-                resizeMode="cover"
-              />
+              {selectedPlayer?.avatarUri || selectedPlayer?.photoUrl || selectedPlayer?.athlete?.photoUrl ? (
+                <Image
+                  source={{ uri: selectedPlayer?.avatarUri || selectedPlayer?.photoUrl || selectedPlayer?.athlete?.photoUrl }}
+                  className="w-16 h-16 rounded-full border-2 border-[#1e1e1e] mr-3 bg-white"
+                  resizeMode="cover"
+                />
+              ) : (
+                <View className="w-16 h-16 rounded-full border-2 border-[#1e1e1e] mr-3 bg-[#0b3887] justify-center items-center">
+                  <User color="#fff" size={28} />
+                </View>
+              )}
               <View className="flex-1">
                 <Text className="text-white text-[22px] font-bold" numberOfLines={1}>
                   {selectedPlayer?.name || selectedPlayer?.displayName || selectedPlayer?.athlete?.displayName || 'Athlete'}
@@ -455,8 +1056,8 @@ export const PlayerDetailModal = ({ isVisible, onClose, selectedPlayer, seasonId
               {isLogLoading ? (
                 <ActivityIndicator size="small" color="#00e5ff" className="my-4" />
               ) : logs.length > 0 ? (
-                logs.map((row: any) => (
-                  <View key={row.id} className="flex-row justify-between items-center mb-2">
+                logs.map((row: any, idx: number) => (
+                  <View key={`${row.id || 'log'}-${idx}`} className="flex-row justify-between items-center mb-2">
                     <Text className="text-white text-[9px] w-5">{row.week}</Text>
                     <Text className="text-white text-[9px] w-6" numberOfLines={1}>{row.opp}</Text>
                     <Text className="text-white text-[9px] w-8 font-bold">{row.fpts}</Text>
@@ -514,7 +1115,7 @@ export const GiveCommissionerAccessModal = ({ isVisible, onClose }: any) => {
           <View>
             {MEMBERS.map((member, index) => (
               <View 
-                key={member.id} 
+                key={`${member.id}-${index}`} 
                 className={`flex-row items-center justify-between py-4 ${index !== MEMBERS.length - 1 ? 'border-b border-[#333]' : ''}`}
               >
                 <View className="flex-row items-center">
@@ -553,7 +1154,7 @@ export const LockRosterModal = ({ isVisible, onClose }: any) => {
           <View>
             {MEMBERS.map((member, index) => (
               <View 
-                key={member.id} 
+                key={`${member.id}-${index}`} 
                 className={`flex-row items-center justify-between py-4 ${index !== MEMBERS.length - 1 ? 'border-b border-[#333]' : 'border-b border-[#333]'}`}
               >
                 <View className="flex-row items-center">
@@ -729,57 +1330,46 @@ export const RosterPlayerActionModal = ({
   const [dropPlayer, { isLoading: isDropping }] = useDropPlayerMutation();
   const [selectedPositionId, setSelectedPositionId] = useState<string | null>(null);
 
-  if (!selectedRosterItem) return null;
+  // selectedRosterItem is a flattened RosterPlayer from the team roster endpoint.
+  const player = selectedRosterItem || {};
+  const playerName = player.name || 'Player';
+  const posCode = player.positionCode || 'ATH';
+  const teamName = player.nflTeam || 'NFL';
+  const avatarUri = player.photoUrl;
 
-  const athlete = selectedRosterItem.seasonAthleteId?.athleteId || selectedRosterItem.seasonAthleteId || selectedRosterItem;
-  const playerName = athlete.displayName || athlete.name || `${athlete.firstName || ''} ${athlete.lastName || ''}`.trim() || 'Player';
-  const posCode = selectedRosterItem.assignment?.assignedPositionId?.code || athlete.primaryPositionId?.code || 'ATH';
-  const teamName = selectedRosterItem.seasonAthleteId?.organizationId?.shortName || selectedRosterItem.seasonAthleteId?.organizationId?.name || 'NFL';
-  const avatarUri = athlete.photoUrl || 'https://i.pravatar.cc/150?img=11';
+  const isStarter = player.lineupStatus === 'starter';
+  const ownershipId = player.ownershipId;
+  const seasonAthleteId = player.seasonAthleteId;
+  const assignedPosId = player.assignedPositionId;
 
-  const isStarter = selectedRosterItem.assignment?.lineupStatus === 'starter';
-  const ownershipId = selectedRosterItem._id || selectedRosterItem.assignment?.ownershipId;
-  const seasonAthleteId = selectedRosterItem.seasonAthleteId?._id || selectedRosterItem.seasonAthleteId?.id || selectedRosterItem.seasonAthleteId;
-  const assignedPosId = selectedRosterItem.assignment?.assignedPositionId?._id || selectedRosterItem.assignment?.assignedPositionId || athlete.primaryPositionId?._id || athlete.primaryPositionId;
-
-  // Extract eligible positions for starter position assignment
   const eligiblePositions = useMemo(() => {
-    const sa = selectedRosterItem.seasonAthleteId;
-    const rawList = Array.isArray(sa?.eligiblePositionIds)
-      ? sa.eligiblePositionIds
-      : Array.isArray(sa?.eligiblePositions)
-      ? sa.eligiblePositions
-      : [];
-
-    if (rawList.length > 0) {
-      return rawList.map((p: any) => ({
-        id: typeof p === 'string' ? p : p._id || p.id,
+    const rawList = Array.isArray(player.eligiblePositions) ? player.eligiblePositions : [];
+    const mapped = rawList
+      .filter((p: any) => p && (p._id || p.id))
+      .map((p: any) => ({
+        id: String(p._id || p.id),
         code: p.code || p.name || 'ATH',
         name: p.name || p.code || 'Position',
       }));
-    }
 
-    const defaultPos = athlete.primaryPositionId || selectedRosterItem.assignment?.assignedPositionId;
-    if (defaultPos) {
-      return [{
-        id: typeof defaultPos === 'string' ? defaultPos : defaultPos._id || defaultPos.id,
-        code: defaultPos.code || posCode,
-        name: defaultPos.name || posCode,
-      }];
-    }
+    if (mapped.length > 0) return mapped;
 
-    return [];
-  }, [selectedRosterItem, athlete, posCode]);
+    // Fall back to whatever position the player is currently assigned to.
+    return assignedPosId
+      ? [{ id: String(assignedPosId), code: posCode, name: player.assignedPosition || posCode }]
+      : [];
+  }, [player.eligiblePositions, player.assignedPosition, assignedPosId, posCode]);
 
   useEffect(() => {
     if (eligiblePositions.length > 0) {
-      const activeId = typeof assignedPosId === 'string' ? assignedPosId : assignedPosId?._id;
-      const matching = eligiblePositions.find((p: any) => String(p.id) === String(activeId));
+      const matching = eligiblePositions.find((p: any) => String(p.id) === String(assignedPosId));
       setSelectedPositionId(matching ? matching.id : eligiblePositions[0].id);
     } else {
-      setSelectedPositionId(typeof assignedPosId === 'string' ? assignedPosId : assignedPosId?._id || null);
+      setSelectedPositionId(assignedPosId ? String(assignedPosId) : null);
     }
   }, [eligiblePositions, assignedPosId]);
+
+  if (!selectedRosterItem) return null;
 
   const handleToggleLineup = async () => {
     if (!leagueId || !userTeamId || !ownershipId) {
@@ -828,7 +1418,7 @@ export const RosterPlayerActionModal = ({
               await dropPlayer({
                 leagueId,
                 teamId: userTeamId,
-                seasonAthleteId: typeof seasonAthleteId === 'string' ? seasonAthleteId : seasonAthleteId?._id,
+                seasonAthleteId: String(seasonAthleteId),
               }).unwrap();
 
               showToast.success('Player Dropped', `${playerName} has been dropped from your team.`);
@@ -850,7 +1440,13 @@ export const RosterPlayerActionModal = ({
         <TouchableOpacity activeOpacity={1} className="w-full bg-[#1e1e1e] rounded-[24px] border border-[#333] p-6 shadow-xl">
           {/* Header Player Info */}
           <View className="flex-row items-center mb-6 pb-4 border-b border-[#333]">
-            <Image source={{ uri: avatarUri }} className="w-14 h-14 rounded-full mr-4 bg-[#333] border border-[#444]" />
+            {avatarUri ? (
+              <Image source={{ uri: avatarUri }} className="w-14 h-14 rounded-full mr-4 bg-[#333] border border-[#444]" />
+            ) : (
+              <View className="w-14 h-14 rounded-full mr-4 bg-[#333] border border-[#444] justify-center items-center">
+                <User color="#888" size={24} />
+              </View>
+            )}
             <View className="flex-1">
               <Text className="text-white text-[18px] font-bold" numberOfLines={1}>{playerName}</Text>
               <Text className="text-gray-400 text-[13px]">{`${posCode} • ${teamName}`}</Text>
@@ -871,11 +1467,11 @@ export const RosterPlayerActionModal = ({
                 Select Starting Position Slot:
               </Text>
               <View className="flex-row flex-wrap gap-2">
-                {eligiblePositions.map((pos: any) => {
+                {eligiblePositions.map((pos: any, idx: number) => {
                   const isSelected = String(selectedPositionId) === String(pos.id);
                   return (
                     <TouchableOpacity
-                      key={pos.id}
+                      key={`${pos.id}-${idx}`}
                       className={`px-3.5 py-2 rounded-xl border ${
                         isSelected
                           ? 'bg-[#8B3DFF] border-[#9d5bff]'

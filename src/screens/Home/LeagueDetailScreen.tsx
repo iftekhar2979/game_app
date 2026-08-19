@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { View, Text, Image, TouchableOpacity, ScrollView, TextInput, Modal, ActivityIndicator } from 'react-native';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import { View, Text, Image, TouchableOpacity, ScrollView, TextInput, Modal, ActivityIndicator, RefreshControl } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ChevronLeft, MoreVertical, UserCheck, Plus, Users, Globe, Lock, Shield, Calendar, DollarSign, Layers, Info } from 'lucide-react-native';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
@@ -8,10 +8,9 @@ import { RootStackParamList } from '../../../App';
 import { useSelector, useDispatch } from 'react-redux';
 import { RootState } from '../../store';
 import { setActiveTeam } from '../../store/slices/leagueSlice';
-import { useGetLeagueDetailsQuery, useGetLeagueMembersQuery, useJoinLeagueMutation, useGetAvailableAthletesQuery, useGetLeagueRostersQuery, useGetCurrentMatchupQuery, useGetLeagueStandingsQuery, useGetMatchupHistoryQuery } from '../../store/api/leagueApi';
-import { useGetSeasonAthletesQuery } from '../../store/api/seasonApi';
+import { useGetLeagueDetailsQuery, useGetLeagueMembersQuery, useJoinLeagueMutation, useGetAvailableAthletesQuery, useGetAthletePositionsQuery, useGetRosterSettingsQuery, useGetLeagueRostersQuery, useGetMyTeamRosterQuery, useGetCurrentMatchupQuery, useGetLeagueStandingsQuery, useGetMatchupHistoryQuery } from '../../store/api/leagueApi';
 import { MatchupTab, DraftTab, TeamTab, PlayersTab, LeagueTab } from '../../components/LeagueDetail/LeagueDetailTabs';
-import { AddTeamModal, PlayerDetailModal, LeagueSettingsModal, LeagueSettingsSubModal, RosterSettingsSubModal, MemberSettingsSubModal, GiveCommissionerAccessModal, LockRosterModal, DeleteLeagueModal, JoinLeagueModal, RosterPlayerActionModal } from '../../components/LeagueDetail/LeagueDetailModals';
+import { AddTeamModal, PlayerDetailModal, LeagueSettingsModal, LeagueSettingsSubModal, DraftSettingsSubModal, RosterSettingsSubModal, MemberSettingsSubModal, GiveCommissionerAccessModal, LockRosterModal, DeleteLeagueModal, JoinLeagueModal, RosterPlayerActionModal } from '../../components/LeagueDetail/LeagueDetailModals';
 import { getSocket, joinLeagueRoom, leaveLeagueRoom } from '../../services/socketService';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList, 'LeagueDetail'>;
@@ -25,6 +24,7 @@ const MOCK_LEAGUES: any[] = [
 
 interface TeamMember {
   id: string;
+  teamId?: string;
   name: string;
   handle: string;
   avatarUri?: string;
@@ -41,13 +41,6 @@ const MOCK_TEAM_MEMBERS: TeamMember[] = [
   { id: 't4', name: 'Team Walter', handle: '@walter' },
   { id: 't5', name: 'Team Noah', handle: '@noah' },
   { id: 't6', name: 'Team Leo', handle: '@leo' },
-];
-
-const MOCK_PLAYERS_LIST = [
-  { id: 'p1', name: 'Noah Okafor', rostered: '17%', points: '+10', progress: 17, avatarUri: 'https://i.pravatar.cc/150?img=12' },
-  { id: 'p2', name: 'Leonardo Trossard', rostered: '32%', points: '+9', progress: 32, avatarUri: 'https://i.pravatar.cc/150?img=13' },
-  { id: 'p3', name: 'Walter bentiez', rostered: '4%', points: '+5', progress: 4, avatarUri: 'https://i.pravatar.cc/150?img=14' },
-  { id: 'p4', name: '2026 Final cheer', rostered: '1%', points: '+3', progress: 1, avatarUri: 'https://i.pravatar.cc/150?img=15' },
 ];
 
 const MOCK_LEAGUE_STANDINGS = [
@@ -106,7 +99,42 @@ export default function LeagueDetailScreen() {
   const { data: apiMembersData, refetch: refetchMembers } = useGetLeagueMembersQuery(leagueId, {
     skip: isMockId,
   });
-  const { data: apiAthletesData, refetch: refetchAvailableAthletes } = useGetAvailableAthletesQuery(leagueId, {
+  // Players tab: search term is debounced so typing does not fire a request per keystroke.
+  const [playerSearch, setPlayerSearch] = useState('');
+  const [debouncedPlayerSearch, setDebouncedPlayerSearch] = useState('');
+  const [playerPositionId, setPlayerPositionId] = useState<string | null>(null);
+  const [playersPage, setPlayersPage] = useState(1);
+
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedPlayerSearch(playerSearch.trim()), 350);
+    return () => clearTimeout(timer);
+  }, [playerSearch]);
+
+  // A new search or position filter restarts paging from the first page.
+  useEffect(() => {
+    setPlayersPage(1);
+  }, [debouncedPlayerSearch, playerPositionId]);
+
+  const {
+    data: apiAthletesData,
+    isLoading: isPlayersLoading,
+    isFetching: isPlayersFetching,
+    refetch: refetchAvailableAthletes,
+  } = useGetAvailableAthletesQuery(
+    {
+      leagueId,
+      term: debouncedPlayerSearch || undefined,
+      positionId: playerPositionId || undefined,
+      page: playersPage,
+    },
+    { skip: isMockId },
+  );
+
+  const { data: athletePositions = [] } = useGetAthletePositionsQuery(undefined, {
+    skip: isMockId,
+  });
+
+  const { data: rosterSettings, refetch: refetchRosterSettings } = useGetRosterSettingsQuery(leagueId, {
     skip: isMockId,
   });
   const { data: apiRostersData, refetch: refetchLeagueRosters } = useGetLeagueRostersQuery(leagueId, {
@@ -139,61 +167,31 @@ export default function LeagueDetailScreen() {
     }
   }, [leagueId, isRealApiId, isMockId, isApiLoading, rawLeague, apiMembersData, apiRostersData, apiMatchupData, apiStandingsData]);
 
-  const { data: generalSeasonAthletesData } = useGetSeasonAthletesQuery(
-    { seasonId: targetSeasonId as string },
-    { skip: !targetSeasonId || isMockId }
-  );
-
   const [joinLeagueMutation, { isLoading: isJoiningLeague }] = useJoinLeagueMutation();
 
   const playersList = useMemo(() => {
-    const rawAvailable = Array.isArray(apiAthletesData)
-      ? apiAthletesData
-      : Array.isArray(apiAthletesData?.data)
-      ? apiAthletesData.data
-      : [];
+    const rawList = apiAthletesData?.items || [];
 
-    const rawGenData = generalSeasonAthletesData as any;
-    const rawGeneral = Array.isArray(rawGenData)
-      ? rawGenData
-      : Array.isArray(rawGenData?.data)
-      ? rawGenData.data
-      : [];
+    return rawList.map((item: any, idx: number) => {
+      const athlete = item.athlete || item.athleteId || {};
+      const name =
+        athlete.displayName ||
+        `${athlete.firstName || ''} ${athlete.lastName || ''}`.trim() ||
+        'Unknown Player';
 
-    const rawList = rawAvailable.length > 0 ? rawAvailable : rawGeneral;
+      const positionCode = item.eligiblePositionIds?.[0]?.code;
+      const nflTeam = item.organizationId?.shortName || item.organizationId?.name;
 
-
-    if (rawList.length > 0) {
-      return rawList.map((item: any, idx: number) => {
-        const athlete = item.athleteId || item.athlete || item;
-        const name =
-          athlete.displayName ||
-          athlete.name ||
-          athlete.fullName ||
-          `${athlete.firstName || ''} ${athlete.lastName || ''}`.trim() ||
-          `Athlete ${idx + 1}`;
-        const rosteredPercent = item.rosteredPercentage ?? (15 + (idx * 3) % 40);
-        const points = item.projectedPoints ? `+${item.projectedPoints}` : `+${(idx % 12) + 3}`;
-        const avatarUri =
-          athlete.photoUrl ||
-          athlete.avatarUri ||
-          athlete.avatarUrl ||
-          `https://i.pravatar.cc/150?img=${(idx % 20) + 1}`;
-
-        return {
-          id: item._id || item.id || `p-${idx}`,
-          name,
-          rostered: `${rosteredPercent}%`,
-          points,
-          progress: rosteredPercent,
-          avatarUri,
-        };
-      });
-    }
-
-    return [];
-  }, [apiAthletesData, generalSeasonAthletesData]);
-
+      return {
+        id: item._id || item.id || `p-${idx}`,
+        seasonAthleteId: item._id,
+        name,
+        subtitle: [positionCode, nflTeam].filter(Boolean).join(' • ') || 'Free agent',
+        value: item.openingValue ?? null,
+        avatarUri: athlete.photoUrl || null,
+      };
+    });
+  }, [apiAthletesData]);
 
   const callerInfo = apiLeagueData?.caller;
 
@@ -210,7 +208,9 @@ export default function LeagueDetailScreen() {
     mockFallback?.draftStartsAt ||
     mockFallback?.draftDate;
 
-  const league = rawLeague
+  // Memoised: the draft countdown re-renders this screen every second, and a fresh
+  // league object each time would churn every child that receives it.
+  const league = useMemo(() => (rawLeague
     ? {
         id: rawLeague._id || rawLeague.id || leagueId,
         name: rawLeague.name || 'Fantasy League',
@@ -226,10 +226,14 @@ export default function LeagueDetailScreen() {
             : rawLeague.status || 'Draft',
         code: rawLeague.code || '',
         description: rawLeague.description || '',
+        // `status` above is a display label; settings screens need the real value.
+        rawStatus: rawLeague.status,
+        joinedTeamCount: rawLeague.joinedTeamCount,
+        draftSettings: (rawLeague as any).draftSettings,
         visibility: rawLeague.visibility || 'public',
         draftStartsAt,
       }
-    : mockFallback;
+    : mockFallback), [rawLeague, mockFallback, draftStartsAt, leagueId]);
 
 
   const [currentLeagueStatus, setCurrentLeagueStatus] = useState(league?.status);
@@ -253,6 +257,17 @@ export default function LeagueDetailScreen() {
   const dispatch = useDispatch();
   const reduxActiveTeamId = useSelector((state: RootState) => state.league.activeTeams?.[leagueId]?.teamId);
   const currentUserId = useSelector((state: RootState) => (state.auth?.user as any)?._id || (state.auth?.user as any)?.id);
+
+  // The authenticated user's own fantasy team roster, resolved by the backend
+  // rather than filtered out of the full league roster list client-side.
+  const {
+    data: myRoster,
+    isLoading: isMyRosterLoading,
+    refetch: refetchMyRoster,
+  } = useGetMyTeamRosterQuery(leagueId, {
+    skip: isMockId || !isUserJoined,
+    refetchOnMountOrArgChange: true,
+  });
 
   const rosterTeam = useMemo(() => {
     const rawRosters = Array.isArray(apiRostersData)
@@ -287,6 +302,7 @@ export default function LeagueDetailScreen() {
   }, [apiMembersData, currentUserId]);
 
   const userTeamId =
+    myRoster?.team?._id ||
     reduxActiveTeamId ||
     rosterTeam?._id ||
     rosterTeam?.id ||
@@ -303,15 +319,47 @@ export default function LeagueDetailScreen() {
     }
   }, [leagueId, userTeamId, reduxActiveTeamId, dispatch]);
 
-  const currentUserRoster = useMemo(() => {
-    const rawRosters = Array.isArray(apiRostersData)
-      ? apiRostersData
-      : Array.isArray(apiRostersData?.data)
-      ? apiRostersData.data
-      : [];
-    if (!userTeamId || rawRosters.length === 0) return null;
-    return rawRosters.find((r: any) => String(r._id || r.id || r.fantasyTeamId) === String(userTeamId));
-  }, [apiRostersData, userTeamId]);
+
+
+  // Pull down to re-read everything this screen shows. Runs the refetches in
+  // parallel and settles even if one of them rejects, so a single failing query
+  // cannot leave the spinner stuck.
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  const handleRefresh = useCallback(async () => {
+    if (isMockId) return;
+    setIsRefreshing(true);
+    try {
+      await Promise.allSettled(
+        [
+          refetchLeagueDetails,
+          refetchMembers,
+          refetchAvailableAthletes,
+          refetchLeagueRosters,
+          refetchMyRoster,
+          refetchMatchup,
+          refetchStandings,
+          refetchHistory,
+          refetchRosterSettings,
+        ]
+          .filter(Boolean)
+          .map((fn) => Promise.resolve(fn())),
+      );
+    } finally {
+      setIsRefreshing(false);
+    }
+  }, [
+    isMockId,
+    refetchLeagueDetails,
+    refetchMembers,
+    refetchAvailableAthletes,
+    refetchLeagueRosters,
+    refetchMyRoster,
+    refetchMatchup,
+    refetchStandings,
+    refetchHistory,
+    refetchRosterSettings,
+  ]);
 
   useEffect(() => {
     if (callerInfo?.isMember !== undefined) {
@@ -342,6 +390,21 @@ export default function LeagueDetailScreen() {
       const maxCapacity = league?.maxTeams || 12;
       const newSlots: (TeamMember | null)[] = new Array(maxCapacity).fill(null);
 
+      // The members payload does not always carry the fantasy team, so keep an
+      // owner -> team id map from the rosters call to fall back on. Without a team
+      // id a row cannot open its roster.
+      const rawRosters = Array.isArray(apiRostersData)
+        ? apiRostersData
+        : Array.isArray((apiRostersData as any)?.data)
+        ? (apiRostersData as any).data
+        : [];
+      const teamIdByOwner = new Map<string, string>();
+      rawRosters.forEach((r: any) => {
+        const owner = r.ownerId?._id || r.ownerId || r.ownerUserId;
+        const id = r._id || r.id;
+        if (owner && id) teamIdByOwner.set(String(owner), String(id));
+      });
+
       if (memberList.length > 0) {
         memberList.forEach((m: any, idx: number) => {
           if (idx < maxCapacity) {
@@ -359,8 +422,18 @@ export default function LeagueDetailScreen() {
               m.avatarUri ||
               `https://i.pravatar.cc/150?img=${(idx % 12) + 1}`;
 
+            const ownerId =
+              userObj._id ||
+              userObj.id ||
+              (typeof m.userId === 'string' ? m.userId : null) ||
+              teamObj.ownerId;
+
             newSlots[idx] = {
               id: m._id || m.id || `member-${idx}`,
+              teamId:
+                teamObj._id ||
+                teamObj.id ||
+                (ownerId ? teamIdByOwner.get(String(ownerId)) : undefined),
               name: teamName,
               handle,
               avatarUri,
@@ -372,7 +445,7 @@ export default function LeagueDetailScreen() {
         setTeamSlots(newSlots);
       }
     }
-  }, [apiMembersData, league?.maxTeams]);
+  }, [apiMembersData, apiRostersData, league?.maxTeams]);
 
 
   // Real-Time WebSocket Connection & Single Deduplicated Event Listener
@@ -491,6 +564,7 @@ export default function LeagueDetailScreen() {
   const [isSettingsModalVisible, setIsSettingsModalVisible] = useState(false);
   const [isLeagueSettingsSubModalVisible, setIsLeagueSettingsSubModalVisible] = useState(false);
   const [isRosterSettingsSubModalVisible, setIsRosterSettingsSubModalVisible] = useState(false);
+  const [isDraftSettingsSubModalVisible, setIsDraftSettingsSubModalVisible] = useState(false);
   const [isMemberSettingsSubModalVisible, setIsMemberSettingsSubModalVisible] = useState(false);
   const [isCommissionerModalVisible, setIsCommissionerModalVisible] = useState(false);
   const [isLockRosterModalVisible, setIsLockRosterModalVisible] = useState(false);
@@ -501,6 +575,8 @@ export default function LeagueDetailScreen() {
       setIsLeagueSettingsSubModalVisible(true);
     } else if (optionTitle === 'Roster settings') {
       setIsRosterSettingsSubModalVisible(true);
+    } else if (optionTitle === 'Draft settings') {
+      setIsDraftSettingsSubModalVisible(true);
     } else if (optionTitle === 'Member settings') {
       setIsMemberSettingsSubModalVisible(true);
     } else if (optionTitle === 'Commissioner control') {
@@ -624,7 +700,19 @@ export default function LeagueDetailScreen() {
           <Text className="text-gray-400 text-xs mt-3">Loading League Details...</Text>
         </View>
       ) : (
-        <ScrollView contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 50 }} showsVerticalScrollIndicator={false}>
+        <ScrollView
+          contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 50 }}
+          showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl
+              refreshing={isRefreshing}
+              onRefresh={handleRefresh}
+              tintColor="#E0B566"
+              colors={['#E0B566']}
+              progressBackgroundColor="#111"
+            />
+          }
+        >
           {/* Real-Time WebSocket Notification Banner */}
           {realtimeNotification ? (
             <View className="bg-[#8B3DFF] border border-purple-400 rounded-2xl p-4 mb-5 flex-row items-center justify-between shadow-xl animate-bounce">
@@ -809,10 +897,15 @@ export default function LeagueDetailScreen() {
                 setIsJoinModalVisible(true);
               }}
               maxTeams={league.maxTeams || 8}
-              userRoster={currentUserRoster}
-              onSelectRosterItem={(item: any) => {
-                setSelectedRosterItem(item);
+              myRoster={myRoster}
+              isMyRosterLoading={isMyRosterLoading}
+              totalRosterSize={rosterSettings?.totalRosterSize}
+              onSelectRosterPlayer={(player: any) => {
+                setSelectedRosterItem(player);
                 setIsRosterActionModalVisible(true);
+              }}
+              onSelectTeam={(teamId: string, teamName: string) => {
+                navigation.navigate('TeamRoster', { leagueId, teamId, teamName });
               }}
             />
           )}
@@ -820,9 +913,21 @@ export default function LeagueDetailScreen() {
           {/* Players Tab Content */}
           {activeTab === 'Players' && (
             <PlayersTab
-              playersList={playersList}
-              setSelectedPlayer={setSelectedPlayer}
-              setIsPlayerModalVisible={setIsPlayerModalVisible}
+              players={playersList}
+              positions={athletePositions}
+              searchTerm={playerSearch}
+              onChangeSearchTerm={setPlayerSearch}
+              selectedPositionId={playerPositionId}
+              onSelectPosition={setPlayerPositionId}
+              isLoading={isPlayersLoading}
+              isFetching={isPlayersFetching}
+              hasMore={!!apiAthletesData?.pagination?.nextPage}
+              totalItems={apiAthletesData?.pagination?.totalItems ?? 0}
+              onLoadMore={() => setPlayersPage((p) => p + 1)}
+              onSelectPlayer={(player: any) => {
+                setSelectedPlayer(player);
+                setIsPlayerModalVisible(true);
+              }}
             />
           )}
 
@@ -864,6 +969,7 @@ export default function LeagueDetailScreen() {
         onAddSuccess={() => {
           if (refetchAvailableAthletes) refetchAvailableAthletes();
           if (refetchLeagueRosters) refetchLeagueRosters();
+          if (refetchMyRoster) refetchMyRoster();
         }}
       />
 
@@ -877,6 +983,7 @@ export default function LeagueDetailScreen() {
         onSuccess={() => {
           if (refetchAvailableAthletes) refetchAvailableAthletes();
           if (refetchLeagueRosters) refetchLeagueRosters();
+          if (refetchMyRoster) refetchMyRoster();
         }}
       />
 
@@ -891,11 +998,23 @@ export default function LeagueDetailScreen() {
       <LeagueSettingsSubModal
         isVisible={isLeagueSettingsSubModalVisible}
         onClose={() => setIsLeagueSettingsSubModalVisible(false)}
+        leagueId={leagueId}
+        league={league}
+        canEdit={!!callerInfo?.isCreator}
+      />
+
+      <DraftSettingsSubModal
+        isVisible={isDraftSettingsSubModalVisible}
+        onClose={() => setIsDraftSettingsSubModalVisible(false)}
+        leagueId={leagueId}
+        league={league}
+        canEdit={!!callerInfo?.isCreator}
       />
 
       <RosterSettingsSubModal
         isVisible={isRosterSettingsSubModalVisible}
         onClose={() => setIsRosterSettingsSubModalVisible(false)}
+        leagueId={leagueId}
       />
 
       <MemberSettingsSubModal
