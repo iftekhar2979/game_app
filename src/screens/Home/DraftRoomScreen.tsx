@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { View, Text, Image, TouchableOpacity, ScrollView, Modal, FlatList, ActivityIndicator, Alert } from 'react-native';
+import { View, Text, Image, TouchableOpacity, ScrollView, Modal, ActivityIndicator, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ChevronLeft, Users } from 'lucide-react-native';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
@@ -17,9 +17,11 @@ import {
   useDraftPickMutation,
   useGetDraftStateQuery,
   useStartDraftMutation,
+  useGetDraftPicksQuery,
 } from '../../store/api/leagueApi';
 import { getSocket, joinLeagueRoom, leaveLeagueRoom } from '../../services/socketService';
 import { showToast } from '../../utils/toast';
+import { DraftBoard, DraftPickFeed, MyDraftedStrip } from '../../components/LeagueDetail/DraftBoard';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList, 'DraftRoom'>;
 type RouteProps = RouteProp<RootStackParamList, 'DraftRoom'>;
@@ -53,7 +55,10 @@ export default function DraftRoomScreen() {
     skip: isMockId,
   });
   const [startDraft, { isLoading: isStartingDraft }] = useStartDraftMutation();
-  const [joinLeagueMutation, { isLoading: isJoining }] = useJoinLeagueMutation();
+  const { data: draftPicks, refetch: refetchDraftPicks } = useGetDraftPicksQuery(leagueId, {
+    skip: isMockId,
+  });
+  const [joinLeagueMutation] = useJoinLeagueMutation();
 
   const { data: apiLeagueData } = useGetLeagueDetailsQuery(leagueId, {
     skip: isMockId,
@@ -142,6 +147,7 @@ export default function DraftRoomScreen() {
       const handleDraftUpdated = (data: any) => {
         if (data && String(data.leagueId) === String(leagueId)) {
           if (refetchDraftState) refetchDraftState();
+          if (refetchDraftPicks) refetchDraftPicks();
           if (refetchAvailableAthletes) refetchAvailableAthletes();
         }
       };
@@ -156,7 +162,7 @@ export default function DraftRoomScreen() {
     } catch (e) {
       console.warn('DraftRoom socket error:', e);
     }
-  }, [leagueId, isMockId, refetchAvailableAthletes, refetchDraftState]);
+  }, [leagueId, isMockId, refetchAvailableAthletes, refetchDraftState, refetchDraftPicks]);
 
   // Every value below is read from the server. No snake maths on the client.
   const isSnakeDraft = draftState?.isTurnOrdered === true;
@@ -230,11 +236,7 @@ export default function DraftRoomScreen() {
     });
   }, [apiAthletesData]);
 
-  const [modalVisible, setModalVisible] = useState(false);
-  const [modalMode, setModalMode] = useState<'empty' | 'filled'>('filled');
   const [setPlayerModalVisible, setSetPlayerModalVisible] = useState(false);
-  const [draftedPlayers, setDraftedPlayers] = useState<Record<string, any>>({});
-  const [selectedCell, setSelectedCell] = useState<string | null>(null);
   const [isDraftStarted, setIsDraftStarted] = useState(false);
 
   useEffect(() => {
@@ -260,9 +262,6 @@ export default function DraftRoomScreen() {
   }, [league?.draftDate, league?.draftTime]);
 
 
-  // Generate 6x4 grid (6 rows, 4 columns)
-  const gridRows = [1, 2, 3, 4, 5, 6];
-  const gridCols = [1, 2, 3, 4];
 
   return (
     <SafeAreaView className="flex-1 bg-black" edges={['top', 'bottom']}>
@@ -351,6 +350,15 @@ export default function DraftRoomScreen() {
                 </TouchableOpacity>
               </>
             )}
+          </View>
+        )}
+
+        {/* Board, own picks and feed — all from server-resolved data */}
+        {isSnakeDraft && draftState && draftState.order.length > 0 && (
+          <View className="mt-5">
+            <DraftBoard draft={draftState} picks={draftPicks} myTeamId={userTeamId} />
+            <MyDraftedStrip picks={draftPicks} myTeamId={userTeamId} />
+            <DraftPickFeed picks={draftPicks} />
           </View>
         )}
 
