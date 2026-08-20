@@ -8,7 +8,9 @@ import { useGetCurrentMatchupQuery, useGetLeagueStandingsQuery, useGetMatchupHis
 import { ActivityIndicator } from 'react-native';
 import { RosterSections } from './RosterPlayerRow';
 
-export const MatchupTab = ({ leagueId }: any) => {
+export const MatchupTab = ({ leagueId, league }: any) => {
+  const isTotalPointsLeague =
+    (league?.matchupSettings?.format ?? 'total_points') === 'total_points';
   const [isWeekModalVisible, setIsWeekModalVisible] = useState(false);
   const [selectedWeek, setSelectedWeek] = useState('Week 1');
   const weeks = Array.from({ length: 18 }, (_, i) => `Week ${i + 1}`);
@@ -22,6 +24,20 @@ export const MatchupTab = ({ leagueId }: any) => {
       <View className="py-12 items-center justify-center">
         <ActivityIndicator size="large" color="#8B3DFF" />
         <Text className="text-gray-400 text-[13px] mt-3">Loading matchup...</Text>
+      </View>
+    );
+  }
+
+  // A total-points league never schedules opponents, so an absent matchup is
+  // the expected state rather than a failure.
+  if (isTotalPointsLeague) {
+    return (
+      <View className="bg-[#1e1e1e] border border-[#333] rounded-[24px] p-6 mb-6 items-center justify-center">
+        <Text className="text-white text-[15px] font-semibold mb-2">Season Total Points</Text>
+        <Text className="text-gray-400 text-[12px] text-center">
+          This league has no weekly opponents. Your team scores as its athletes compete at
+          events — check the League tab for the standings.
+        </Text>
       </View>
     );
   }
@@ -628,6 +644,9 @@ export const LeagueTab = ({ leagueId, userTeamId, league }: any) => {
 
   const standingsList = standingsData?.standings || [];
   const historyList = historyData?.matchups || [];
+  // Cheer leagues accumulate points across events; head-to-head records are
+  // meaningless there, so the server tells us how it ranks.
+  const isTotalPoints = standingsData?.format === 'total_points';
 
   return (
     <View className="mb-4 mt-2">
@@ -651,12 +670,16 @@ export const LeagueTab = ({ leagueId, userTeamId, league }: any) => {
 
           <View className="flex-row items-center justify-between py-1">
             <Text className="text-gray-400 text-[13px]">Draft Type</Text>
-            <Text className="text-white text-[13px] font-medium">Auction Draft ($100 Budget)</Text>
+            <Text className="text-white text-[13px] font-medium capitalize">
+              {`${league?.draftSettings?.type || 'Auction'} draft`}
+            </Text>
           </View>
 
           <View className="flex-row items-center justify-between py-1">
             <Text className="text-gray-400 text-[13px]">Scoring Format</Text>
-            <Text className="text-[#8B3DFF] text-[13px] font-semibold">Head-to-Head PPR</Text>
+            <Text className="text-[#8B3DFF] text-[13px] font-semibold">
+              {isTotalPoints ? 'Season total points' : 'Head-to-head'}
+            </Text>
           </View>
 
           {league?.description ? (
@@ -695,7 +718,9 @@ export const LeagueTab = ({ leagueId, userTeamId, league }: any) => {
                         {item.teamName} {isMyTeam ? '(My Team)' : ''}
                       </Text>
                       <Text className="text-gray-400 text-[11px]">
-                        W {item.wins} • L {item.losses} • T {item.ties}
+                        {isTotalPoints
+                          ? `${item.pointsFor ?? 0} pts this season`
+                          : `W ${item.wins} • L ${item.losses} • T ${item.ties}`}
                       </Text>
                     </View>
                   </View>

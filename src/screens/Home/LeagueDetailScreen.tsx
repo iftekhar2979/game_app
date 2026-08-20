@@ -230,6 +230,7 @@ export default function LeagueDetailScreen() {
         rawStatus: rawLeague.status,
         joinedTeamCount: rawLeague.joinedTeamCount,
         draftSettings: (rawLeague as any).draftSettings,
+        matchupSettings: (rawLeague as any).matchupSettings,
         visibility: rawLeague.visibility || 'public',
         draftStartsAt,
       }
@@ -875,6 +876,7 @@ export default function LeagueDetailScreen() {
           {activeTab === 'Matchup' && (
             <MatchupTab
               leagueId={leagueId}
+              league={league}
             />
           )}
 
