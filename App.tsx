@@ -19,7 +19,9 @@ import CreateLeagueScreen from './src/screens/Home/CreateLeagueScreen';
 import LeagueDetailScreen from './src/screens/Home/LeagueDetailScreen';
 import DraftRoomScreen from './src/screens/Home/DraftRoomScreen';
 import TeamRosterScreen from './src/screens/Home/TeamRosterScreen';
-import CreatePostScreen from './src/screens/Home/CreatePostScreen';
+import CommunityFeedScreen from './src/screens/Community/CommunityFeedScreen';
+import CreatePostScreen from './src/screens/Community/CreatePostScreen';
+import PostDetailsScreen from './src/screens/Community/PostDetailsScreen';
 import ProfileScreen from './src/screens/Profile/ProfileScreen';
 import { Provider, useDispatch, useSelector } from 'react-redux';
 import { store, RootState } from './src/store';
@@ -52,7 +54,9 @@ export type RootStackParamList = {
   LeagueDetail: { leagueId: string };
   DraftRoom: { leagueId: string };
   TeamRoster: { leagueId: string; teamId: string; teamName?: string };
+  Community: undefined;
   CreatePost: undefined;
+  PostDetails: { postId: string };
   Profile: undefined;
   CoinStore: undefined;
   AllPosts: undefined;
@@ -109,7 +113,9 @@ function AppContent() {
               <Stack.Screen name="LeagueDetail" component={LeagueDetailScreen} />
               <Stack.Screen name="DraftRoom" component={DraftRoomScreen} />
               <Stack.Screen name="TeamRoster" component={TeamRosterScreen} />
+              <Stack.Screen name="Community" component={CommunityFeedScreen} />
               <Stack.Screen name="CreatePost" component={CreatePostScreen} />
+              <Stack.Screen name="PostDetails" component={PostDetailsScreen} />
               <Stack.Screen name="Profile" component={ProfileScreen} />
               <Stack.Screen name="CoinStore" component={CoinStoreScreen} />
               <Stack.Screen name="AllPosts" component={AllPostsScreen} />

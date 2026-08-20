@@ -7,6 +7,7 @@ import postReducer from './slices/postSlice';
 // Import injected APIs just so they attach to baseApi
 import './api/seasonApi';
 import './api/leagueApi';
+import './api/socialApi';
 
 export const store = configureStore({
   reducer: {
