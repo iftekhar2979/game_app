@@ -1,14 +1,16 @@
 import React from 'react';
-import { View, Text, StyleSheet, Image, TouchableOpacity, ScrollView, FlatList } from 'react-native';
+import { View, Text, StyleSheet, Image, TouchableOpacity, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Bell, MessageSquare, PlusSquare, ThumbsUp } from 'lucide-react-native';
+import { Bell, PlusSquare } from 'lucide-react-native';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../../../App';
-import { useSelector, useDispatch } from 'react-redux';
+import { useSelector } from 'react-redux';
 import { RootState } from '../../store';
-import { CommentsModal } from '../../components/Home/CommentsModal';
-import { addReaction, ReactionType } from '../../store/slices/postSlice';
+import CustomLoader from '../../components/Loader/CustomLoader';
+import { PostCard } from '../../components/Community/PostCard';
+import { ReactionType, useGetFeedQuery, useReactMutation } from '../../store/api/socialApi';
+import { showToast } from '../../utils/toast';
 import { useGetCurrentMatchupQuery, useGetLeagueStandingsQuery, useGetMatchupHistoryQuery, useGetLeaguesQuery } from '../../store/api/leagueApi';
 
 const DashboardMatchupCard = ({ leagueId, navigation }: any) => {
@@ -132,8 +134,6 @@ type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
 export default function HomeScreen() {
   const navigation = useNavigation<NavigationProp>();
-  const dispatch = useDispatch();
-  const POSTS = useSelector((state: RootState) => state.post.posts);
   // If the user has generated an avatar, we can use it for their profile picture, otherwise a placeholder
   const avatars = useSelector((state: RootState) => state.avatar.savedAvatars);
   const userAvatarUri = avatars.length > 0 ? avatars[0].imageUri : 'https://i.pravatar.cc/150?img=11';
@@ -150,20 +150,19 @@ export default function HomeScreen() {
 
   const allLeagues = formattedApiLeagues.length > 0 ? formattedApiLeagues : createdLeagues;
 
-  const [isCommentsModalVisible, setIsCommentsModalVisible] = React.useState(false);
-  const [activeCommentCount, setActiveCommentCount] = React.useState(0);
-  const [activeCommentPostId, setActiveCommentPostId] = React.useState<string | null>(null);
-  const [activeTooltipPostId, setActiveTooltipPostId] = React.useState<string | null>(null);
+  // The dashboard shows a short preview of the community feed; the full,
+  // paginated and shuffled feed lives on CommunityFeedScreen.
+  const { data: feed, isLoading: isLoadingFeed } = useGetFeedQuery({ page: 1, limit: 3 });
+  const previewPosts = feed?.posts ?? [];
 
-  const openComments = (commentCount: number, postId: string) => {
-    setActiveCommentCount(commentCount);
-    setActiveCommentPostId(postId);
-    setIsCommentsModalVisible(true);
-  };
+  const [react] = useReactMutation();
 
-  const handleReaction = (postId: string, reaction: ReactionType) => {
-    dispatch(addReaction({ postId, reaction }));
-    setActiveTooltipPostId(null);
+  const handleReact = async (postId: string, type: ReactionType) => {
+    try {
+      await react({ entityType: 'post', entityId: postId, type }).unwrap();
+    } catch (err: any) {
+      showToast.error('Could not save your reaction', err?.data?.message);
+    }
   };
 
   return (
@@ -236,62 +235,36 @@ export default function HomeScreen() {
           </>
         )}
 
-        {/* Feed Section */}
+        {/* Community Feed */}
         <View style={styles.feedSection}>
-          {POSTS.map(post => {
-            const totalReactions = Object.values(post.reactions).reduce((sum, count) => sum + count, 0);
-            return (
-            <View key={post.id} style={styles.postCard}>
-              <View style={styles.postHeader}>
-                {post.authorAvatarUri ? (
-                  <Image source={{ uri: post.authorAvatarUri }} style={styles.postAuthorAvatar} />
-                ) : (
-                  <View style={styles.postAuthorAvatar} />
-                )}
-                <View style={styles.postAuthorInfo}>
-                  <Text style={styles.postAuthorName}>{post.authorName}</Text>
-                  <Text style={styles.postAuthorHandle}>{post.authorHandle} → {post.timeAgo}</Text>
-                </View>
-              </View>
-              <Text style={styles.postCaption}>{post.caption}</Text>
-              <Image source={{ uri: post.imageUri }} style={styles.postImage} />
-              <View style={styles.postFooter}>
-                <View style={styles.reactionGroup}>
-                  <TouchableOpacity 
-                    onPress={() => handleReaction(post.id, 'like')}
-                    onLongPress={() => setActiveTooltipPostId(activeTooltipPostId === post.id ? null : post.id)}
-                    style={{ flexDirection: 'row', alignItems: 'center' }}
-                  >
-                    <ThumbsUp color={post.userReaction === 'like' ? "#E0B566" : "#999"} size={18} style={{ marginRight: 6 }} />
-                    <View style={styles.emojiStack}>
-                      {post.reactions.haha > 0 && <View style={[styles.stackedEmojiContainer, { zIndex: 4 }]}><Text style={styles.stackedEmoji}>😂</Text></View>}
-                      {post.reactions.like > 0 && <View style={[styles.stackedEmojiContainer, { zIndex: 3, marginLeft: -6 }]}><Text style={styles.stackedEmoji}>👍</Text></View>}
-                      {post.reactions.angry > 0 && <View style={[styles.stackedEmojiContainer, { zIndex: 2, marginLeft: -6 }]}><Text style={styles.stackedEmoji}>😡</Text></View>}
-                      {post.reactions.love > 0 && <View style={[styles.stackedEmojiContainer, { zIndex: 1, marginLeft: -6 }]}><Text style={styles.stackedEmoji}>❤️</Text></View>}
-                    </View>
-                    <Text style={styles.reactionCount}>{totalReactions}</Text>
-                  </TouchableOpacity>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>Community</Text>
+            <TouchableOpacity onPress={() => navigation.navigate('Community')}>
+              <Text style={styles.seeAllText}>See all</Text>
+            </TouchableOpacity>
+          </View>
 
-                  {/* Tooltip for reactions */}
-                  {activeTooltipPostId === post.id && (
-                    <View style={styles.reactionsTooltip}>
-                      <TouchableOpacity onPress={() => handleReaction(post.id, 'like')}><Text style={styles.tooltipEmoji}>👍</Text></TouchableOpacity>
-                      <TouchableOpacity onPress={() => handleReaction(post.id, 'love')}><Text style={styles.tooltipEmoji}>❤️</Text></TouchableOpacity>
-                      <TouchableOpacity onPress={() => handleReaction(post.id, 'haha')}><Text style={styles.tooltipEmoji}>😂</Text></TouchableOpacity>
-                      <TouchableOpacity onPress={() => handleReaction(post.id, 'angry')}><Text style={styles.tooltipEmoji}>😡</Text></TouchableOpacity>
-                    </View>
-                  )}
-                </View>
-                <TouchableOpacity 
-                  style={styles.commentGroup} 
-                  onPress={() => openComments(post.commentsCount, post.id)}
-                >
-                  <Text style={styles.commentCount}>{post.commentsCount} Comments</Text>
-                  <MessageSquare color="#999" size={20} />
-                </TouchableOpacity>
-              </View>
+          {isLoadingFeed ? (
+            <View style={styles.feedPlaceholder}>
+              <CustomLoader size={30} />
             </View>
-          )})}
+          ) : previewPosts.length === 0 ? (
+            <View style={styles.feedPlaceholder}>
+              <Text style={styles.feedEmptyText}>
+                No community posts yet. Tap + to share the first one.
+              </Text>
+            </View>
+          ) : (
+            previewPosts.map(post => (
+              <PostCard
+                key={post.id}
+                post={post}
+                onReact={type => handleReact(post.id, type)}
+                onOpenComments={() => navigation.navigate('PostDetails', { postId: post.id })}
+                onPressImage={() => navigation.navigate('PostDetails', { postId: post.id })}
+              />
+            ))
+          )}
         </View>
       </ScrollView>
 
@@ -303,12 +276,6 @@ export default function HomeScreen() {
         <PlusSquare color="#fff" size={24} />
       </TouchableOpacity>
 
-      <CommentsModal 
-        isVisible={isCommentsModalVisible} 
-        onClose={() => setIsCommentsModalVisible(false)} 
-        commentCount={activeCommentCount}
-        postId={activeCommentPostId}
-      />
     </SafeAreaView>
   );
 }
@@ -453,6 +420,16 @@ const styles = StyleSheet.create({
   },
   feedSection: {
     marginTop: 20,
+  },
+  feedPlaceholder: {
+    paddingVertical: 40,
+    paddingHorizontal: 40,
+    alignItems: 'center',
+  },
+  feedEmptyText: {
+    color: '#666',
+    fontSize: 13,
+    textAlign: 'center',
   },
   postCard: {
     paddingHorizontal: 20,
