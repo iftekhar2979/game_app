@@ -229,6 +229,14 @@ export interface DraftState {
   totalRounds: number;
   startedAt?: string | null;
   completedAt?: string | null;
+  /** Every slot with its owning team, resolved server-side. */
+  board: DraftBoardSlot[];
+}
+
+export interface DraftBoardSlot {
+  pickNumber: number;
+  round: number;
+  fantasyTeamId: string | null;
 }
 
 export interface DraftPickRecord {
@@ -237,7 +245,32 @@ export interface DraftPickRecord {
   fantasyTeamId: string;
   teamName: string | null;
   seasonAthleteId: string;
+  playerName: string;
+  positionCode: string | null;
+  nflTeam: string | null;
   pickedAt: string;
+}
+
+export interface ScoringRule {
+  metricCode: string;
+  calculationType: 'fixed' | 'multiplier' | 'placement_table';
+  points: number | null;
+  multiplier: number | null;
+  placementPoints: Record<string, number> | null;
+  minimumValue: number | null;
+  maximumValue: number | null;
+}
+
+export interface ScoringSettings {
+  leagueId: string;
+  scoringRuleSetId: string;
+  name: string;
+  version: number;
+  status: string;
+  categories: { category: string; rules: ScoringRule[] }[];
+  ruleCount: number;
+  editable: boolean;
+  readOnlyReason: string;
 }
 
 export interface JoinLeaguePayload {
@@ -374,6 +407,27 @@ export const leagueApi = baseApi.injectEndpoints({
         return response?.data || response;
       },
       providesTags: (result, error, id) => [{ type: 'League', id }],
+    }),
+    getScoringSettings: builder.query<ScoringSettings, string>({
+      query: (leagueId) => ({ url: `leagues/${leagueId}/scoring-settings` }),
+      transformResponse: (response: any) => response?.data || response,
+      providesTags: (result, error, leagueId) => [{ type: 'League', id: leagueId }],
+    }),
+    removeLeagueMember: builder.mutation<void, { leagueId: string; userId: string }>({
+      query: ({ leagueId, userId }) => ({
+        url: `leagues/${leagueId}/members/${userId}`,
+        method: 'DELETE',
+      }),
+      invalidatesTags: (result, error, { leagueId }) => [{ type: 'League', id: leagueId }, 'League'],
+    }),
+    updateMemberRole: builder.mutation<any, { leagueId: string; userId: string; role: 'creator' | 'manager' }>({
+      query: ({ leagueId, userId, role }) => ({
+        url: `leagues/${leagueId}/members/${userId}/role`,
+        method: 'PATCH',
+        body: { role },
+      }),
+      transformResponse: (response: any) => response?.data || response,
+      invalidatesTags: (result, error, { leagueId }) => [{ type: 'League', id: leagueId }, 'League'],
     }),
     getRosterSettings: builder.query<RosterSettings, string>({
       query: (leagueId) => ({
@@ -519,6 +573,9 @@ export const {
   useGetAthletePositionsQuery,
   useGetSeasonAthleteDetailsQuery,
   useGetLeagueRostersQuery,
+  useGetScoringSettingsQuery,
+  useRemoveLeagueMemberMutation,
+  useUpdateMemberRoleMutation,
   useGetRosterSettingsQuery,
   useUpdateRosterSettingsMutation,
   useGetDraftStateQuery,

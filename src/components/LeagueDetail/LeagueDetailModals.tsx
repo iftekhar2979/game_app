@@ -3,7 +3,7 @@ import { View, Text, Image, TouchableOpacity, ScrollView, Modal, Pressable, Text
 import { ChevronLeft, ChevronDown, User, Plus, Minus, Unlock, ShieldAlert, Calendar } from 'lucide-react-native';
 import DatePicker from 'react-native-date-picker';
 import { useGetAthleteGameLogQuery } from '../../store/api/seasonApi';
-import { useAddFreeAgentMutation, useUpdateLineupMutation, useDropPlayerMutation, useGetRosterSettingsQuery, useUpdateRosterSettingsMutation, useUpdateLeagueMutation } from '../../store/api/leagueApi';
+import { useAddFreeAgentMutation, useUpdateLineupMutation, useDropPlayerMutation, useGetRosterSettingsQuery, useUpdateRosterSettingsMutation, useUpdateLeagueMutation, useGetScoringSettingsQuery, useGetLeagueMembersQuery, useRemoveLeagueMemberMutation, useUpdateMemberRoleMutation } from '../../store/api/leagueApi';
 import type { LeagueStatusValue } from '../../store/api/leagueApi';
 import { showToast } from '../../utils/toast';
 
@@ -793,42 +793,377 @@ export const RosterSettingsSubModal = ({ isVisible, onClose, leagueId }: any) =>
   );
 };
 
-export const MemberSettingsSubModal = ({ isVisible, onClose }: any) => {
-  const MEMBERS = [
-    { id: '1', name: 'Diana', avatarUri: 'https://i.pravatar.cc/150?img=5' },
-    { id: '2', name: 'Isabella', avatarUri: 'https://i.pravatar.cc/150?img=9' },
-    { id: '3', name: 'Loris', avatarUri: 'https://i.pravatar.cc/150?img=12' },
-    { id: '4', name: 'Savis', avatarUri: 'https://i.pravatar.cc/150?img=16' },
-  ];
+const METRIC_LABELS: Record<string, string> = {
+  PASS_YARDS: 'Passing yards',
+  PASS_TD: 'Passing touchdown',
+  RUSH_YARDS: 'Rushing yards',
+  RUSH_TD: 'Rushing touchdown',
+  RECEPTION: 'Reception',
+  REC_YARDS: 'Receiving yards',
+  REC_TD: 'Receiving touchdown',
+  INT: 'Interception thrown',
+  FUMBLE_LOST: 'Fumble lost',
+};
+
+/** PASS_YARDS -> Pass yards, for codes we have no friendly label for. */
+const humanise = (code: string) =>
+  METRIC_LABELS[code] ||
+  code.toLowerCase().replace(/_/g, ' ').replace(/^./, (c) => c.toUpperCase());
+
+const formatRuleValue = (rule: any) => {
+  if (rule.calculationType === 'multiplier' && rule.multiplier !== null) {
+    return `${rule.multiplier} / unit`;
+  }
+  if (rule.calculationType === 'placement_table') {
+    const count = rule.placementPoints ? Object.keys(rule.placementPoints).length : 0;
+    return count ? `${count} placements` : 'Placement table';
+  }
+  if (rule.points !== null && rule.points !== undefined) {
+    return `${rule.points > 0 ? '+' : ''}${rule.points} pts`;
+  }
+  return '—';
+};
+
+export const ScoringSettingsSubModal = ({ isVisible, onClose, leagueId }: any) => {
+  const { data, isLoading, isError, error, refetch } = useGetScoringSettingsQuery(leagueId, {
+    skip: !isVisible || !leagueId,
+  });
 
   return (
     <Modal visible={isVisible} transparent={true} animationType="slide" onRequestClose={onClose}>
       <View className="flex-1 bg-black pt-12 px-5">
-        <View className="flex-row items-center mb-8">
+        <View className="flex-row items-center mb-6">
           <TouchableOpacity onPress={onClose} className="w-10 h-10 border border-[#333] rounded-xl justify-center items-center mr-4">
             <ChevronLeft color="#fff" size={24} />
           </TouchableOpacity>
-          <Text className="text-white text-[22px] font-medium">Member settings</Text>
+          <View className="flex-1">
+            <Text className="text-white text-[20px] font-medium">Scoring settings</Text>
+            {!!data && (
+              <Text className="text-gray-400 text-[12px]">
+                {`${data.name} · v${data.version} · ${data.ruleCount} rules`}
+              </Text>
+            )}
+          </View>
         </View>
 
-        <Text className="text-white text-[18px] font-medium mb-4">Member</Text>
-
-        <ScrollView showsVerticalScrollIndicator={false} className="flex-1">
-          {MEMBERS.map((member, index) => (
-            <View 
-              key={`${member.id}-${index}`} 
-              className={`flex-row items-center justify-between py-4 ${index !== MEMBERS.length - 1 ? 'border-b border-[#333]' : 'border-b border-[#333]'}`}
-            >
-              <View className="flex-row items-center">
-                <Image source={{ uri: member.avatarUri }} className="w-11 h-11 rounded-full mr-3" />
-                <Text className="text-white text-[15px]">{member.name}</Text>
-              </View>
-              <TouchableOpacity>
-                <Text className="text-[#E0B566] text-[13px] font-medium">Remove</Text>
-              </TouchableOpacity>
+        {isLoading ? (
+          <View className="flex-1 items-center justify-center">
+            <ActivityIndicator size="large" color="#8B3DFF" />
+            <Text className="text-gray-400 text-[13px] mt-3">Loading scoring rules...</Text>
+          </View>
+        ) : isError || !data ? (
+          <View className="flex-1 items-center justify-center px-6">
+            <Text className="text-white text-[15px] font-semibold mb-2">Scoring unavailable</Text>
+            <Text className="text-gray-400 text-[12px] text-center mb-4">
+              {(error as any)?.data?.message || 'Scoring rules could not be loaded.'}
+            </Text>
+            <TouchableOpacity className="bg-[#8B3DFF] px-5 py-2.5 rounded-full" onPress={() => refetch()}>
+              <Text className="text-white text-[13px] font-medium">Retry</Text>
+            </TouchableOpacity>
+          </View>
+        ) : (
+          <>
+            <View className="bg-[#1a1a1a] border border-[#333] rounded-2xl px-4 py-3 mb-4">
+              <Text className="text-gray-400 text-[12px]">{data.readOnlyReason}.</Text>
             </View>
-          ))}
-        </ScrollView>
+
+            <ScrollView showsVerticalScrollIndicator={false} className="flex-1">
+              {data.categories.map((group: any) => (
+                <View key={group.category} className="mb-6">
+                  <Text className="text-[#E0B566] text-[12px] font-bold uppercase tracking-wider mb-3">
+                    {group.category.replace(/_/g, ' ')}
+                  </Text>
+                  {group.rules.map((rule: any, idx: number) => (
+                    <View
+                      key={`${rule.metricCode}-${idx}`}
+                      className="flex-row items-center justify-between border-b border-[#222] pb-3 mb-3"
+                    >
+                      <View className="flex-1 mr-3">
+                        <Text className="text-white text-[14px]" numberOfLines={1}>
+                          {humanise(rule.metricCode)}
+                        </Text>
+                        <Text className="text-gray-600 text-[10px] mt-0.5">{rule.metricCode}</Text>
+                      </View>
+                      <Text className="text-[#8B3DFF] text-[13px] font-semibold">
+                        {formatRuleValue(rule)}
+                      </Text>
+                    </View>
+                  ))}
+                </View>
+              ))}
+              <View className="h-8" />
+            </ScrollView>
+          </>
+        )}
+      </View>
+    </Modal>
+  );
+};
+
+/** Shared row for the member-facing screens below. */
+const MemberRow = ({
+  member,
+  right,
+}: {
+  member: any;
+  right?: React.ReactNode;
+}) => (
+  <View className="flex-row items-center justify-between border-b border-[#222] py-3.5">
+    <View className="flex-row items-center flex-1 mr-3">
+      {member.avatarUri ? (
+        <Image source={{ uri: member.avatarUri }} className="w-10 h-10 rounded-full mr-3 bg-[#222]" />
+      ) : (
+        <View className="w-10 h-10 rounded-full mr-3 bg-[#222] border border-[#333] justify-center items-center">
+          <User color="#666" size={18} />
+        </View>
+      )}
+      <View className="flex-1">
+        <Text className="text-white text-[14px] font-medium" numberOfLines={1}>
+          {member.name}
+        </Text>
+        <Text className="text-gray-500 text-[11px]" numberOfLines={1}>
+          {member.isCommissioner ? 'Commissioner' : 'Manager'}
+          {member.teamName ? ` · ${member.teamName}` : ''}
+        </Text>
+      </View>
+    </View>
+    {right}
+  </View>
+);
+
+/**
+ * Normalises the members endpoint into rows both member screens render.
+ * The API renames the stored `creator` role to `commissioner` on the way out.
+ */
+const useLeagueMembers = (leagueId: string, isVisible: boolean) => {
+  const { data, isLoading, isError, refetch } = useGetLeagueMembersQuery(leagueId, {
+    skip: !isVisible || !leagueId,
+  });
+
+  const members = useMemo(() => {
+    const raw = Array.isArray(data) ? data : Array.isArray((data as any)?.data) ? (data as any).data : [];
+    return raw.map((m: any, idx: number) => {
+      const user = m.user || (typeof m.userId === 'object' ? m.userId : {});
+      const team = m.team || {};
+      return {
+        id: String(user._id || user.id || m.userId || m._id || idx),
+        membershipId: String(m._id || idx),
+        name: user.fullName || team.name || 'League manager',
+        teamName: team.name || null,
+        avatarUri: team.avatarUri || team.logoUrl || user.avatarUrl || null,
+        isCommissioner: m.role === 'commissioner' || m.role === 'creator',
+      };
+    });
+  }, [data]);
+
+  return { members, isLoading, isError, refetch };
+};
+
+export const MemberSettingsSubModal = ({ isVisible, onClose, leagueId, canManage, currentUserId }: any) => {
+  const { members, isLoading, isError, refetch } = useLeagueMembers(leagueId, isVisible);
+  const [removeMember, { isLoading: isRemoving }] = useRemoveLeagueMemberMutation();
+  const [pendingId, setPendingId] = useState<string | null>(null);
+
+  const confirmRemove = (member: any) => {
+    Alert.alert(
+      `Remove ${member.name}?`,
+      'Their fantasy team is deactivated and the league slot is freed up.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Remove',
+          style: 'destructive',
+          onPress: async () => {
+            setPendingId(member.id);
+            try {
+              await removeMember({ leagueId, userId: member.id }).unwrap();
+              showToast.success('Member removed', `${member.name} is no longer in this league.`);
+            } catch (err: any) {
+              showToast.error('Could not remove member', err?.data?.message || err?.message);
+            } finally {
+              setPendingId(null);
+            }
+          },
+        },
+      ],
+    );
+  };
+
+  return (
+    <Modal visible={isVisible} transparent={true} animationType="slide" onRequestClose={onClose}>
+      <View className="flex-1 bg-black pt-12 px-5">
+        <View className="flex-row items-center mb-6">
+          <TouchableOpacity onPress={onClose} className="w-10 h-10 border border-[#333] rounded-xl justify-center items-center mr-4">
+            <ChevronLeft color="#fff" size={24} />
+          </TouchableOpacity>
+          <View className="flex-1">
+            <Text className="text-white text-[20px] font-medium">Member settings</Text>
+            <Text className="text-gray-400 text-[12px]">
+              {`${members.length} ${members.length === 1 ? 'member' : 'members'}`}
+            </Text>
+          </View>
+        </View>
+
+        {!canManage && (
+          <View className="bg-[#1a1a1a] border border-[#333] rounded-2xl px-4 py-3 mb-4">
+            <Text className="text-gray-400 text-[12px]">
+              Only the league commissioner can remove members.
+            </Text>
+          </View>
+        )}
+
+        {isLoading ? (
+          <View className="flex-1 items-center justify-center">
+            <ActivityIndicator size="large" color="#8B3DFF" />
+          </View>
+        ) : isError ? (
+          <View className="flex-1 items-center justify-center px-6">
+            <Text className="text-white text-[15px] font-semibold mb-2">Members unavailable</Text>
+            <TouchableOpacity className="bg-[#8B3DFF] px-5 py-2.5 rounded-full mt-2" onPress={() => refetch()}>
+              <Text className="text-white text-[13px] font-medium">Retry</Text>
+            </TouchableOpacity>
+          </View>
+        ) : (
+          <ScrollView showsVerticalScrollIndicator={false} className="flex-1">
+            {members.map((member: any) => {
+              const isSelf = String(member.id) === String(currentUserId);
+              const removable = canManage && !member.isCommissioner && !isSelf;
+              return (
+                <MemberRow
+                  key={member.membershipId}
+                  member={member}
+                  right={
+                    removable ? (
+                      <TouchableOpacity
+                        className="border border-[#ff4444]/50 bg-[#ff4444]/10 px-3 py-1.5 rounded-full"
+                        disabled={isRemoving && pendingId === member.id}
+                        onPress={() => confirmRemove(member)}
+                        activeOpacity={0.7}
+                      >
+                        {isRemoving && pendingId === member.id ? (
+                          <ActivityIndicator size="small" color="#ff4444" />
+                        ) : (
+                          <Text className="text-[#ff4444] text-[12px] font-medium">Remove</Text>
+                        )}
+                      </TouchableOpacity>
+                    ) : isSelf ? (
+                      <Text className="text-gray-600 text-[11px]">You</Text>
+                    ) : null
+                  }
+                />
+              );
+            })}
+            <View className="h-8" />
+          </ScrollView>
+        )}
+      </View>
+    </Modal>
+  );
+};
+
+export const GiveCommissionerAccessModal = ({ isVisible, onClose, leagueId, canManage, currentUserId, founderId }: any) => {
+  const { members, isLoading } = useLeagueMembers(leagueId, isVisible);
+  const [updateRole, { isLoading: isUpdating }] = useUpdateMemberRoleMutation();
+  const [pendingId, setPendingId] = useState<string | null>(null);
+
+  const toggle = async (member: any) => {
+    const nextRole = member.isCommissioner ? 'manager' : 'creator';
+    setPendingId(member.id);
+    try {
+      await updateRole({ leagueId, userId: member.id, role: nextRole }).unwrap();
+      showToast.success(
+        nextRole === 'creator' ? 'Commissioner access granted' : 'Commissioner access revoked',
+        `${member.name} is now a ${nextRole === 'creator' ? 'commissioner' : 'manager'}.`,
+      );
+    } catch (err: any) {
+      showToast.error('Could not change access', err?.data?.message || err?.message);
+    } finally {
+      setPendingId(null);
+    }
+  };
+
+  return (
+    <Modal visible={isVisible} transparent={true} animationType="fade" onRequestClose={onClose}>
+      <View className="flex-1 bg-black/70 justify-center items-center px-5">
+        <View className="w-full bg-[#1e1e1e] rounded-[28px] border border-[#333] p-6 max-h-[75%]">
+          <Text className="text-white text-[19px] font-semibold text-center mb-1">
+            Commissioner access
+          </Text>
+          <Text className="text-gray-400 text-[12px] text-center mb-5">
+            Commissioners can change league and roster settings.
+          </Text>
+
+          {isLoading ? (
+            <ActivityIndicator color="#8B3DFF" style={{ marginVertical: 24 }} />
+          ) : members.filter((m: any) => String(m.id) !== String(currentUserId)).length === 0 ? (
+            <View className="py-8 items-center">
+              <Text className="text-white text-[14px] font-semibold mb-1.5">
+                No one else has joined
+              </Text>
+              <Text className="text-gray-400 text-[12px] text-center">
+                Commissioner access can only be given to another member. Invite managers to
+                this league first.
+              </Text>
+            </View>
+          ) : (
+            <ScrollView showsVerticalScrollIndicator={false}>
+              {members.map((member: any) => {
+                const isSelf = String(member.id) === String(currentUserId);
+                const isFounder = !!founderId && String(member.id) === String(founderId);
+                return (
+                  <MemberRow
+                    key={member.membershipId}
+                    member={member}
+                    right={
+                      isFounder || isSelf ? (
+                        <Text className="text-gray-600 text-[11px]">
+                          {isFounder ? 'Founder' : 'You'}
+                        </Text>
+                      ) : !canManage ? null : (
+                        <TouchableOpacity
+                          className={`px-3 py-1.5 rounded-full border ${
+                            member.isCommissioner
+                              ? 'border-[#333] bg-[#222]'
+                              : 'border-[#8B3DFF]/60 bg-[#8B3DFF]/10'
+                          }`}
+                          disabled={isUpdating && pendingId === member.id}
+                          onPress={() => toggle(member)}
+                          activeOpacity={0.7}
+                        >
+                          {isUpdating && pendingId === member.id ? (
+                            <ActivityIndicator size="small" color="#8B3DFF" />
+                          ) : (
+                            <Text
+                              className={`text-[12px] font-medium ${
+                                member.isCommissioner ? 'text-gray-300' : 'text-[#8B3DFF]'
+                              }`}
+                            >
+                              {member.isCommissioner ? 'Revoke' : 'Grant'}
+                            </Text>
+                          )}
+                        </TouchableOpacity>
+                      )
+                    }
+                  />
+                );
+              })}
+            </ScrollView>
+          )}
+
+          {!canManage && (
+            <Text className="text-gray-500 text-[11px] text-center mt-4">
+              Only the league founder can change commissioner access.
+            </Text>
+          )}
+
+          <TouchableOpacity
+            className="bg-[#8B3DFF] rounded-full h-[50px] justify-center items-center mt-5"
+            onPress={onClose}
+            activeOpacity={0.8}
+          >
+            <Text className="text-white text-[15px] font-medium">Done</Text>
+          </TouchableOpacity>
+        </View>
       </View>
     </Modal>
   );
@@ -1094,45 +1429,6 @@ export const PlayerDetailModal = ({ isVisible, onClose, selectedPlayer, seasonId
   );
 };
 
-
-export const GiveCommissionerAccessModal = ({ isVisible, onClose }: any) => {
-  const MEMBERS = [
-    { id: '1', name: 'Diana', avatarUri: 'https://i.pravatar.cc/150?img=5' },
-    { id: '2', name: 'Isabella', avatarUri: 'https://i.pravatar.cc/150?img=9' },
-    { id: '3', name: 'Loris', avatarUri: 'https://i.pravatar.cc/150?img=12' },
-    { id: '4', name: 'Savis', avatarUri: 'https://i.pravatar.cc/150?img=16' },
-  ];
-
-  return (
-    <Modal visible={isVisible} transparent={true} animationType="fade" onRequestClose={onClose}>
-      <TouchableOpacity 
-        className="flex-1 bg-black/50 justify-center items-center px-6" 
-        activeOpacity={1} 
-        onPress={onClose}
-      >
-        <TouchableOpacity activeOpacity={1} className="w-full bg-[#1e1e1e] rounded-[32px] border-[3px] border-white p-6 pb-8">
-          <Text className="text-white text-[20px] font-medium text-center mb-6 leading-7">Give commissioner{"\n"}access</Text>
-          <View>
-            {MEMBERS.map((member, index) => (
-              <View 
-                key={`${member.id}-${index}`} 
-                className={`flex-row items-center justify-between py-4 ${index !== MEMBERS.length - 1 ? 'border-b border-[#333]' : ''}`}
-              >
-                <View className="flex-row items-center">
-                  <Image source={{ uri: member.avatarUri }} className="w-11 h-11 rounded-full mr-4" />
-                  <Text className="text-white text-[15px]">{member.name}</Text>
-                </View>
-                <TouchableOpacity>
-                  <Text className="text-[#E0B566] text-[13px] font-medium">Give access</Text>
-                </TouchableOpacity>
-              </View>
-            ))}
-          </View>
-        </TouchableOpacity>
-      </TouchableOpacity>
-    </Modal>
-  );
-};
 
 export const LockRosterModal = ({ isVisible, onClose }: any) => {
   const MEMBERS = [

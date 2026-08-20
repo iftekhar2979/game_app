@@ -10,7 +10,7 @@ import { RootState } from '../../store';
 import { setActiveTeam } from '../../store/slices/leagueSlice';
 import { useGetLeagueDetailsQuery, useGetLeagueMembersQuery, useJoinLeagueMutation, useGetAvailableAthletesQuery, useGetAthletePositionsQuery, useGetRosterSettingsQuery, useGetLeagueRostersQuery, useGetMyTeamRosterQuery, useGetCurrentMatchupQuery, useGetLeagueStandingsQuery, useGetMatchupHistoryQuery } from '../../store/api/leagueApi';
 import { MatchupTab, DraftTab, TeamTab, PlayersTab, LeagueTab } from '../../components/LeagueDetail/LeagueDetailTabs';
-import { AddTeamModal, PlayerDetailModal, LeagueSettingsModal, LeagueSettingsSubModal, DraftSettingsSubModal, RosterSettingsSubModal, MemberSettingsSubModal, GiveCommissionerAccessModal, LockRosterModal, DeleteLeagueModal, JoinLeagueModal, RosterPlayerActionModal } from '../../components/LeagueDetail/LeagueDetailModals';
+import { AddTeamModal, PlayerDetailModal, LeagueSettingsModal, LeagueSettingsSubModal, DraftSettingsSubModal, RosterSettingsSubModal, ScoringSettingsSubModal, MemberSettingsSubModal, GiveCommissionerAccessModal, LockRosterModal, DeleteLeagueModal, JoinLeagueModal, RosterPlayerActionModal } from '../../components/LeagueDetail/LeagueDetailModals';
 import { getSocket, joinLeagueRoom, leaveLeagueRoom } from '../../services/socketService';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList, 'LeagueDetail'>;
@@ -565,6 +565,7 @@ export default function LeagueDetailScreen() {
   const [isLeagueSettingsSubModalVisible, setIsLeagueSettingsSubModalVisible] = useState(false);
   const [isRosterSettingsSubModalVisible, setIsRosterSettingsSubModalVisible] = useState(false);
   const [isDraftSettingsSubModalVisible, setIsDraftSettingsSubModalVisible] = useState(false);
+  const [isScoringSettingsSubModalVisible, setIsScoringSettingsSubModalVisible] = useState(false);
   const [isMemberSettingsSubModalVisible, setIsMemberSettingsSubModalVisible] = useState(false);
   const [isCommissionerModalVisible, setIsCommissionerModalVisible] = useState(false);
   const [isLockRosterModalVisible, setIsLockRosterModalVisible] = useState(false);
@@ -577,6 +578,8 @@ export default function LeagueDetailScreen() {
       setIsRosterSettingsSubModalVisible(true);
     } else if (optionTitle === 'Draft settings') {
       setIsDraftSettingsSubModalVisible(true);
+    } else if (optionTitle === 'Scoring settings') {
+      setIsScoringSettingsSubModalVisible(true);
     } else if (optionTitle === 'Member settings') {
       setIsMemberSettingsSubModalVisible(true);
     } else if (optionTitle === 'Commissioner control') {
@@ -1020,11 +1023,24 @@ export default function LeagueDetailScreen() {
       <MemberSettingsSubModal
         isVisible={isMemberSettingsSubModalVisible}
         onClose={() => setIsMemberSettingsSubModalVisible(false)}
+        leagueId={leagueId}
+        canManage={!!callerInfo?.isCreator}
+        currentUserId={currentUserId}
+      />
+
+      <ScoringSettingsSubModal
+        isVisible={isScoringSettingsSubModalVisible}
+        onClose={() => setIsScoringSettingsSubModalVisible(false)}
+        leagueId={leagueId}
       />
 
       <GiveCommissionerAccessModal
         isVisible={isCommissionerModalVisible}
         onClose={() => setIsCommissionerModalVisible(false)}
+        leagueId={leagueId}
+        canManage={String(rawLeague?.creatorId ?? '') === String(currentUserId)}
+        currentUserId={currentUserId}
+        founderId={rawLeague?.creatorId}
       />
 
       <LockRosterModal
