@@ -98,6 +98,114 @@ export function isRenderable(config?: AvatarConfig | null): boolean {
   return resolveConfig(config).length > 0;
 }
 
+/** Slots the wardrobe lists, including the two that are not part artwork. */
+export type UsedAssetSlot = 'base' | AvatarSlot | 'hairColor';
+
+/** One row of the "used assets" breakdown for a saved look. */
+export interface UsedAsset {
+  slot: UsedAssetSlot;
+  label: string;
+  /** The stored id, kept even when it no longer resolves, so the UI can say so. */
+  assetId: string | null;
+  /** Bundled artwork, or null when there is nothing to draw. */
+  source: number | null;
+  /** Hex tint. Only ever set on the `hairColor` row. */
+  color?: string | null;
+  /**
+   * `ok` — resolved. `retired` — the config names an id the registry no longer
+   * has, so the layer was dropped rather than swapped for different art.
+   * `none` — the slot was deliberately left empty.
+   */
+  status: 'ok' | 'retired' | 'none';
+}
+
+const SLOT_LABELS: Record<UsedAssetSlot, string> = {
+  base: 'Base',
+  bodyColor: 'Skin tone',
+  hair: 'Hair',
+  hairColor: 'Hair colour',
+  outfit: 'Outfit',
+  skirt: 'Skirt',
+  shoes: 'Shoes',
+};
+
+/** The order the wardrobe reads best in — identity first, then top down. */
+const USED_ASSET_ORDER: UsedAssetSlot[] = [
+  'base',
+  'hair',
+  'hairColor',
+  'outfit',
+  'skirt',
+  'shoes',
+  'bodyColor',
+];
+
+/**
+ * A display name for an asset id.
+ *
+ * Ids are artwork file stems, so this is a presentation stopgap until the
+ * backend catalogue supplies a real `displayName` per asset.
+ */
+export function humaniseAssetId(assetId: string): string {
+  const spaced = assetId
+    .replace(/[_-]+/g, ' ')
+    .replace(/([a-z])(\d)/gi, '$1 $2')
+    .trim();
+
+  return spaced.charAt(0).toUpperCase() + spaced.slice(1);
+}
+
+/**
+ * What a saved look is actually built from.
+ *
+ * Driven entirely by the stored config and resolved through the registry by
+ * stable id, so it lists exactly the parts this avatar uses — never the full
+ * catalogue, and never whatever a picker happens to be showing.
+ */
+export function describeUsedAssets(config?: AvatarConfig | null): UsedAsset[] {
+  const base = getBaseById(config?.base);
+  if (!config || !base) return [];
+
+  return USED_ASSET_ORDER.map((slot): UsedAsset => {
+    if (slot === 'base') {
+      return {
+        slot,
+        label: SLOT_LABELS.base,
+        assetId: base.id,
+        source: base.source,
+        status: 'ok',
+      };
+    }
+
+    if (slot === 'hairColor') {
+      const color = config.hairColor ?? null;
+      return {
+        slot,
+        label: SLOT_LABELS.hairColor,
+        assetId: color,
+        source: null,
+        color,
+        // No tint is a real choice - the artwork's own colour - not a gap.
+        status: color ? 'ok' : 'none',
+      };
+    }
+
+    const assetId = config.parts?.[slot] ?? null;
+    if (!assetId) {
+      return { slot, label: SLOT_LABELS[slot], assetId: null, source: null, status: 'none' };
+    }
+
+    const asset = getAssetById(slot, assetId);
+    return {
+      slot,
+      label: SLOT_LABELS[slot],
+      assetId,
+      source: asset?.source ?? null,
+      status: asset ? 'ok' : 'retired',
+    };
+  });
+}
+
 export function baseOf(config?: AvatarConfig | null): AvatarBase | undefined {
   return getBaseById(config?.base);
 }
