@@ -31,11 +31,17 @@ export const socialApi = baseApi.injectEndpoints({
      * Shuffled community feed. `seed` is omitted on a fresh load/refresh and
      * echoed back while paging so the ordering stays stable.
      */
-    getFeed: builder.query<FeedResponse, { page?: number; limit?: number; seed?: number }>({
-      query: ({ page = 1, limit = 10, seed }) => ({
+    getFeed: builder.query<FeedResponse, { page?: number; limit?: number; seed?: number; authorId?: string; mine?: boolean }>({
+      query: ({ page = 1, limit = 10, seed, authorId, mine }) => ({
         url: '/social/posts',
         method: 'GET',
-        params: { page, limit, ...(seed ? { seed } : {}) },
+        params: {
+          page,
+          limit,
+          ...(seed ? { seed } : {}),
+          ...(authorId ? { authorId } : {}),
+          ...(mine !== undefined ? { mine } : {}),
+        },
       }),
       transformResponse: (response: Envelope<any[]>): FeedResponse => ({
         posts: (response.data || []).map(normalisePost),
@@ -46,10 +52,10 @@ export const socialApi = baseApi.injectEndpoints({
         seed: response.pagination?.seed as number,
       }),
       // Pages accumulate into one cache entry so the list can grow on scroll.
-      // `limit` stays part of the key so independent consumers - the dashboard
-      // preview and the full Community screen - do not fight over one entry.
+      // `limit`, `mine`, and `authorId` stay part of the key so independent consumers
+      // (dashboard preview, full Community, user Profile, and AllPosts) do not collide.
       serializeQueryArgs: ({ endpointName, queryArgs }) =>
-        `${endpointName}-${queryArgs?.limit ?? 10}`,
+        `${endpointName}-${queryArgs?.limit ?? 10}-${queryArgs?.mine ? 'mine' : ''}-${queryArgs?.authorId ?? ''}`,
       merge: (existing, incoming, { arg }) => {
         if (!arg.page || arg.page === 1) return incoming;
         const seen = new Set(existing.posts.map((post) => post.id));

@@ -1,124 +1,168 @@
-import React from 'react';
-import { View, Text, TouchableOpacity, ScrollView, TextInput, Image } from 'react-native';
+import React, { useState, useCallback, useMemo } from 'react';
+import { View, Text, TouchableOpacity, FlatList, TextInput, ActivityIndicator, RefreshControl } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { ChevronLeft, Search, MoreVertical, MessageSquare } from 'lucide-react-native';
+import { ChevronLeft, Search, X, Plus } from 'lucide-react-native';
 import { useNavigation } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { RootStackParamList } from '../../../App';
+import { ReactionType, useGetFeedQuery, useReactMutation, useDeletePostMutation } from '../../store/api/socialApi';
+import { PostCard } from '../../components/Community/PostCard';
+import { showToast } from '../../utils/toast';
 
-const MOCK_POSTS = [
-  {
-    id: '1',
-    team: 'Arsenal community',
-    author: 'Davidthomas097',
-    time: '1d',
-    content: 'The Grizzlies lineup is TUFF',
-    likes: 231,
-    comments: 17,
-    logo: 'https://upload.wikimedia.org/wikipedia/en/thumb/5/53/Arsenal_FC.svg/150px-Arsenal_FC.svg.png'
-  },
-  {
-    id: '2',
-    team: 'Real Madrid',
-    author: 'Davidthomas097',
-    time: '1d',
-    content: 'The Grizzlies lineup is TUFF',
-    likes: 231,
-    comments: 17,
-    logo: 'https://upload.wikimedia.org/wikipedia/en/thumb/5/56/Real_Madrid_CF.svg/150px-Real_Madrid_CF.svg.png'
-  },
-  {
-    id: '3',
-    team: 'Real Madrid',
-    author: 'Davidthomas097',
-    time: '1d',
-    content: 'The Grizzlies lineup is TUFF',
-    likes: 231,
-    comments: 17,
-    logo: 'https://upload.wikimedia.org/wikipedia/en/thumb/5/56/Real_Madrid_CF.svg/150px-Real_Madrid_CF.svg.png'
-  }
-];
+type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
 export default function AllPostsScreen() {
-  const navigation = useNavigation();
+  const navigation = useNavigation<NavigationProp>();
+  const [page, setPage] = useState(1);
+  const [searchQuery, setSearchQuery] = useState('');
+
+  const { data: feedData, isLoading, isFetching, refetch } = useGetFeedQuery({
+    mine: true,
+    page,
+    limit: 10,
+  });
+
+  const [react] = useReactMutation();
+  const [deletePost] = useDeletePostMutation();
+  const [refreshing, setRefreshing] = useState(false);
+
+  const posts = feedData?.posts ?? [];
+  const filteredPosts = useMemo(() => {
+    if (!searchQuery.trim()) return posts;
+    const q = searchQuery.toLowerCase();
+    return posts.filter((p) => p.content?.toLowerCase().includes(q));
+  }, [posts, searchQuery]);
+
+  const hasMore = feedData?.pagination
+    ? page < (feedData.pagination.totalPages || 1)
+    : false;
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    setPage(1);
+    try {
+      await refetch();
+    } catch (e) {
+      // ignore
+    } finally {
+      setRefreshing(false);
+    }
+  }, [refetch]);
+
+  const handleEndReached = () => {
+    if (!isFetching && hasMore) {
+      setPage((prev) => prev + 1);
+    }
+  };
+
+  const handleReact = async (postId: string, type: ReactionType) => {
+    try {
+      await react({ entityType: 'post', entityId: postId, type }).unwrap();
+    } catch (err: any) {
+      showToast.error('Could not save reaction', err?.data?.message);
+    }
+  };
+
+  const handleDeletePost = async (postId: string) => {
+    try {
+      await deletePost(postId).unwrap();
+      showToast.success('Success', 'Post deleted successfully');
+    } catch (err: any) {
+      showToast.error('Error', err?.data?.message || 'Could not delete post');
+    }
+  };
 
   return (
     <SafeAreaView className="flex-1 bg-black" edges={['top', 'bottom']}>
       {/* Header */}
-      <View className="flex-row items-center justify-center px-5 pt-2 pb-6 relative">
+      <View className="flex-row items-center justify-center px-5 pt-2 pb-4 relative">
         <TouchableOpacity 
           className="absolute left-5 top-2 w-10 h-10 rounded-[12px] border border-white/30 justify-center items-center bg-black/40 z-10"
           onPress={() => navigation.goBack()}
         >
           <ChevronLeft color="#fff" size={24} />
         </TouchableOpacity>
-        <Text className="text-white text-[20px] font-bold mt-3">All post</Text>
+        <Text className="text-white text-[20px] font-bold mt-2">My Posts</Text>
       </View>
 
       {/* Search Bar */}
-      <View className="px-5 mb-6">
-        <View className="flex-row items-center border border-[#6B21A8] rounded-[20px] px-4 py-3 bg-[#0a0a0a]">
-          <Search color="#666" size={18} className="mr-3" />
+      <View className="px-5 mb-4">
+        <View className="flex-row items-center border border-[#333] rounded-[16px] px-3.5 py-2.5 bg-[#121212]">
+          <Search color="#666" size={18} className="mr-2" />
           <TextInput 
             className="flex-1 text-white text-[14px] p-0 m-0"
-            placeholder="Search here."
+            placeholder="Search my posts..."
             placeholderTextColor="#666"
+            value={searchQuery}
+            onChangeText={setSearchQuery}
           />
+          {searchQuery.length > 0 && (
+            <TouchableOpacity onPress={() => setSearchQuery('')} className="p-1">
+              <X color="#999" size={16} />
+            </TouchableOpacity>
+          )}
         </View>
       </View>
 
       {/* Posts List */}
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 50 }}>
-        {MOCK_POSTS.map((post) => (
-          <View key={post.id} className="border border-[#333] rounded-[24px] p-4 mb-4 bg-[#0a0a0a]">
-            {/* Post Header */}
-            <View className="flex-row justify-between items-start mb-4">
-              <View className="flex-row items-center">
-                <Image source={{ uri: post.logo }} className="w-10 h-10 rounded-full bg-white mr-3" resizeMode="contain" />
-                <View>
-                  <Text className="text-white text-[15px] font-medium">{post.team}</Text>
-                  <Text className="text-[#FFB84D] text-[12px]">
-                    {post.author} <Text className="text-[#FFB84D]">→  {post.time}</Text>
-                  </Text>
-                </View>
+      {isLoading && page === 1 ? (
+        <View className="flex-1 justify-center items-center">
+          <ActivityIndicator size="large" color="#E0B566" />
+          <Text className="text-gray-400 text-xs mt-3">Loading your posts...</Text>
+        </View>
+      ) : filteredPosts.length === 0 ? (
+        <View className="flex-1 justify-center items-center px-8">
+          <Text className="text-white text-base font-bold text-center mb-1">
+            No Posts Found
+          </Text>
+          <Text className="text-gray-400 text-xs text-center mb-6">
+            {searchQuery
+              ? `No posts matching "${searchQuery}".`
+              : "You haven't published any community posts yet."}
+          </Text>
+          <TouchableOpacity
+            className="bg-[#8B3DFF] px-5 py-3 rounded-xl flex-row items-center"
+            onPress={() => navigation.navigate('CreatePost')}
+          >
+            <Plus color="#fff" size={18} />
+            <Text className="text-white text-sm font-bold ml-1.5">Create New Post</Text>
+          </TouchableOpacity>
+        </View>
+      ) : (
+        <FlatList
+          data={filteredPosts}
+          keyExtractor={(item) => item.id}
+          renderItem={({ item }) => (
+            <PostCard
+              post={item}
+              onReact={(type) => handleReact(item.id, type)}
+              onOpenComments={() => navigation.navigate('PostDetails', { postId: item.id })}
+              onPressImage={() => navigation.navigate('PostDetails', { postId: item.id })}
+              onDelete={() => handleDeletePost(item.id)}
+            />
+          )}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              tintColor="#8B3DFF"
+              colors={['#8B3DFF', '#E0B566']}
+              progressBackgroundColor="#121212"
+            />
+          }
+          onEndReached={handleEndReached}
+          onEndReachedThreshold={0.4}
+          ListFooterComponent={
+            isFetching && page > 1 ? (
+              <View className="py-4 items-center justify-center">
+                <ActivityIndicator size="small" color="#E0B566" />
               </View>
-              <TouchableOpacity>
-                <MoreVertical color="#999" size={20} />
-              </TouchableOpacity>
-            </View>
-
-            {/* Post Content */}
-            <Text className="text-gray-300 text-[14px] mb-4">
-              {post.content}
-            </Text>
-            
-            {/* Post Actions */}
-            <View className="flex-row justify-between items-end mt-2">
-              {/* Reactions */}
-              <View className="flex-col">
-                <View className="flex-row relative w-[50px] mb-1">
-                  <View className="w-6 h-6 rounded-full bg-[#111] justify-center items-center absolute left-0 z-30">
-                    <Text className="text-[14px]">😂</Text>
-                  </View>
-                  <View className="w-6 h-6 rounded-full bg-[#111] justify-center items-center absolute left-3 z-20">
-                    <Text className="text-[14px]">👍</Text>
-                  </View>
-                  <View className="w-6 h-6 rounded-full bg-[#111] justify-center items-center absolute left-6 z-10">
-                    <Text className="text-[14px]">❤️</Text>
-                  </View>
-                </View>
-                <Text className="text-gray-400 text-[12px] mt-6">{post.likes}</Text>
-              </View>
-
-              {/* Comments */}
-              <View className="flex-col items-center">
-                <TouchableOpacity className="mb-2">
-                  <MessageSquare color="#999" size={18} />
-                </TouchableOpacity>
-                <Text className="text-gray-400 text-[12px]">{post.comments}</Text>
-              </View>
-            </View>
-          </View>
-        ))}
-      </ScrollView>
+            ) : null
+          }
+          contentContainerStyle={{ paddingBottom: 50 }}
+          showsVerticalScrollIndicator={false}
+        />
+      )}
     </SafeAreaView>
   );
 }

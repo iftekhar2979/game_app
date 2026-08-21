@@ -1,14 +1,18 @@
-import React from 'react';
-import { View, Text, Image, TouchableOpacity, ScrollView, ImageBackground, StyleSheet, Dimensions } from 'react-native';
+import React, { useState, useCallback } from 'react';
+import { View, Text, Image, TouchableOpacity, ScrollView, ImageBackground, StyleSheet, Dimensions, RefreshControl, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Sparkles, ChevronLeft, Settings, Edit2, ArrowRight, Dumbbell, Trophy, Medal, BarChart3, ChevronRight, MessageSquare, ThumbsUp, MoreVertical } from 'lucide-react-native';
+import { Sparkles, ChevronLeft, Settings, Edit2, ArrowRight, Dumbbell, Trophy, Medal, BarChart3, Plus } from 'lucide-react-native';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../../../App';
-import { useSelector } from 'react-redux';
+import { useSelector, useDispatch } from 'react-redux';
 import { RootState } from '../../store';
 import { useGetMeQuery } from '../../store/api/usersApi';
+import { baseApi } from '../../store/api/baseApi';
+import { ReactionType, useGetFeedQuery, useReactMutation, useDeletePostMutation } from '../../store/api/socialApi';
+import { PostCard } from '../../components/Community/PostCard';
 import Avatar from '../../components/common/Avatar';
+import { showToast } from '../../utils/toast';
 
 const { width } = Dimensions.get('window');
 
@@ -16,23 +20,73 @@ type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
 export default function ProfileScreen() {
   const navigation = useNavigation<NavigationProp>();
-  const user = useSelector((state: RootState) => state.auth.user);
-  // The server is the source of truth for your own avatar. The old local slice
-  // held a ViewShot temp path that died on restart, so this screen used to fall
-  // back to a stranger's stock photo.
-  const { data: me } = useGetMeQuery();
-  const userAvatarUri = me?.avatarUrl || (user as any)?.avatarUrl || null;
+  const dispatch = useDispatch();
+  const user = useSelector((state: RootState) => state.auth.user as any);
+  // The server is the source of truth for your own avatar and profile data.
+  const { data: me, refetch: refetchMe } = useGetMeQuery();
+  const { data: feedData, isLoading: isLoadingPosts, refetch: refetchPosts } = useGetFeedQuery({ mine: true, page: 1, limit: 3 });
+  const [react] = useReactMutation();
+  const [deletePost] = useDeletePostMutation();
 
-  const MOCK_TEAMS = [
-    { id: '1', name: 'Manchester City', logo: 'https://upload.wikimedia.org/wikipedia/en/thumb/e/eb/Manchester_City_FC_badge.svg/150px-Manchester_City_FC_badge.svg.png' },
-    { id: '2', name: 'Real Madrid', logo: 'https://upload.wikimedia.org/wikipedia/en/thumb/5/56/Real_Madrid_CF.svg/150px-Real_Madrid_CF.svg.png' },
-    { id: '3', name: 'Liverpool', logo: 'https://upload.wikimedia.org/wikipedia/en/thumb/0/0c/Liverpool_FC.svg/150px-Liverpool_FC.svg.png' },
-    { id: '4', name: 'Barcelona', logo: 'https://upload.wikimedia.org/wikipedia/en/thumb/4/47/FC_Barcelona_%28crest%29.svg/150px-FC_Barcelona_%28crest%29.svg.png' },
-  ];
+  const [refreshing, setRefreshing] = useState(false);
+
+  const myPosts = feedData?.posts ?? [];
+  const userAvatarUri = me?.avatarUrl || user?.avatarUrl || null;
+  const displayName = me?.fullName || user?.fullName || me?.name || user?.name || me?.username || user?.username || 'Member';
+  const username = me?.username || user?.username || '';
+  const userEmail = me?.email || user?.email || '';
+  const memberSince = me?.createdAt
+    ? `Member since ${new Date(me.createdAt).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}`
+    : userEmail || 'CheerBattle Member';
+  const coins = me?.coins ?? me?.coinBalance ?? user?.coins ?? 0;
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      dispatch(baseApi.util.invalidateTags(['User', 'Avatar', 'Social']));
+      await Promise.all([
+        refetchMe(),
+        refetchPosts(),
+      ]);
+    } catch (e) {
+      // ignore
+    } finally {
+      setRefreshing(false);
+    }
+  }, [dispatch, refetchMe, refetchPosts]);
+
+  const handleReact = async (postId: string, type: ReactionType) => {
+    try {
+      await react({ entityType: 'post', entityId: postId, type }).unwrap();
+    } catch (err: any) {
+      showToast.error('Could not save reaction', err?.data?.message);
+    }
+  };
+
+  const handleDeletePost = async (postId: string) => {
+    try {
+      await deletePost(postId).unwrap();
+      showToast.success('Success', 'Post deleted successfully');
+    } catch (err: any) {
+      showToast.error('Error', err?.data?.message || 'Could not delete post');
+    }
+  };
 
   return (
     <View className="flex-1 bg-black">
-      <ScrollView contentContainerStyle={{ paddingBottom: 50 }} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        contentContainerStyle={{ paddingBottom: 50 }}
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor="#8B3DFF"
+            colors={['#8B3DFF', '#E0B566']}
+            progressBackgroundColor="#121212"
+          />
+        }
+      >
 
         {/* Banner Section */}
         <View className="relative w-full h-[200px]">
@@ -63,7 +117,7 @@ export default function ProfileScreen() {
           {/* Avatar over the Banner edge */}
           <View className="absolute -bottom-12 left-1/2 -ml-[50px] items-center justify-center z-10">
             <View className="w-[100px] h-[100px] rounded-full border-[4px] border-black overflow-hidden relative">
-              <Avatar uri={userAvatarUri} name={me?.fullName || (user as any)?.fullName} size={96} />
+              <Avatar uri={userAvatarUri} name={displayName} size={96} />
             </View>
             <TouchableOpacity
               className="absolute bottom-1 right-1 w-7 h-7 bg-[#FFB84D] rounded-full justify-center items-center border-[2px] border-black"
@@ -76,11 +130,16 @@ export default function ProfileScreen() {
 
         {/* Profile Info */}
         <View className="mt-16 items-center px-5">
-          <Text className="text-white text-[20px] font-bold mb-1">
-            {user?.username || 'David thomas097'}
+          <Text className="text-white text-[20px] font-bold mb-0.5 text-center">
+            {displayName}
           </Text>
-          <Text className="text-gray-400 text-[13px] mb-4">
-            {user?.email || 'Member since - June 2028, Texas'}
+          {username ? (
+            <Text className="text-[#FFB84D] text-[13px] font-medium mb-1">
+              @{username}
+            </Text>
+          ) : null}
+          <Text className="text-gray-400 text-[13px] mb-4 text-center">
+            {memberSince}
           </Text>
 
           <TouchableOpacity
@@ -99,7 +158,7 @@ export default function ProfileScreen() {
             onPress={() => navigation.navigate('CoinStore')}
           >
             <Text className="text-[14px] mr-1">🪙</Text>
-            <Text className="text-gray-300 text-[14px] font-medium mr-2">Coin: 0</Text>
+            <Text className="text-gray-300 text-[14px] font-medium mr-2">Coin: {coins}</Text>
             <ArrowRight color="#999" size={14} />
           </TouchableOpacity>
         </View>
@@ -166,106 +225,45 @@ export default function ProfileScreen() {
           </View>
         </View>
 
-        {/* Favorite Teams Scroll */}
-        {/* <View className="px-5 mb-8">
-          <View className="flex-row items-center mb-4">
-            <Text className="text-white text-[18px] font-semibold mr-2">Favorite Team</Text>
-            <Edit2 color="#FFB84D" size={14} />
-          </View>
-
-          <View className="flex-row items-center">
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} className="flex-1 pr-4">
-              {MOCK_TEAMS.map((team) => (
-                <View key={team.id} className="items-center mr-6">
-                  <Image source={{ uri: team.logo }} className="w-[50px] h-[50px] rounded-full bg-white mb-2" resizeMode="contain" />
-                  <Text className="text-white text-[10px] text-center max-w-[60px]">{team.name}</Text>
-                </View>
-              ))}
-            </ScrollView>
-            <ChevronRight color="#fff" size={20} className="ml-2 opacity-50" />
-          </View>
-        </View> */}
-
         {/* Posts Section */}
         <View className="px-5">
           <View className="flex-row justify-between items-center mb-4">
-            <Text className="text-white text-[18px] font-semibold">Post</Text>
+            <Text className="text-white text-[18px] font-semibold">My Posts</Text>
             <TouchableOpacity onPress={() => navigation.navigate('AllPosts')}>
-              <Text className="text-gray-400 text-[13px]">See all</Text>
+              <Text className="text-[#E0B566] text-[13px] font-medium">See all</Text>
             </TouchableOpacity>
           </View>
 
-          {/* Mock Post 1 */}
-          <View className="border border-[#222] rounded-[24px] p-4 mb-4 bg-[#0a0a0a]">
-            <View className="flex-row items-center justify-between mb-4">
-              <View className="flex-row items-center">
-                <Image source={{ uri: MOCK_TEAMS[2].logo }} className="w-10 h-10 rounded-full bg-white mr-3" resizeMode="contain" />
-                <View>
-                  <Text className="text-white text-[14px] font-medium mb-1">Arsenal community</Text>
-                  <View className="flex-row items-center">
-                    <Text className="text-[#FFB84D] text-[11px] mr-1">Davidthomas097</Text>
-                    <Text className="text-gray-500 text-[10px]">→ 1d</Text>
-                  </View>
-                </View>
-              </View>
-              <MoreVertical color="#666" size={18} />
+          {isLoadingPosts ? (
+            <View className="py-8 items-center justify-center">
+              <ActivityIndicator size="small" color="#E0B566" />
             </View>
-            <Text className="text-gray-300 text-[14px] mb-4 leading-[20px]">
-              The Grizzlies lineup is TUFF
-            </Text>
-
-            <View className="flex-row justify-between items-center mt-2 border-t border-[#222] pt-4">
-              <View className="flex-row items-center">
-                <View className="flex-row mr-2 relative w-[45px]">
-                  <View className="w-5 h-5 rounded-full bg-blue-500 justify-center items-center border border-black absolute left-0 z-30"><Text className="text-white text-[10px]">👍</Text></View>
-                  <View className="w-5 h-5 rounded-full bg-red-500 justify-center items-center border border-black absolute left-3 z-20"><Text className="text-white text-[10px]">❤️</Text></View>
-                  <View className="w-5 h-5 rounded-full bg-yellow-500 justify-center items-center border border-black absolute left-6 z-10"><Text className="text-white text-[10px]">😂</Text></View>
-                </View>
-                <Text className="text-gray-400 text-[12px]">231</Text>
-              </View>
-
-              <View className="flex-row items-center">
-                <MessageSquare color="#999" size={14} className="mr-1.5" />
-                <Text className="text-gray-400 text-[12px]">17</Text>
-              </View>
+          ) : myPosts.length === 0 ? (
+            <View className="bg-[#121212] border border-[#222] rounded-2xl p-6 items-center justify-center mb-6">
+              <Text className="text-gray-400 text-sm text-center mb-4">
+                You haven't shared any community posts yet.
+              </Text>
+              <TouchableOpacity
+                className="bg-[#8B3DFF] px-4 py-2.5 rounded-xl flex-row items-center"
+                onPress={() => navigation.navigate('CreatePost')}
+                activeOpacity={0.85}
+              >
+                <Plus color="#fff" size={16} />
+                <Text className="text-white text-xs font-bold ml-1.5">Create First Post</Text>
+              </TouchableOpacity>
             </View>
-          </View>
-
-          {/* Mock Post 2 */}
-          <View className="border border-[#222] rounded-[24px] p-4 mb-4 bg-[#0a0a0a]">
-            <View className="flex-row items-center justify-between mb-4">
-              <View className="flex-row items-center">
-                <Image source={{ uri: MOCK_TEAMS[1].logo }} className="w-10 h-10 rounded-full bg-white mr-3" resizeMode="contain" />
-                <View>
-                  <Text className="text-white text-[14px] font-medium mb-1">Real Madrid</Text>
-                  <View className="flex-row items-center">
-                    <Text className="text-[#FFB84D] text-[11px] mr-1">Davidthomas097</Text>
-                    <Text className="text-gray-500 text-[10px]">→ 1d</Text>
-                  </View>
-                </View>
-              </View>
-              <MoreVertical color="#666" size={18} />
-            </View>
-            <Text className="text-gray-300 text-[14px] mb-4 leading-[20px]">
-              The Grizzlies lineup is TUFF
-            </Text>
-
-            <View className="flex-row justify-between items-center mt-2 border-t border-[#222] pt-4">
-              <View className="flex-row items-center">
-                <View className="flex-row mr-2 relative w-[45px]">
-                  <View className="w-5 h-5 rounded-full bg-blue-500 justify-center items-center border border-black absolute left-0 z-30"><Text className="text-white text-[10px]">👍</Text></View>
-                  <View className="w-5 h-5 rounded-full bg-yellow-500 justify-center items-center border border-black absolute left-3 z-20"><Text className="text-white text-[10px]">😂</Text></View>
-                  <View className="w-5 h-5 rounded-full bg-red-500 justify-center items-center border border-black absolute left-6 z-10"><Text className="text-white text-[10px]">❤️</Text></View>
-                </View>
-                <Text className="text-gray-400 text-[12px]">231</Text>
-              </View>
-
-              <View className="flex-row items-center">
-                <MessageSquare color="#999" size={14} className="mr-1.5" />
-                <Text className="text-gray-400 text-[12px]">17</Text>
-              </View>
-            </View>
-          </View>
+          ) : (
+            myPosts.map((post) => (
+              <PostCard
+                key={post.id}
+                post={post}
+                onReact={(type) => handleReact(post.id, type)}
+                onOpenComments={() => navigation.navigate('PostDetails', { postId: post.id })}
+                onPressImage={() => navigation.navigate('PostDetails', { postId: post.id })}
+                onDelete={() => handleDeletePost(post.id)}
+              />
+            ))
+          )}
 
         </View>
       </ScrollView>
