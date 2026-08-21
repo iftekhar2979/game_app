@@ -1,7 +1,6 @@
 import React, { useCallback, useState } from 'react';
 import {
   FlatList,
-  Image,
   KeyboardAvoidingView,
   Platform,
   Text,
@@ -17,6 +16,7 @@ import { ChevronLeft, CornerDownRight, Send, Trash2, X } from 'lucide-react-nati
 import { RootStackParamList } from '../../../App';
 import { RootState } from '../../store';
 import CustomLoader from '../../components/Loader/CustomLoader';
+import Avatar from '../../components/common/Avatar';
 import { PostCard, timeAgo } from '../../components/Community/PostCard';
 import { ReactionBar } from '../../components/Community/ReactionBar';
 import {
@@ -62,22 +62,12 @@ const CommentRow = ({
 
   return (
     <View className={`flex-row mb-5 ${isReply ? 'ml-10' : ''}`}>
-      {author?.avatarUrl ? (
-        <Image
-          source={{ uri: author.avatarUrl }}
-          className={`${isReply ? 'w-7 h-7' : 'w-9 h-9'} rounded-full mr-3`}
-        />
-      ) : (
-        <View
-          className={`${
-            isReply ? 'w-7 h-7' : 'w-9 h-9'
-          } rounded-full mr-3 bg-[#1E439B] justify-center items-center`}
-        >
-          <Text className="text-white text-[10px] font-bold">
-            {(author?.fullName || '?').slice(0, 2).toUpperCase()}
-          </Text>
-        </View>
-      )}
+      <Avatar
+        uri={author?.avatarUrl}
+        name={author?.fullName}
+        size={isReply ? 28 : 36}
+        style={{ marginRight: 12 }}
+      />
 
       <View className="flex-1">
         <View className="flex-row items-center justify-between">

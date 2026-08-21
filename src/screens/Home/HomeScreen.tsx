@@ -9,6 +9,8 @@ import { useSelector } from 'react-redux';
 import { RootState } from '../../store';
 import CustomLoader from '../../components/Loader/CustomLoader';
 import { PostCard } from '../../components/Community/PostCard';
+import Avatar from '../../components/common/Avatar';
+import { useGetMeQuery } from '../../store/api/usersApi';
 import { ReactionType, useGetFeedQuery, useReactMutation } from '../../store/api/socialApi';
 import { showToast } from '../../utils/toast';
 import { useGetCurrentMatchupQuery, useGetLeagueStandingsQuery, useGetMatchupHistoryQuery, useGetLeaguesQuery } from '../../store/api/leagueApi';
@@ -135,8 +137,11 @@ type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 export default function HomeScreen() {
   const navigation = useNavigation<NavigationProp>();
   // If the user has generated an avatar, we can use it for their profile picture, otherwise a placeholder
-  const avatars = useSelector((state: RootState) => state.avatar.savedAvatars);
-  const userAvatarUri = avatars.length > 0 ? avatars[0].imageUri : 'https://i.pravatar.cc/150?img=11';
+  // Own avatar comes from the server, same as everyone else's.
+  const { data: me } = useGetMeQuery();
+  const currentUser = useSelector((state: RootState) => state.auth.user as any);
+  const userAvatarUri = me?.avatarUrl || currentUser?.avatarUrl || null;
+  const userDisplayName = me?.fullName || currentUser?.fullName || 'there';
 
   const { data: apiLeagues } = useGetLeaguesQuery();
   const createdLeagues = useSelector((state: RootState) => state.league.leagues);
@@ -175,9 +180,9 @@ export default function HomeScreen() {
             onPress={() => navigation.navigate('Profile')}
             activeOpacity={0.8}
           >
-            <Image source={{ uri: userAvatarUri }} style={styles.userAvatar} />
+            <Avatar uri={userAvatarUri} name={userDisplayName} size={44} style={styles.userAvatar} />
             <View style={styles.userInfo}>
-              <Text style={styles.userName}>David !</Text>
+              <Text style={styles.userName}>{userDisplayName}</Text>
               <Text style={styles.userSubtext}>Welcome to CHEERBATTLE</Text>
             </View>
           </TouchableOpacity>

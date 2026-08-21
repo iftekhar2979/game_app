@@ -8,6 +8,7 @@ import postReducer from './slices/postSlice';
 import './api/seasonApi';
 import './api/leagueApi';
 import './api/socialApi';
+import './api/avatarApi';
 
 export const store = configureStore({
   reducer: {
