@@ -37,6 +37,7 @@ import AdminSupportScreen from './src/screens/Profile/AdminSupportScreen';
 import CreateUsernameScreen from './src/screens/Auth/CreateUsernameScreen';
 import { ToastContainer } from './src/components/common/Toast';
 import { authService } from './src/services/authService';
+import { AvatarConfig } from './src/avatar/types';
 
 export type RootStackParamList = {
   Onboarding1: undefined;
@@ -49,7 +50,9 @@ export type RootStackParamList = {
   ResetPassword: undefined;
   ExploreAvatar: { returnTo?: keyof RootStackParamList } | undefined;
   AvatarHistory: undefined;
-  GenerateAvatar: { baseImage: any; isFullbody?: boolean; target?: 'female' | 'male'; avatarCategory?: number; returnTo?: keyof RootStackParamList };
+  // `config` puts the editor in edit mode: the pickers open on that saved look
+  // instead of on the first option in every slot. Absent means create mode.
+  GenerateAvatar: { baseImage: any; isFullbody?: boolean; target?: 'female' | 'male'; avatarCategory?: number; returnTo?: keyof RootStackParamList; config?: AvatarConfig | null };
   Home: undefined;
   FantasyLeague: undefined;
   CreateLeague: undefined;

@@ -14,7 +14,7 @@ import { useSaveAvatarMutation } from '../../store/api/avatarApi';
 import { uploadImage } from '../../services/mediaUpload';
 import { authStorage } from '../../services/authStorage';
 import { showToast } from '../../utils/toast';
-import { BASES, listFor } from '../../avatar/registry';
+import { BASES, FULLBODY_STAGE_SCALE, indexOfAsset, listFor } from '../../avatar/registry';
 import { REGISTRY_VERSION } from '../../avatar/registry';
 import { AvatarConfig, AvatarSlot } from '../../avatar/types';
 
@@ -182,6 +182,25 @@ const GenerateAvatarScreen = () => {
     return options[index]?.id ?? null;
   };
 
+  /**
+   * Edit mode. Present when the wardrobe reopened a saved look; absent when
+   * Explore started a new one, which leaves every seed below on its default.
+   */
+  const savedConfig = route.params?.config ?? null;
+
+  /**
+   * The picker index for a saved part — the exact inverse of `idAt` above, so a
+   * config that round-trips through the editor comes back unchanged.
+   *
+   * A slot the user deliberately left empty stays empty, and a part whose art
+   * has since been retired resolves to `null` rather than to whatever now sits
+   * at that index.
+   */
+  const seed = (slot: AvatarSlot, fallback: number | null): number | null => {
+    if (!savedConfig || !activeBase) return fallback;
+    return indexOfAsset(slot, activeBase.target, activeBase.category, savedConfig.parts?.[slot]);
+  };
+
   const buildConfig = (): AvatarConfig => ({
     version: REGISTRY_VERSION,
     base: activeBase!.id,
@@ -216,19 +235,39 @@ const GenerateAvatarScreen = () => {
     return require('../../assets/images/avatar/utils/full_closed_eye_female_all.png');
   };
 
+  // Every picker is seeded in its useState initializer, so edit mode's first
+  // paint is already the saved look. Hydrating in an effect instead would flash
+  // the defaults for a frame and would clobber a fast first tap.
+
   // Shared state
-  const [selectedHairColor, setSelectedHairColor] = useState<string | null>(null);
-  const [selectedBodyColor, setSelectedBodyColor] = useState<number | null>(avatarCategory === 1 ? 0 : null);
+  const [selectedHairColor, setSelectedHairColor] = useState<string | null>(
+    () => savedConfig?.hairColor ?? null,
+  );
+  const [selectedBodyColor, setSelectedBodyColor] = useState<number | null>(
+    () => seed('bodyColor', avatarCategory === 1 ? 0 : null),
+  );
 
   // Half body state
-  const [selectedHair, setSelectedHair] = useState<number | null>(!isFullbody ? 0 : null);
-  const [selectedBody, setSelectedBody] = useState<number | null>(!isFullbody ? 0 : null);
+  const [selectedHair, setSelectedHair] = useState<number | null>(
+    () => (!isFullbody ? seed('hair', 0) : null),
+  );
+  const [selectedBody, setSelectedBody] = useState<number | null>(
+    () => (!isFullbody ? seed('outfit', 0) : null),
+  );
 
   // Full body state
-  const [selectedFullbodyHair, setSelectedFullbodyHair] = useState<number | null>(isFullbody ? 0 : null);
-  const [selectedFullbodySkirt, setSelectedFullbodySkirt] = useState<number | null>(isFullbody ? 0 : null);
-  const [selectedFullbodyOutfit, setSelectedFullbodyOutfit] = useState<number | null>(isFullbody ? 0 : null);
-  const [selectedShoes, setSelectedShoes] = useState<number | null>(isFullbody ? 0 : null);
+  const [selectedFullbodyHair, setSelectedFullbodyHair] = useState<number | null>(
+    () => (isFullbody ? seed('hair', 0) : null),
+  );
+  const [selectedFullbodySkirt, setSelectedFullbodySkirt] = useState<number | null>(
+    () => (isFullbody ? seed('skirt', 0) : null),
+  );
+  const [selectedFullbodyOutfit, setSelectedFullbodyOutfit] = useState<number | null>(
+    () => (isFullbody ? seed('outfit', 0) : null),
+  );
+  const [selectedShoes, setSelectedShoes] = useState<number | null>(
+    () => (isFullbody ? seed('shoes', 0) : null),
+  );
 
   // Eye Animation State
   const [eyeState, setEyeState] = useState<'open' | 'half_closed' | 'closed'>('open');
@@ -313,7 +352,14 @@ const GenerateAvatarScreen = () => {
               <Animated.View
                 style={[
                   isFullbody ? styles.fullbodyStage : styles.avatarStage,
-                  { transform: [{ scaleX: breatheScaleX }, { scaleY: breatheScaleY }], transformOrigin: 'bottom center' as any }
+                  {
+                  transform: [
+                    { scaleX: breatheScaleX },
+                    { scaleY: breatheScaleY },
+                    ...(isFullbody ? [{ scale: FULLBODY_STAGE_SCALE }] : []),
+                  ],
+                  transformOrigin: 'bottom center' as any,
+                }
                 ]}
               >
                 {/* Base Head / Base Body */}
@@ -859,7 +905,8 @@ const styles = StyleSheet.create({
     height: '100%',
     alignItems: 'center',
     justifyContent: 'center',
-    transform: [{ scale: 1.15 }],
+    // Scale is composed into the animated transform, not set here - see
+    // FULLBODY_STAGE_SCALE.
   },
 });
 

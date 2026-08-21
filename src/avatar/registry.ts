@@ -19,6 +19,17 @@ export const REGISTRY_VERSION = 1;
 /** Hair tints offered in the editor. */
 export const HAIR_COLORS = ['#E6C27A', '#8D5B36', '#4A2F1D', '#1A1A1A', '#A33327', '#E6E6E6'];
 
+/**
+ * Sizes a full-body character inside its stage.
+ *
+ * Shared so the editor preview and the wardrobe frame the same avatar the same
+ * way. It has to be composed into whatever animated `transform` a stage sets,
+ * because an inline transform replaces a style's transform array rather than
+ * merging with it — the bug that silently dropped this scale between 980cf12
+ * and 56c48c1.
+ */
+export const FULLBODY_STAGE_SCALE = 1.15;
+
 export const BASES: AvatarBase[] = [
   { id: 'base_avatar_3', target: 'female', category: 4, isFullbody: true, source: require('../assets/images/avatar/base/base_avatar_3.png') },
   { id: 'base_avatar_4', target: 'female', category: 5, isFullbody: true, source: require('../assets/images/avatar/base/base_avatar_4.png') },
@@ -134,4 +145,24 @@ export function listFor(slot: AvatarSlot, target: AvatarTarget, category: number
   return (ASSETS[slot] || []).filter(
     (asset) => asset.target === target && asset.categories.includes(category),
   );
+}
+
+/**
+ * Where a saved asset id sits in the list the editor shows.
+ *
+ * The editor's pickers hold an index into `listFor()`, so reopening a saved look
+ * needs the reverse of that lookup. Returns `null` for an id that is no longer
+ * in the registry — a retired part leaves its slot empty rather than selecting
+ * whatever art happens to occupy that index now.
+ */
+export function indexOfAsset(
+  slot: AvatarSlot,
+  target: AvatarTarget,
+  category: number,
+  assetId?: string | null,
+): number | null {
+  if (!assetId) return null;
+
+  const index = listFor(slot, target, category).findIndex((asset) => asset.id === assetId);
+  return index >= 0 ? index : null;
 }
