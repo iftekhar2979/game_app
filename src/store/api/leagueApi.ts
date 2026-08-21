@@ -278,6 +278,26 @@ export interface JoinLeaguePayload {
   fantasyTeamName: string;
 }
 
+export interface JoinByCodePayload {
+  code: string;
+  fantasyTeamName: string;
+}
+
+export interface LeaguesQueryParams {
+  mine?: boolean;
+  term?: string;
+  status?: string;
+  sortBy?: string;
+  sortOrder?: 'asc' | 'desc';
+  page?: number;
+  limit?: number;
+}
+
+export interface LeaguesPageResponse {
+  data: LeagueItem[];
+  pagination: Pagination | null;
+}
+
 export const leagueApi = baseApi.injectEndpoints({
   endpoints: (builder) => ({
     createLeague: builder.mutation<LeagueResponse, CreateLeaguePayload>({
@@ -303,18 +323,40 @@ export const leagueApi = baseApi.injectEndpoints({
       transformResponse: (response: any) => response?.data || response,
       invalidatesTags: (result, error, { id }) => [{ type: 'League', id }, 'League'],
     }),
-    getLeagues: builder.query<LeagueItem[], { mine?: boolean } | void>({
+    getLeagues: builder.query<LeaguesPageResponse, LeaguesQueryParams | void>({
       query: (params) => ({
         url: 'leagues',
-        params: params ? { mine: params.mine } : {},
+        params: params ? {
+          mine: params.mine,
+          term: params.term,
+          status: params.status,
+          sortBy: params.sortBy,
+          sortOrder: params.sortOrder,
+          page: params.page,
+          limit: params.limit,
+        } : {},
       }),
-      transformResponse: (response: any) => {
+      transformResponse: (response: any): LeaguesPageResponse => {
         const raw = response?.data !== undefined ? response.data : response;
-        if (Array.isArray(raw)) return raw;
-        if (Array.isArray(raw?.data)) return raw.data;
-        return [];
+        const items = Array.isArray(raw) ? raw : Array.isArray(raw?.data) ? raw.data : [];
+        const pagination = raw?.pagination || response?.pagination || null;
+        return {
+          data: items,
+          pagination,
+        };
       },
       providesTags: ['League'],
+    }),
+    joinByCode: builder.mutation<any, JoinByCodePayload>({
+      query: (body) => ({
+        url: 'leagues/join-by-code',
+        method: 'POST',
+        body,
+      }),
+      transformResponse: (response: any) => {
+        return response?.data || response;
+      },
+      invalidatesTags: ['League'],
     }),
     getLeagueDetails: builder.query<any, string>({
       query: (id) => ({
@@ -568,6 +610,7 @@ export const {
   useGetLeaguesQuery,
   useGetLeagueDetailsQuery,
   useJoinLeagueMutation,
+  useJoinByCodeMutation,
   useGetLeagueMembersQuery,
   useGetAvailableAthletesQuery,
   useGetAthletePositionsQuery,
