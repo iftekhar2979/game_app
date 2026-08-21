@@ -150,7 +150,8 @@ export default function HomeScreen() {
   const { data: apiLeagues, refetch: refetchLeagues } = useGetLeaguesQuery();
   const createdLeagues = useSelector((state: RootState) => state.league.leagues);
 
-  const formattedApiLeagues = (apiLeagues || []).map((league: any) => ({
+  const leagueList = (Array.isArray(apiLeagues) ? apiLeagues : apiLeagues?.data) || [];
+  const formattedApiLeagues = leagueList.map((league: any) => ({
     id: league._id || league.id,
     name: league.name || 'Fantasy League',
     logoUri: league.logoUri || league.logoUrl || 'https://images.unsplash.com/photo-1614680376593-902f74cf0d41?q=80&w=150&auto=format&fit=crop',
