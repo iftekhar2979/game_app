@@ -1,11 +1,11 @@
-import React from 'react';
-import { View, Text, StyleSheet, Image, TouchableOpacity, ScrollView } from 'react-native';
+import React, { useState, useCallback } from 'react';
+import { View, Text, StyleSheet, Image, TouchableOpacity, ScrollView, RefreshControl } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Bell, PlusSquare } from 'lucide-react-native';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../../../App';
-import { useSelector } from 'react-redux';
+import { useSelector, useDispatch } from 'react-redux';
 import { RootState } from '../../store';
 import CustomLoader from '../../components/Loader/CustomLoader';
 import { PostCard } from '../../components/Community/PostCard';
@@ -14,6 +14,7 @@ import { useGetMeQuery } from '../../store/api/usersApi';
 import { ReactionType, useGetFeedQuery, useReactMutation } from '../../store/api/socialApi';
 import { showToast } from '../../utils/toast';
 import { useGetCurrentMatchupQuery, useGetLeagueStandingsQuery, useGetMatchupHistoryQuery, useGetLeaguesQuery } from '../../store/api/leagueApi';
+import { baseApi } from '../../store/api/baseApi';
 
 const DashboardMatchupCard = ({ leagueId, navigation }: any) => {
   const { data: matchup } = useGetCurrentMatchupQuery(leagueId, {
@@ -136,14 +137,17 @@ type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
 export default function HomeScreen() {
   const navigation = useNavigation<NavigationProp>();
+  const dispatch = useDispatch();
+  const [refreshing, setRefreshing] = useState(false);
+
   // If the user has generated an avatar, we can use it for their profile picture, otherwise a placeholder
   // Own avatar comes from the server, same as everyone else's.
-  const { data: me } = useGetMeQuery();
+  const { data: me, refetch: refetchMe } = useGetMeQuery();
   const currentUser = useSelector((state: RootState) => state.auth.user as any);
   const userAvatarUri = me?.avatarUrl || currentUser?.avatarUrl || null;
   const userDisplayName = me?.fullName || currentUser?.fullName || 'there';
 
-  const { data: apiLeagues } = useGetLeaguesQuery();
+  const { data: apiLeagues, refetch: refetchLeagues } = useGetLeaguesQuery();
   const createdLeagues = useSelector((state: RootState) => state.league.leagues);
 
   const formattedApiLeagues = (apiLeagues || []).map((league: any) => ({
@@ -157,7 +161,7 @@ export default function HomeScreen() {
 
   // The dashboard shows a short preview of the community feed; the full,
   // paginated and shuffled feed lives on CommunityFeedScreen.
-  const { data: feed, isLoading: isLoadingFeed } = useGetFeedQuery({ page: 1, limit: 3 });
+  const { data: feed, isLoading: isLoadingFeed, refetch: refetchFeed } = useGetFeedQuery({ page: 1, limit: 3 });
   const previewPosts = feed?.posts ?? [];
 
   const [react] = useReactMutation();
@@ -169,6 +173,22 @@ export default function HomeScreen() {
       showToast.error('Could not save your reaction', err?.data?.message);
     }
   };
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      dispatch(baseApi.util.invalidateTags(['League', 'Matchup', 'Roster', 'Social', 'User']));
+      await Promise.all([
+        refetchMe(),
+        refetchLeagues(),
+        refetchFeed(),
+      ]);
+    } catch (error) {
+      // ignore
+    } finally {
+      setRefreshing(false);
+    }
+  }, [dispatch, refetchMe, refetchLeagues, refetchFeed]);
 
   return (
     <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
@@ -195,7 +215,19 @@ export default function HomeScreen() {
         </TouchableOpacity>
       </View>
 
-      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+      <ScrollView 
+        contentContainerStyle={styles.scrollContent} 
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor="#8B3DFF"
+            colors={['#8B3DFF', '#E0B566']}
+            progressBackgroundColor="#121212"
+          />
+        }
+      >
         {/* Fantasy Section */}
         <View style={styles.fantasySection}>
           <View style={styles.sectionHeader}>

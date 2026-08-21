@@ -5,7 +5,7 @@ import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Check, ChevronLeft, Pencil, Sparkles, Trash2 } from 'lucide-react-native';
 import { RootStackParamList } from '../../../App';
-import Avatar from '../../components/common/Avatar';
+import AvatarPreview from '../../components/common/AvatarPreview';
 import CustomLoader from '../../components/Loader/CustomLoader';
 import { getBaseById } from '../../avatar/registry';
 import { normaliseConfig } from '../../avatar/resolveConfig';
@@ -18,6 +18,13 @@ import {
 import { showToast } from '../../utils/toast';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
+
+/**
+ * Two columns rather than three: a full-body avatar needs the height to read as
+ * a figure instead of a thumbnail.
+ */
+const AVATAR_COLUMNS = 2;
+const AVATAR_CARD_HEIGHT = 230;
 
 /**
  * The user's avatar wardrobe: every look they have built.
@@ -85,17 +92,31 @@ export default function AvatarHistoryScreen() {
 
   const renderItem = ({ item }: { item: SavedAvatarEntry }) => {
     const isBusy = busyId === item.id;
+    // Rebuilt from the stored config so the card shows the live, layered avatar
+    // rather than the flat snapshot taken at save time.
+    const config = normaliseConfig(item.avatarConfig);
 
+    // maxWidth caps the last row's orphan: `flex-1` alone would let a lone card
+    // stretch across the whole row and render at a different size.
     return (
-      <View className="flex-1 m-1.5 rounded-2xl border border-[#333] bg-[#121212] p-3 items-center">
+      <View
+        className="flex-1 m-1.5 rounded-2xl border border-[#333] bg-[#121212] p-3 items-center"
+        style={{ maxWidth: `${100 / AVATAR_COLUMNS}%` }}
+      >
         <TouchableOpacity
           activeOpacity={0.85}
           onPress={() => handleApply(item)}
           disabled={isBusy}
           accessibilityLabel={item.isCurrent ? 'Current avatar' : 'Apply this avatar'}
           accessibilityRole="button"
+          style={{ width: '100%' }}
         >
-          <Avatar uri={item.avatarUrl} name="Avatar" size={92} />
+          <AvatarPreview
+            config={config}
+            height={AVATAR_CARD_HEIGHT}
+            fallbackUri={item.avatarUrl}
+            fallbackName="Avatar"
+          />
         </TouchableOpacity>
 
         {item.isCurrent ? (
@@ -162,7 +183,7 @@ export default function AvatarHistoryScreen() {
           data={avatars}
           keyExtractor={(entry) => entry.id}
           renderItem={renderItem}
-          numColumns={3}
+          numColumns={AVATAR_COLUMNS}
           contentContainerStyle={{ paddingHorizontal: 14, paddingBottom: 110, flexGrow: 1 }}
           showsVerticalScrollIndicator={false}
           refreshing={isFetching}
