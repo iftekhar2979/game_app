@@ -11,6 +11,10 @@ import { RootStackParamList } from '../../../App';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLazyGetPreSignedUrlQuery } from '../../store/api/usersApi';
 import { useSaveAvatarMutation } from '../../store/api/avatarApi';
+import { usePurchaseAvatarAssetMutation } from '../../store/api/avatarAssetsApi';
+import { describePurchaseError } from '../../store/api/avatarAssetsTransforms';
+import { useAssetCatalogue } from '../../avatar/useAssetCatalogue';
+import AssetPickerTile from '../../components/Avatar/AssetPickerTile';
 import { uploadImage } from '../../services/mediaUpload';
 import { authStorage } from '../../services/authStorage';
 import { showToast } from '../../utils/toast';
@@ -146,6 +150,15 @@ const GenerateAvatarScreen = () => {
   const [saveAvatarToServer, { isLoading: isUpdating }] = useSaveAvatarMutation();
   const [getPreSignedUrl] = useLazyGetPreSignedUrlQuery();
   const [isSaving, setIsSaving] = useState(false);
+
+  /**
+   * The backend decides what may be picked; the bundled registry still decides
+   * what gets drawn. A catalogue failure therefore degrades selection only -
+   * every preview on this screen keeps rendering.
+   */
+  const catalogue = useAssetCatalogue();
+  const [purchaseAsset] = usePurchaseAvatarAssetMutation();
+  const [purchasingKey, setPurchasingKey] = useState<string | null>(null);
   // Strips the preview chrome for the one frame that gets captured.
   const [isCapturing, setIsCapturing] = useState(false);
 
@@ -199,6 +212,49 @@ const GenerateAvatarScreen = () => {
   const seed = (slot: AvatarSlot, fallback: number | null): number | null => {
     if (!savedConfig || !activeBase) return fallback;
     return indexOfAsset(slot, activeBase.target, activeBase.category, savedConfig.parts?.[slot]);
+  };
+
+  /**
+   * Buys a locked asset. The backend debits the coins inside a transaction and
+   * writes the entitlement; the client never touches the balance itself.
+   *
+   * `purchasingKey` is what prevents a double tap becoming two requests - the
+   * tile is disabled for the duration, and the mutation is only ever in flight
+   * for one asset at a time.
+   */
+  const handlePurchase = async (slot: AvatarSlot, index: number) => {
+    const key = idAt(slot, index);
+    if (!key || purchasingKey) return;
+
+    try {
+      setPurchasingKey(key);
+      await purchaseAsset(key).unwrap();
+      // Invalidating the catalogue tag re-fetches ownership, so the tile
+      // becomes selectable without any local guess about what changed.
+      showToast.success('Unlocked', 'You can use it now.');
+    } catch (error: any) {
+      const failure = describePurchaseError(error);
+      showToast[failure.tone](failure.title, failure.detail);
+    } finally {
+      setPurchasingKey(null);
+    }
+  };
+
+  /** Says why a tap did nothing, for assets that cannot simply be bought. */
+  const explainBlocked = (slot: AvatarSlot, index: number) => {
+    const availability = catalogue.stateOf(idAt(slot, index)).availability;
+
+    if (availability === 'retired') {
+      showToast.info(
+        'No longer available',
+        'This part has been retired. Avatars already wearing it still show it.',
+      );
+    } else if (availability === 'unknown') {
+      showToast.warning(
+        'Cannot check availability',
+        'The asset catalogue is unreachable. Pull to retry.',
+      );
+    }
   };
 
   const buildConfig = (): AvatarConfig => ({
@@ -508,6 +564,31 @@ const GenerateAvatarScreen = () => {
           </ViewShot>
         </View>
 
+        {/*
+          A catalogue failure is stated rather than papered over: the avatar
+          above still renders from the bundle, but we genuinely do not know what
+          the user owns, and guessing would either hide their own parts or
+          invite a save the backend rejects.
+        */}
+        {catalogue.isUnavailable && (
+          <View className="mx-6 mb-6 px-4 py-3 rounded-xl border border-[#5B1F7D] bg-[#1A0B2E] flex-row items-center justify-between">
+            <View className="flex-1 pr-3">
+              <Text className="text-white text-[13px] font-semibold">Parts unavailable</Text>
+              <Text className="text-gray-400 text-[11px] mt-0.5">
+                Could not load the asset catalogue, so nothing new can be selected.
+              </Text>
+            </View>
+            <TouchableOpacity
+              className="px-3 py-1.5 rounded-full border border-[#B366FF]"
+              onPress={() => catalogue.refetch()}
+              accessibilityRole="button"
+              accessibilityLabel="Retry loading avatar assets"
+            >
+              <Text className="text-[#B366FF] text-[11px] font-bold">Retry</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
         {/* Customization Sections */}
         {!isFullbody ? (
           <>
@@ -529,11 +610,6 @@ const GenerateAvatarScreen = () => {
                         resizeMode="cover"
                       />
                     </View>
-                    {/* Price tag */}
-                    <View className="absolute bottom-0 bg-[#B366FF] px-2 py-1 rounded-full flex-row items-center border border-[#3A144E]">
-                      <Text className="text-xs">🪙</Text>
-                      <Text className="text-white text-[10px] font-bold ml-1">224</Text>
-                    </View>
                   </TouchableOpacity>
                 ))}
               </ScrollView>
@@ -554,11 +630,6 @@ const GenerateAvatarScreen = () => {
                       className={`w-[60px] h-[60px] rounded-full mb-3 border-2 ${selectedHairColor === color ? 'border-white' : 'border-[#5B1F7D]'}`}
                       style={{ backgroundColor: color }}
                     />
-                    {/* Price tag */}
-                    <View className="absolute bottom-0 bg-[#B366FF] px-2 py-1 rounded-full flex-row items-center border border-[#3A144E]">
-                      <Text className="text-xs">🪙</Text>
-                      <Text className="text-white text-[10px] font-bold ml-1">224</Text>
-                    </View>
                   </TouchableOpacity>
                 ))}
               </ScrollView>
@@ -582,11 +653,6 @@ const GenerateAvatarScreen = () => {
                         resizeMode="contain"
                       />
                     </View>
-                    {/* Price tag */}
-                    {/* <View className="absolute bottom-0 bg-[#3A144E] px-2 py-1 rounded-full flex-row items-center">
-                      <Text className="text-xs opacity-50">🪙</Text>
-                      <Text className="text-white text-[10px] font-bold ml-1 opacity-50">224</Text>
-                    </View> */}
                   </TouchableOpacity>
                 ))}
               </ScrollView>
@@ -602,7 +668,19 @@ const GenerateAvatarScreen = () => {
                       key={`half-body-color-${index}`}
                       activeOpacity={0.8}
                       className="mr-3 items-center"
-                      onPress={() => setSelectedBodyColor(selectedBodyColor === index ? null : index)}
+                      onPress={() => {
+                        // A real catalogue asset, so the same rules apply here
+                        // as in the part pickers.
+                        const assetKey = idAt('bodyColor', index);
+                        const state = catalogue.stateOf(assetKey);
+                        if (state.isSelectable) {
+                          setSelectedBodyColor(selectedBodyColor === index ? null : index);
+                        } else if (state.availability === 'locked') {
+                          handlePurchase('bodyColor', index);
+                        } else {
+                          explainBlocked('bodyColor', index);
+                        }
+                      }}
                     >
                       <View
                         className={`w-[72px] h-[90px] rounded-xl border-2 ${selectedBodyColor === index ? 'border-[#B366FF]' : 'border-[#5B1F7D]'} bg-[#1A0B2E] overflow-hidden items-center justify-center`}
@@ -612,10 +690,6 @@ const GenerateAvatarScreen = () => {
                           className="w-full h-full"
                           resizeMode="contain"
                         />
-                      </View>
-                      <View className="absolute bottom-0 bg-[#B366FF] px-2 py-1 rounded-full flex-row items-center border border-[#3A144E]">
-                        <Text className="text-xs">🪙</Text>
-                        <Text className="text-white text-[10px] font-bold ml-1">224</Text>
                       </View>
                     </TouchableOpacity>
                   ))}
@@ -629,27 +703,23 @@ const GenerateAvatarScreen = () => {
             <View className="mb-6">
               <Text className="text-white text-base font-medium px-6 mb-4">Full Body Hair</Text>
               <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 24 }}>
-                {FULLBODY_HAIR.map((hair, index) => (
-                  <TouchableOpacity
-                    key={`fb-hair-${index}`}
-                    activeOpacity={0.8}
-                    className="mr-3 items-center"
-                    onPress={() => setSelectedFullbodyHair(index)}
-                  >
-                    <View className="w-[72px] h-[90px] rounded-xl border border-[#5B1F7D] bg-[#1A0B2E] overflow-hidden items-center">
-                      <Image
-                        source={hair.source}
-                        className="w-[250%] h-[250%] absolute top-[-10%]"
-                        resizeMode="contain"
-                      />
-                    </View>
-                    {/* Price tag */}
-                    {/* <View className="absolute bottom-0 bg-[#B366FF] px-2 py-1 rounded-full flex-row items-center border border-[#3A144E]">
-                      <Text className="text-xs">🪙</Text>
-                      <Text className="text-white text-[10px] font-bold ml-1">224</Text>
-                    </View> */}
-                  </TouchableOpacity>
-                ))}
+                {FULLBODY_HAIR.map((hair, index) => {
+                  const assetKey = idAt('hair', index);
+                  return (
+                    <AssetPickerTile
+                      key={`fb-hair-${assetKey ?? index}`}
+                      source={hair.source}
+                      imageClassName="w-[250%] h-[250%] absolute top-[-10%]"
+                      state={catalogue.stateOf(assetKey)}
+                      isSelected={selectedFullbodyHair === index}
+                      onSelect={() => setSelectedFullbodyHair(index)}
+                      onPurchase={() => handlePurchase('hair', index)}
+                      onBlocked={() => explainBlocked('hair', index)}
+                      isPurchasing={purchasingKey !== null && purchasingKey === assetKey}
+                      accessibilityLabel="Hair style"
+                    />
+                  );
+                })}
               </ScrollView>
             </View>
 
@@ -668,11 +738,6 @@ const GenerateAvatarScreen = () => {
                       className={`w-[60px] h-[60px] rounded-full mb-3 border-2 ${selectedHairColor === color ? 'border-white' : 'border-[#5B1F7D]'}`}
                       style={{ backgroundColor: color }}
                     />
-                    {/* Price tag */}
-                    <View className="absolute bottom-0 bg-[#B366FF] px-2 py-1 rounded-full flex-row items-center border border-[#3A144E]">
-                      <Text className="text-xs">🪙</Text>
-                      <Text className="text-white text-[10px] font-bold ml-1">224</Text>
-                    </View>
                   </TouchableOpacity>
                 ))}
               </ScrollView>
@@ -688,7 +753,19 @@ const GenerateAvatarScreen = () => {
                       key={`fb-body-color-${index}`}
                       activeOpacity={0.8}
                       className="mr-3 items-center"
-                      onPress={() => setSelectedBodyColor(selectedBodyColor === index ? null : index)}
+                      onPress={() => {
+                        // A real catalogue asset, so the same rules apply here
+                        // as in the part pickers.
+                        const assetKey = idAt('bodyColor', index);
+                        const state = catalogue.stateOf(assetKey);
+                        if (state.isSelectable) {
+                          setSelectedBodyColor(selectedBodyColor === index ? null : index);
+                        } else if (state.availability === 'locked') {
+                          handlePurchase('bodyColor', index);
+                        } else {
+                          explainBlocked('bodyColor', index);
+                        }
+                      }}
                     >
                       <View
                         className={`w-[72px] h-[90px] rounded-xl border-2 ${selectedBodyColor === index ? 'border-[#B366FF]' : 'border-[#5B1F7D]'} bg-[#1A0B2E] overflow-hidden items-center justify-center`}
@@ -699,10 +776,6 @@ const GenerateAvatarScreen = () => {
                           resizeMode="contain"
                         />
                       </View>
-                      <View className="absolute bottom-0 bg-[#B366FF] px-2 py-1 rounded-full flex-row items-center border border-[#3A144E]">
-                        <Text className="text-xs">🪙</Text>
-                        <Text className="text-white text-[10px] font-bold ml-1">224</Text>
-                      </View>
                     </TouchableOpacity>
                   ))}
                 </ScrollView>
@@ -712,22 +785,23 @@ const GenerateAvatarScreen = () => {
             <View className="mb-6">
               <Text className="text-white text-base font-medium px-6 mb-4">Skirt</Text>
               <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 24 }}>
-                {FULLBODY_SKIRTS.map((skirt, index) => (
-                  <TouchableOpacity
-                    key={`fb-skirt-${index}`}
-                    activeOpacity={0.8}
-                    className="mr-3 items-center"
-                    onPress={() => setSelectedFullbodySkirt(index)}
-                  >
-                    <View className="w-[72px] h-[90px] rounded-xl border border-[#5B1F7D] bg-[#1A0B2E] overflow-hidden items-center">
-                      <Image
-                        source={skirt.source}
-                        className="w-[220%] h-[220%] absolute top-[-40%]"
-                        resizeMode="contain"
-                      />
-                    </View>
-                  </TouchableOpacity>
-                ))}
+                {FULLBODY_SKIRTS.map((skirt, index) => {
+                  const assetKey = idAt('skirt', index);
+                  return (
+                    <AssetPickerTile
+                      key={`fb-skirt-${assetKey ?? index}`}
+                      source={skirt.source}
+                      imageClassName="w-[220%] h-[220%] absolute top-[-40%]"
+                      state={catalogue.stateOf(assetKey)}
+                      isSelected={selectedFullbodySkirt === index}
+                      onSelect={() => setSelectedFullbodySkirt(index)}
+                      onPurchase={() => handlePurchase('skirt', index)}
+                      onBlocked={() => explainBlocked('skirt', index)}
+                      isPurchasing={purchasingKey !== null && purchasingKey === assetKey}
+                      accessibilityLabel="Skirt"
+                    />
+                  );
+                })}
               </ScrollView>
             </View>
 
@@ -735,27 +809,23 @@ const GenerateAvatarScreen = () => {
               <View className="mb-6">
                 <Text className="text-white text-base font-medium px-6 mb-4">Full Body Outfit</Text>
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 24 }}>
-                  {FULLBODY_OUTFITS.map((outfit, index) => (
-                    <TouchableOpacity
-                      key={`fb-outfit-${index}`}
-                      activeOpacity={0.8}
-                      className="mr-3 items-center"
-                      onPress={() => setSelectedFullbodyOutfit(index)}
-                    >
-                      <View className="w-[72px] h-[90px] rounded-xl border border-[#5B1F7D] bg-[#1A0B2E] overflow-hidden items-center">
-                        <Image
-                          source={outfit.source}
-                          className="w-[220%] h-[220%] absolute top-[-25%]"
-                          resizeMode="contain"
-                        />
-                      </View>
-                      {/* Price tag */}
-                      <View className="absolute bottom-0 bg-[#B366FF] px-2 py-1 rounded-full flex-row items-center border border-[#3A144E]">
-                        <Text className="text-xs">🪙</Text>
-                        <Text className="text-white text-[10px] font-bold ml-1">224</Text>
-                      </View>
-                    </TouchableOpacity>
-                  ))}
+                  {FULLBODY_OUTFITS.map((outfit, index) => {
+                    const assetKey = idAt('outfit', index);
+                    return (
+                      <AssetPickerTile
+                        key={`fb-outfit-${assetKey ?? index}`}
+                        source={outfit.source}
+                        imageClassName="w-[220%] h-[220%] absolute top-[-25%]"
+                        state={catalogue.stateOf(assetKey)}
+                        isSelected={selectedFullbodyOutfit === index}
+                        onSelect={() => setSelectedFullbodyOutfit(index)}
+                        onPurchase={() => handlePurchase('outfit', index)}
+                        onBlocked={() => explainBlocked('outfit', index)}
+                        isPurchasing={purchasingKey !== null && purchasingKey === assetKey}
+                        accessibilityLabel="Outfit"
+                      />
+                    );
+                  })}
                 </ScrollView>
               </View>
             )}
@@ -764,27 +834,23 @@ const GenerateAvatarScreen = () => {
               <View className="mb-6">
                 <Text className="text-white text-base font-medium px-6 mb-4">Shoes</Text>
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 24 }}>
-                  {SHOES.map((shoe, index) => (
-                    <TouchableOpacity
-                      key={`fb-shoe-${index}`}
-                      activeOpacity={0.8}
-                      className="mr-3 items-center"
-                      onPress={() => setSelectedShoes(index)}
-                    >
-                      <View className="w-[72px] h-[90px] rounded-xl border border-[#5B1F7D] bg-[#1A0B2E] overflow-hidden items-center">
-                        <Image
-                          source={shoe.source}
-                          className="w-[280%] h-[280%] absolute bottom-[0%]"
-                          resizeMode="contain"
-                        />
-                      </View>
-                      {/* Price tag */}
-                      <View className="absolute bottom-0 bg-[#B366FF] px-2 py-1 rounded-full flex-row items-center border border-[#3A144E]">
-                        <Text className="text-xs">🪙</Text>
-                        <Text className="text-white text-[10px] font-bold ml-1">224</Text>
-                      </View>
-                    </TouchableOpacity>
-                  ))}
+                  {SHOES.map((shoe, index) => {
+                    const assetKey = idAt('shoes', index);
+                    return (
+                      <AssetPickerTile
+                        key={`fb-shoe-${assetKey ?? index}`}
+                        source={shoe.source}
+                        imageClassName="w-[280%] h-[280%] absolute bottom-[0%]"
+                        state={catalogue.stateOf(assetKey)}
+                        isSelected={selectedShoes === index}
+                        onSelect={() => setSelectedShoes(index)}
+                        onPurchase={() => handlePurchase('shoes', index)}
+                        onBlocked={() => explainBlocked('shoes', index)}
+                        isPurchasing={purchasingKey !== null && purchasingKey === assetKey}
+                        accessibilityLabel="Shoes"
+                      />
+                    );
+                  })}
                 </ScrollView>
               </View>
             )}
@@ -856,6 +922,13 @@ const GenerateAvatarScreen = () => {
               // including the presign rejecting an invalid primaryPath - looked
               // to the user like the button simply did nothing. Surface enough
               // detail to tell a capture failure from a network one.
+              // The backend validates the config on save, so a rejection here
+              // is a real answer about the parts rather than a transport fault.
+              if (error?.status === 403) {
+                showToast.error('You do not own every part', error?.data?.message);
+                return;
+              }
+
               const status = error?.status ? ` (${error.status})` : '';
               const detail =
                 error?.data?.message || error?.message || 'Unexpected error';
