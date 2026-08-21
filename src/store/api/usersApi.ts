@@ -14,12 +14,16 @@ export const usersApi = baseApi.injectEndpoints({
         method: 'PATCH',
         body: data,
       }),
+      transformResponse: (response: any) => response?.data ?? response,
+      invalidatesTags: ['User'],
     }),
     getMe: builder.query<any, void>({
       query: () => ({
         url: '/users/me',
         method: 'GET',
       }),
+      transformResponse: (response: any) => response?.data ?? response,
+      providesTags: ['User'],
     }),
     getPreSignedUrl: builder.query<{ message: string; data: { url: string; key: string; method: string } }, { fileName: string; primaryPath: string; expiresIn: string }>({
       query: (params) => ({

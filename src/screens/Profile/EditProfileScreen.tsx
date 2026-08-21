@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, TextInput, ImageBackground, Image, ScrollView } from 'react-native';
+import { View, Text, TouchableOpacity, TextInput, ImageBackground, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ChevronLeft, Settings, Edit2, User, MapPin, Users, ChevronDown, Home } from 'lucide-react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useSelector, useDispatch } from 'react-redux';
 import { RootState } from '../../store';
+import Avatar from '../../components/common/Avatar';
 import { updateUser } from '../../store/slices/authSlice';
 import { useGetMeQuery, useUpdateMeMutation } from '../../store/api/usersApi';
 import { showToast } from '../../utils/toast';
@@ -13,7 +14,6 @@ import { ActivityIndicator, Alert } from 'react-native';
 export default function EditProfileScreen() {
   const navigation = useNavigation();
   const dispatch = useDispatch();
-  const avatars = useSelector((state: RootState) => state.avatar.savedAvatars);
   const authUser = useSelector((state: RootState) => state.auth.user);
 
   const { data: userData, isLoading: isFetchingMe } = useGetMeQuery();
@@ -30,15 +30,18 @@ export default function EditProfileScreen() {
     }
   }, [userData, authUser?.fullName, authUser?.username]);
 
-  const userAvatarUri = avatars.length > 0
-    ? avatars[0].imageUri
-    : (userData?.data?.avatarUrl || userData?.avatarUrl || authUser?.avatarUrl || 'https://i.pravatar.cc/150?img=11');
+  // Server first: the local draft slice used to win here, so a freshly built
+  // avatar shadowed the saved one and a `file://` path could be written back
+  // into auth.user.avatarUrl.
+  const userAvatarUri = userData?.data?.avatarUrl || userData?.avatarUrl || authUser?.avatarUrl || null;
 
   const handleSave = async () => {
     try {
       await updateMe({ fullName, username }).unwrap();
       // Sync saved changes to global auth state
-      dispatch(updateUser({ fullName, username, avatarUrl: userAvatarUri }));
+      // Only the fields this form actually edits - writing the avatar back here
+      // is what used to poison auth.user with a device-local path.
+      dispatch(updateUser({ fullName, username }));
       showToast.success('Success', 'Profile updated successfully');
       navigation.goBack();
     } catch (error: any) {
@@ -90,7 +93,7 @@ export default function EditProfileScreen() {
           {/* Avatar over the Banner edge */}
           <View className="absolute -bottom-[60px] left-1/2 -ml-[60px] items-center justify-center z-10">
             <View className="w-[120px] h-[120px] rounded-full border-[4px] border-black overflow-hidden relative">
-              <Image source={{ uri: userAvatarUri }} className="w-full h-full" />
+              <Avatar uri={userAvatarUri} name={fullName} size={96} />
             </View>
             <TouchableOpacity 
               className="absolute bottom-1 right-2 w-8 h-8 bg-black rounded-full justify-center items-center border-[2px] border-[#FFB84D]"

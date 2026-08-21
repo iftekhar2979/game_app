@@ -3,6 +3,7 @@ import { Dimensions, Image, ScrollView, Text, TouchableOpacity, View } from 'rea
 import { AlertTriangle, MessageSquare, Trash2 } from 'lucide-react-native';
 import { CommunityPost, ReactionType } from '../../store/api/socialApi';
 import { ReactionBar } from './ReactionBar';
+import Avatar from '../common/Avatar';
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
 
@@ -47,15 +48,12 @@ export const PostCard = ({
     <View className="px-5 mb-8">
       {/* Author */}
       <View className="flex-row items-center mb-3">
-        {author?.avatarUrl ? (
-          <Image source={{ uri: author.avatarUrl }} className="w-9 h-9 rounded-full mr-3" />
-        ) : (
-          <View className="w-9 h-9 rounded-full mr-3 bg-[#1E439B] justify-center items-center">
-            <Text className="text-white text-[12px] font-bold">
-              {(author?.fullName || '?').slice(0, 2).toUpperCase()}
-            </Text>
-          </View>
-        )}
+        <Avatar
+          uri={author?.avatarUrl}
+          name={author?.fullName}
+          size={36}
+          style={{ marginRight: 12 }}
+        />
         <View className="flex-1 justify-center">
           <Text className="text-white text-[15px] font-semibold" numberOfLines={1}>
             {author?.fullName || 'Community member'}

@@ -5,11 +5,18 @@ import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { ChevronLeft } from 'lucide-react-native';
 import { useDispatch } from 'react-redux';
-import { saveAvatar } from '../../store/slices/avatarSlice';
+import { updateUser } from '../../store/slices/authSlice';
 import ViewShot from 'react-native-view-shot';
 import { RootStackParamList } from '../../../App';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useUpdateMeMutation, useLazyGetPreSignedUrlQuery } from '../../store/api/usersApi';
+import { useLazyGetPreSignedUrlQuery } from '../../store/api/usersApi';
+import { useSaveAvatarMutation } from '../../store/api/avatarApi';
+import { uploadImage } from '../../services/mediaUpload';
+import { authStorage } from '../../services/authStorage';
+import { showToast } from '../../utils/toast';
+import { BASES, listFor } from '../../avatar/registry';
+import { REGISTRY_VERSION } from '../../avatar/registry';
+import { AvatarConfig, AvatarSlot } from '../../avatar/types';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList, 'GenerateAvatar'>;
 type GenerateAvatarRouteProp = RouteProp<RootStackParamList, 'GenerateAvatar'>;
@@ -136,8 +143,11 @@ const GenerateAvatarScreen = () => {
   const dispatch = useDispatch();
   const viewShotRef = useRef<any>(null);
 
-  const [updateMe, { isLoading: isUpdating }] = useUpdateMeMutation();
+  const [saveAvatarToServer, { isLoading: isUpdating }] = useSaveAvatarMutation();
   const [getPreSignedUrl] = useLazyGetPreSignedUrlQuery();
+  const [isSaving, setIsSaving] = useState(false);
+  // Strips the preview chrome for the one frame that gets captured.
+  const [isCapturing, setIsCapturing] = useState(false);
 
   const target = route.params?.target || 'female';
   const avatarCategory = route.params?.avatarCategory || 1;
@@ -152,6 +162,38 @@ const GenerateAvatarScreen = () => {
 
   const baseImage = route.params?.baseImage || require('../../assets/images/avatar/base/base_avatar_3.png');
   const isFullbody = route.params?.isFullbody === true;
+
+  /**
+   * The base this look is built on. Derived from the route's target + category
+   * rather than the `require()` handle, so the saved config references a stable
+   * id instead of a bundler-assigned number.
+   */
+  const activeBase = BASES.find((b) => b.target === target && b.category === avatarCategory);
+
+  /**
+   * The pickers still hold indices into their filtered lists; the registry
+   * preserves that same order, so an index maps back to a stable asset id here.
+   * Only ids are ever persisted - an index would silently point at different
+   * artwork as soon as any asset is added or reordered.
+   */
+  const idAt = (slot: AvatarSlot, index: number | null): string | null => {
+    if (index === null || index === undefined || !activeBase) return null;
+    const options = listFor(slot, activeBase.target, activeBase.category);
+    return options[index]?.id ?? null;
+  };
+
+  const buildConfig = (): AvatarConfig => ({
+    version: REGISTRY_VERSION,
+    base: activeBase!.id,
+    parts: {
+      bodyColor: idAt('bodyColor', selectedBodyColor),
+      skirt: idAt('skirt', isFullbody ? selectedFullbodySkirt : null),
+      shoes: idAt('shoes', isFullbody ? selectedShoes : null),
+      outfit: idAt('outfit', isFullbody ? selectedFullbodyOutfit : selectedBody),
+      hair: idAt('hair', isFullbody ? selectedFullbodyHair : selectedHair),
+    },
+    hairColor: selectedHairColor,
+  });
   const previewHeight = isFullbody ? FULLBODY_PREVIEW_HEIGHT : PREVIEW_HEIGHT;
 
   const getHalfClosedEyeSource = () => {
@@ -250,12 +292,23 @@ const GenerateAvatarScreen = () => {
 
         {/* Large Avatar Preview */}
         <View className="px-6 mb-8">
-          <ViewShot ref={viewShotRef} options={{ format: 'png', quality: 0.9 }}>
+          <ViewShot
+            ref={viewShotRef}
+            options={{ format: 'png', quality: 1, result: 'tmpfile' }}
+          >
             <View
-              style={[styles.previewContainer, { height: previewHeight }]}
+              style={[
+                styles.previewContainer,
+                { height: previewHeight },
+                // Chrome is stripped for the capture frame only, so the saved
+                // PNG is the character on transparency rather than an opaque
+                // dark card that shows as corners in a circular frame.
+                isCapturing && styles.capturingContainer,
+              ]}
             >
-              {/* The glow effect behind avatar */}
-              <View className="absolute top-10 w-48 h-48 rounded-full bg-[#B366FF] opacity-20 blur-3xl" />
+              {!isCapturing && (
+                <View className="absolute top-10 w-48 h-48 rounded-full bg-[#B366FF] opacity-20 blur-3xl" />
+              )}
 
               <Animated.View
                 style={[
@@ -392,6 +445,7 @@ const GenerateAvatarScreen = () => {
               </Animated.View>
 
               {/* Gradient Overlay to hide edge artifacts */}
+              {!isCapturing && (
               <View className="absolute bottom-0 w-full h-24 pointer-events-none">
                 <Svg height="100%" width="100%">
                   <Defs>
@@ -403,6 +457,7 @@ const GenerateAvatarScreen = () => {
                   <Rect width="100%" height="100%" fill="url(#grad)" />
                 </Svg>
               </View>
+              )}
             </View>
           </ViewShot>
         </View>
@@ -697,81 +752,75 @@ const GenerateAvatarScreen = () => {
         <TouchableOpacity
           className="w-full bg-black/60 border border-[#B366FF] py-4 rounded-full items-center justify-center backdrop-blur-md"
           activeOpacity={0.8}
-          disabled={isUpdating}
+          disabled={isUpdating || isSaving}
           onPress={async () => {
-            if (viewShotRef.current && viewShotRef.current.capture) {
+            if (!viewShotRef.current?.capture) return;
+
+            if (!activeBase) {
+              showToast.error('This avatar base is no longer available');
+              return;
+            }
+
+            try {
+              setIsSaving(true);
+
+              // Freeze the blink loop and strip the card chrome, then let a
+              // couple of frames land before capturing so the snapshot is
+              // deterministic and has a transparent background.
+              setEyeState('open');
+              setIsCapturing(true);
+              await new Promise((resolve) => setTimeout(resolve, 120));
+
+              let uri: string;
               try {
-                const uri = await viewShotRef.current.capture();
-                const config = {
-                  target,
-                  avatarCategory,
-                  isFullbody,
-                  details: {
-                    selectedHair,
-                    selectedHairColor,
-                    selectedBody,
-                    selectedBodyColor,
-                    selectedFullbodyHair,
-                    selectedFullbodySkirt,
-                    selectedFullbodyOutfit,
-                    selectedShoes,
-                  },
-                };
-
-                // 1. Get Pre-signed URL
-                const fileName = `avatar_${Date.now()}.png`;
-                const { data: preSignedData } = await getPreSignedUrl({
-                  fileName,
-                  primaryPath: 'Avatars',
-                  expiresIn: '900'
-                }).unwrap();
-                
-                if (preSignedData && preSignedData.url) {
-                  // 2. Upload to S3
-                  const response = await fetch(uri);
-                  const blob = await response.blob();
-                  
-                  await fetch(preSignedData.url, {
-                    method: 'PUT',
-                    body: blob,
-                    headers: {
-                      'Content-Type': 'image/png',
-                    },
-                  });
-
-                  // 3. Extract the final S3 URL (without the query params)
-                  const avatarUrl = preSignedData.url.split('?')[0];
-
-                  // 4. Save to Backend
-                  await updateMe({
-                    avatarUrl,
-                    avatarConfig: config
-                  }).unwrap();
-                }
-
-                // 5. Save locally in Redux (Optional but good for immediate state)
-                dispatch(
-                  saveAvatar({
-                    id: Date.now().toString(),
-                    imageUri: uri,
-                    configuration: config,
-                    createdAt: Date.now(),
-                  })
-                );
-
-                // Navigate to the correct screen
-                if (route.params?.returnTo) {
-                  navigation.navigate(route.params.returnTo as any);
-                } else {
-                  navigation.navigate('Home');
-                }
-              } catch (error) {
-                console.error('Failed to capture and upload avatar', error);
+                uri = await viewShotRef.current.capture();
+              } finally {
+                setIsCapturing(false);
               }
+              const config = buildConfig();
+
+              // Reuses the shared upload helper: it checks the PUT response and
+              // returns the S3 *key*. The key is what gets persisted - a signed
+              // URL expires, and the backend re-signs on every read.
+              const avatarKey = await uploadImage(
+                { uri, fileName: `avatar_${Date.now()}.png`, type: 'image/png' },
+                getPreSignedUrl as any,
+                0,
+                'Profile_Images',
+              );
+
+              const saved = await saveAvatarToServer({
+                avatarUrl: avatarKey,
+                avatarConfig: config,
+              }).unwrap();
+
+              // Reflect it immediately, and persist so it survives a restart -
+              // Redux alone is wiped on relaunch.
+              // The API returns a signed URL; `?? undefined` because the auth
+              // user type models "no avatar" as absent rather than null.
+              const signedAvatarUrl = saved.avatarUrl ?? undefined;
+              dispatch(updateUser({ avatarUrl: signedAvatarUrl }));
+              const storedUser = (await authStorage.getUser()) || {};
+              await authStorage.saveUser({ ...storedUser, avatarUrl: signedAvatarUrl });
+
+              showToast.success('Avatar saved');
+              navigation.navigate((route.params?.returnTo as any) ?? 'Home');
+            } catch (error: any) {
+              // Previously this was a bare console.error, so every failure -
+              // including the presign rejecting an invalid primaryPath - looked
+              // to the user like the button simply did nothing. Surface enough
+              // detail to tell a capture failure from a network one.
+              const status = error?.status ? ` (${error.status})` : '';
+              const detail =
+                error?.data?.message || error?.message || 'Unexpected error';
+              console.error('[avatar] save failed', error);
+              showToast.error('Could not save your avatar', `${detail}${status}`);
+            } finally {
+              setIsSaving(false);
             }
           }}
         >
-          <Text className="text-white font-semibold text-base">{isUpdating ? 'Saving...' : 'Create avatar'}</Text>
+          <Text className="text-white font-semibold text-base">{isUpdating || isSaving ? 'Saving...' : 'Create avatar'}</Text>
         </TouchableOpacity>
       </View>
     </View>
@@ -782,6 +831,11 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#0F0318',
+  },
+  // Applied only while capturing, so the PNG has no card background or border.
+  capturingContainer: {
+    backgroundColor: 'transparent',
+    borderColor: 'transparent',
   },
   previewContainer: {
     width: '100%',

@@ -13,6 +13,7 @@ import OTPVerificationScreen from './src/screens/Auth/OTPVerificationScreen';
 import ResetPasswordScreen from './src/screens/Auth/ResetPasswordScreen';
 import ExploreAvatarScreen from './src/screens/Avatar/ExploreAvatarScreen';
 import GenerateAvatarScreen from './src/screens/Avatar/GenerateAvatarScreen';
+import AvatarHistoryScreen from './src/screens/Avatar/AvatarHistoryScreen';
 import HomeScreen from './src/screens/Home/HomeScreen';
 import FantasyLeagueScreen from './src/screens/Home/FantasyLeagueScreen';
 import CreateLeagueScreen from './src/screens/Home/CreateLeagueScreen';
@@ -47,6 +48,7 @@ export type RootStackParamList = {
   OTPVerification: undefined;
   ResetPassword: undefined;
   ExploreAvatar: { returnTo?: keyof RootStackParamList } | undefined;
+  AvatarHistory: undefined;
   GenerateAvatar: { baseImage: any; isFullbody?: boolean; target?: 'female' | 'male'; avatarCategory?: number; returnTo?: keyof RootStackParamList };
   Home: undefined;
   FantasyLeague: undefined;
@@ -127,6 +129,7 @@ function AppContent() {
               <Stack.Screen name="AdminSupport" component={AdminSupportScreen} />
               <Stack.Screen name="ExploreAvatar" component={ExploreAvatarScreen} />
               <Stack.Screen name="GenerateAvatar" component={GenerateAvatarScreen} />
+              <Stack.Screen name="AvatarHistory" component={AvatarHistoryScreen} />
             </Stack.Group>
           )}
         </Stack.Navigator>

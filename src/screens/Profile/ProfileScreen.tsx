@@ -1,12 +1,14 @@
 import React from 'react';
 import { View, Text, Image, TouchableOpacity, ScrollView, ImageBackground, StyleSheet, Dimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { ChevronLeft, Settings, Edit2, ArrowRight, Dumbbell, Trophy, Medal, BarChart3, ChevronRight, MessageSquare, ThumbsUp, MoreVertical } from 'lucide-react-native';
+import { Sparkles, ChevronLeft, Settings, Edit2, ArrowRight, Dumbbell, Trophy, Medal, BarChart3, ChevronRight, MessageSquare, ThumbsUp, MoreVertical } from 'lucide-react-native';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../../../App';
 import { useSelector } from 'react-redux';
 import { RootState } from '../../store';
+import { useGetMeQuery } from '../../store/api/usersApi';
+import Avatar from '../../components/common/Avatar';
 
 const { width } = Dimensions.get('window');
 
@@ -15,8 +17,11 @@ type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 export default function ProfileScreen() {
   const navigation = useNavigation<NavigationProp>();
   const user = useSelector((state: RootState) => state.auth.user);
-  const avatars = useSelector((state: RootState) => state.avatar.savedAvatars);
-  const userAvatarUri = avatars.length > 0 ? avatars[0].imageUri : 'https://i.pravatar.cc/150?img=11';
+  // The server is the source of truth for your own avatar. The old local slice
+  // held a ViewShot temp path that died on restart, so this screen used to fall
+  // back to a stranger's stock photo.
+  const { data: me } = useGetMeQuery();
+  const userAvatarUri = me?.avatarUrl || (user as any)?.avatarUrl || null;
 
   const MOCK_TEAMS = [
     { id: '1', name: 'Manchester City', logo: 'https://upload.wikimedia.org/wikipedia/en/thumb/e/eb/Manchester_City_FC_badge.svg/150px-Manchester_City_FC_badge.svg.png' },
@@ -58,7 +63,7 @@ export default function ProfileScreen() {
           {/* Avatar over the Banner edge */}
           <View className="absolute -bottom-12 left-1/2 -ml-[50px] items-center justify-center z-10">
             <View className="w-[100px] h-[100px] rounded-full border-[4px] border-black overflow-hidden relative">
-              <Image source={{ uri: userAvatarUri }} className="w-full h-full" />
+              <Avatar uri={userAvatarUri} name={me?.fullName || (user as any)?.fullName} size={96} />
             </View>
             <TouchableOpacity
               className="absolute bottom-1 right-1 w-7 h-7 bg-[#FFB84D] rounded-full justify-center items-center border-[2px] border-black"
@@ -77,6 +82,17 @@ export default function ProfileScreen() {
           <Text className="text-gray-400 text-[13px] mb-4">
             {user?.email || 'Member since - June 2028, Texas'}
           </Text>
+
+          <TouchableOpacity
+            className="flex-row items-center border border-[#8B3DFF] rounded-full px-4 py-1.5 mb-3"
+            onPress={() => navigation.navigate('AvatarHistory')}
+            accessibilityLabel="View my saved avatars"
+            accessibilityRole="button"
+          >
+            <Sparkles color="#8B3DFF" size={14} />
+            <Text className="text-gray-300 text-[14px] font-medium mx-2">My avatars</Text>
+            <ArrowRight color="#999" size={14} />
+          </TouchableOpacity>
 
           <TouchableOpacity
             className="flex-row items-center border border-[#FFB84D] rounded-full px-4 py-1.5 mb-8"
