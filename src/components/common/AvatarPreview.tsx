@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Animated, Image, StyleSheet, View } from 'react-native';
 import Svg, { Defs, Filter, FeColorMatrix, Image as SvgImage } from 'react-native-svg';
 
-import { getEyeSource } from '../../avatar/registry';
+import { FULLBODY_STAGE_SCALE, getEyeSource } from '../../avatar/registry';
 import { baseOf, resolveConfig } from '../../avatar/resolveConfig';
 import { AvatarConfig } from '../../avatar/types';
 import Avatar from './Avatar';
@@ -116,10 +116,10 @@ export default function AvatarPreview({
         style={[
           styles.stage,
           {
-            // Only the breathe transform, matching the editor: its stage style
-            // also sets `scale`, but an inline transform replaces the array
-            // wholesale, so that scale never actually applies there either.
-            transform: [{ scaleX }, { scaleY }],
+            // Mirrors the editor's stage transform, including the static scale
+            // it composes in. Keep these two in step or the wardrobe and the
+            // editor will frame the same avatar differently.
+            transform: [{ scaleX }, { scaleY }, { scale: FULLBODY_STAGE_SCALE }],
             transformOrigin: 'bottom center' as any,
           },
         ]}

@@ -68,7 +68,7 @@ export default function AvatarHistoryScreen() {
     }
   };
 
-  /** Reopens the editor on the base this look was built from. */
+  /** Reopens the editor seeded with this look, ready to be adjusted. */
   const handleEdit = (entry: SavedAvatarEntry) => {
     const config = normaliseConfig(entry.avatarConfig);
     const base = getBaseById(config?.base);
@@ -87,6 +87,9 @@ export default function AvatarHistoryScreen() {
       target: base.target,
       avatarCategory: base.category,
       returnTo: 'AvatarHistory',
+      // Normalised above: unknown ids are already nulled, so the editor opens on
+      // exactly the parts this look still resolves to.
+      config,
     });
   };
 
