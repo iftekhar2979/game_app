@@ -1,7 +1,7 @@
 import React, { useState, useCallback } from 'react';
 import { View, Text, StyleSheet, Image, TouchableOpacity, ScrollView, RefreshControl } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Bell, PlusSquare } from 'lucide-react-native';
+import { Bell, PlusSquare, Trophy } from 'lucide-react-native';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../../../App';
@@ -264,12 +264,27 @@ export default function HomeScreen() {
           </View>
         </View>
 
+        <TouchableOpacity
+          style={styles.dfsCard}
+          activeOpacity={0.85}
+          onPress={() => navigation.navigate('DfsContests')}
+        >
+          <View style={styles.dfsIcon}>
+            <Trophy color="#E0B566" size={25} />
+          </View>
+          <View style={styles.dfsText}>
+            <Text style={styles.dfsTitle}>Daily Fantasy</Text>
+            <Text style={styles.dfsSubtitle}>Pick a contest and build your lineup</Text>
+          </View>
+          <Text style={styles.dfsAction}>Play</Text>
+        </TouchableOpacity>
+
         {/* Dashboard Cards */}
-        {createdLeagues.length > 0 && (
+        {allLeagues.length > 0 && (
           <>
-            <DashboardMatchupCard leagueId={createdLeagues[0].id} navigation={navigation} />
-            <DashboardStandingsCard leagueId={createdLeagues[0].id} navigation={navigation} />
-            <DashboardRecentMatchupCard leagueId={createdLeagues[0].id} navigation={navigation} />
+            <DashboardMatchupCard leagueId={allLeagues[0].id || (allLeagues[0] as any)._id} navigation={navigation} />
+            <DashboardStandingsCard leagueId={allLeagues[0].id || (allLeagues[0] as any)._id} navigation={navigation} />
+            <DashboardRecentMatchupCard leagueId={allLeagues[0].id || (allLeagues[0] as any)._id} navigation={navigation} />
           </>
         )}
 
@@ -444,6 +459,45 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginTop: 16,
     marginBottom: 10,
+  },
+  dfsCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginHorizontal: 20,
+    marginTop: 12,
+    marginBottom: 8,
+    padding: 16,
+    borderRadius: 20,
+    backgroundColor: '#17121f',
+    borderWidth: 1,
+    borderColor: '#5b387e',
+  },
+  dfsIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#2a2038',
+    marginRight: 13,
+  },
+  dfsText: {
+    flex: 1,
+  },
+  dfsTitle: {
+    color: '#fff',
+    fontSize: 17,
+    fontWeight: '700',
+  },
+  dfsSubtitle: {
+    color: '#aaa',
+    fontSize: 12,
+    marginTop: 3,
+  },
+  dfsAction: {
+    color: '#E0B566',
+    fontSize: 14,
+    fontWeight: '700',
   },
   dot: {
     width: 6,

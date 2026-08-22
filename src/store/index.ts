@@ -9,6 +9,7 @@ import './api/seasonApi';
 import './api/leagueApi';
 import './api/socialApi';
 import './api/avatarApi';
+import './api/dfsApi';
 
 export const store = configureStore({
   reducer: {

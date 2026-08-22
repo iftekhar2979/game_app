@@ -38,6 +38,9 @@ import CreateUsernameScreen from './src/screens/Auth/CreateUsernameScreen';
 import { ToastContainer } from './src/components/common/Toast';
 import { authService } from './src/services/authService';
 import { AvatarConfig } from './src/avatar/types';
+import DfsContestsScreen from './src/screens/DFS/DfsContestsScreen';
+import DfsContestDetailScreen from './src/screens/DFS/DfsContestDetailScreen';
+import DfsLineupScreen from './src/screens/DFS/DfsLineupScreen';
 
 export type RootStackParamList = {
   Onboarding1: undefined;
@@ -55,6 +58,9 @@ export type RootStackParamList = {
   GenerateAvatar: { baseImage: any; isFullbody?: boolean; target?: 'female' | 'male'; avatarCategory?: number; returnTo?: keyof RootStackParamList; config?: AvatarConfig | null };
   Home: undefined;
   FantasyLeague: undefined;
+  DfsContests: undefined;
+  DfsContestDetail: { contestId: string };
+  DfsLineup: { contestId: string };
   CreateLeague: undefined;
   LeagueDetail: { leagueId: string };
   DraftRoom: { leagueId: string };
@@ -114,6 +120,9 @@ function AppContent() {
             <Stack.Group>
               <Stack.Screen name="Home" component={HomeScreen} />
               <Stack.Screen name="FantasyLeague" component={FantasyLeagueScreen} />
+              <Stack.Screen name="DfsContests" component={DfsContestsScreen} />
+              <Stack.Screen name="DfsContestDetail" component={DfsContestDetailScreen} />
+              <Stack.Screen name="DfsLineup" component={DfsLineupScreen} />
               <Stack.Screen name="CreateLeague" component={CreateLeagueScreen} />
               <Stack.Screen name="LeagueDetail" component={LeagueDetailScreen} />
               <Stack.Screen name="DraftRoom" component={DraftRoomScreen} />
