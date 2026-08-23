@@ -7,19 +7,34 @@ import { Repeat, Plus, Users, UserCheck, Shield, Globe, Lock, Award, Settings, C
 import { useGetCurrentMatchupQuery, useGetLeagueStandingsQuery, useGetMatchupHistoryQuery } from '../../store/api/leagueApi';
 import { ActivityIndicator } from 'react-native';
 import { RosterSections } from './RosterPlayerRow';
+import { formatFantasyPoints, formatGameStatus, formatMatchupScore } from './matchupDisplay';
 
-export const MatchupTab = ({ leagueId, league }: any) => {
+export const MatchupTab = ({ leagueId, league, selectedWeek, setSelectedWeek }: any) => {
   const isTotalPointsLeague =
-    (league?.matchupSettings?.format ?? 'total_points') === 'total_points';
+    league?.matchupSettings?.format === 'total_points';
+  const defaultWeekStr = `Week ${league?.currentWeek || 1}`;
+  const [localWeek, setLocalWeek] = useState<string | null>(null);
   const [isWeekModalVisible, setIsWeekModalVisible] = useState(false);
-  const [selectedWeek, setSelectedWeek] = useState('Week 1');
   const weeks = Array.from({ length: 18 }, (_, i) => `Week ${i + 1}`);
 
-  const { data: matchupData, isLoading, isError, refetch } = useGetCurrentMatchupQuery(leagueId, {
-    skip: !leagueId || leagueId.startsWith('mock-'),
-  });
+  const activeWeekStr = selectedWeek || localWeek || defaultWeekStr;
+  const selectedWeekNum = parseInt(activeWeekStr.replace('Week ', ''), 10) || (league?.currentWeek || 1);
 
-  if (isLoading) {
+  const changeWeek = (week: string) => {
+    if (setSelectedWeek) {
+      setSelectedWeek(week);
+    } else {
+      setLocalWeek(week);
+    }
+    setIsWeekModalVisible(false);
+  };
+
+  const { currentData: matchupData, isLoading, isFetching, isError, refetch } = useGetCurrentMatchupQuery(
+    { leagueId, week: selectedWeekNum },
+    { skip: !leagueId || leagueId.startsWith('mock-') },
+  );
+
+  if ((isLoading || isFetching) && !matchupData) {
     return (
       <View className="py-12 items-center justify-center">
         <ActivityIndicator size="large" color="#8B3DFF" />
@@ -42,7 +57,21 @@ export const MatchupTab = ({ leagueId, league }: any) => {
     );
   }
 
-  if (isError || !matchupData) {
+  if (isError) {
+    return (
+      <View className="bg-[#1e1e1e] border border-[#333] rounded-[24px] p-6 mb-6 items-center justify-center">
+        <Text className="text-white text-[15px] font-semibold mb-2">Unable to Load Matchup</Text>
+        <Text className="text-gray-400 text-[12px] text-center mb-4">
+          Could not connect to the server. Please check your connection and try again.
+        </Text>
+        <TouchableOpacity className="bg-[#8B3DFF] px-5 py-2.5 rounded-full" onPress={() => refetch()}>
+          <Text className="text-white text-[13px] font-medium">Retry</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
+  if (!matchupData) {
     return (
       <View className="bg-[#1e1e1e] border border-[#333] rounded-[24px] p-6 mb-6 items-center justify-center">
         <Text className="text-white text-[15px] font-semibold mb-2">No Matchup Scheduled</Text>
@@ -59,7 +88,7 @@ export const MatchupTab = ({ leagueId, league }: any) => {
     );
   }
 
-  const { weekNumber, status, myTeam, opponent, result } = matchupData;
+  const { myTeam, opponent, result } = matchupData;
 
   const resultColor =
     result?.status === 'winning'
@@ -73,9 +102,9 @@ export const MatchupTab = ({ leagueId, league }: any) => {
       {/* Matchups Header */}
       <View className="flex-row justify-between items-center mb-4">
         <View className="flex-row items-center">
-          <Text className="text-white text-[18px] font-semibold mr-2">Week {weekNumber || 1}</Text>
+          <Text className="text-white text-[18px] font-semibold mr-2">{activeWeekStr}</Text>
           <View className={`px-2.5 py-0.5 rounded-full border ${resultColor}`}>
-            <Text className="text-[10px] font-bold uppercase">{result?.status || 'pending'}</Text>
+            <Text className="text-[10px] font-bold uppercase">{formatGameStatus(result?.status)}</Text>
           </View>
         </View>
 
@@ -83,7 +112,7 @@ export const MatchupTab = ({ leagueId, league }: any) => {
           className="flex-row items-center p-2"
           onPress={() => setIsWeekModalVisible(true)}
         >
-          <Text className="text-gray-400 text-[12px] mr-2">Week {weekNumber || 1}</Text>
+          <Text className="text-gray-400 text-[12px] mr-2">{activeWeekStr}</Text>
           <Repeat color="#999" size={14} />
         </TouchableOpacity>
       </View>
@@ -105,7 +134,7 @@ export const MatchupTab = ({ leagueId, league }: any) => {
               {myTeam?.teamName || 'My Team'}
             </Text>
             
-            <Text className="text-[#8B3DFF] text-[22px] font-extrabold">{myTeam?.score ?? 0}</Text>
+            <Text className="text-[#8B3DFF] text-[22px] font-extrabold">{formatMatchupScore(myTeam?.score)}</Text>
             <Text className="text-gray-500 text-[9px] uppercase font-bold">Points</Text>
           </View>
 
@@ -123,7 +152,7 @@ export const MatchupTab = ({ leagueId, league }: any) => {
               {opponent?.teamName || 'Opponent'}
             </Text>
             
-            <Text className="text-gray-200 text-[22px] font-extrabold">{opponent?.score ?? 0}</Text>
+            <Text className="text-gray-200 text-[22px] font-extrabold">{formatMatchupScore(opponent?.score)}</Text>
             <Text className="text-gray-500 text-[9px] uppercase font-bold">Points</Text>
           </View>
         </View>
@@ -151,8 +180,8 @@ export const MatchupTab = ({ leagueId, league }: any) => {
                   </View>
                 </View>
                 <View className="items-end ml-2">
-                  <Text className="text-[#E0B566] text-[13px] font-bold">+{starter.fantasyPoints ?? 0} pts</Text>
-                  <Text className="text-gray-500 text-[9px] uppercase">{starter.gameStatus || 'scheduled'}</Text>
+                  <Text className="text-[#E0B566] text-[13px] font-bold">{formatFantasyPoints(starter.fantasyPoints)}</Text>
+                  <Text className="text-gray-500 text-[9px] uppercase">{formatGameStatus(starter.gameStatus)}</Text>
                 </View>
               </View>
             ))
@@ -179,8 +208,8 @@ export const MatchupTab = ({ leagueId, league }: any) => {
                   </View>
                 </View>
                 <View className="items-end ml-2">
-                  <Text className="text-gray-300 text-[13px] font-bold">+{starter.fantasyPoints ?? 0} pts</Text>
-                  <Text className="text-gray-500 text-[9px] uppercase">{starter.gameStatus || 'scheduled'}</Text>
+                  <Text className="text-gray-300 text-[13px] font-bold">{formatFantasyPoints(starter.fantasyPoints)}</Text>
+                  <Text className="text-gray-500 text-[9px] uppercase">{formatGameStatus(starter.gameStatus)}</Text>
                 </View>
               </View>
             ))
@@ -210,13 +239,12 @@ export const MatchupTab = ({ leagueId, league }: any) => {
               {weeks.map((week, index) => (
                 <TouchableOpacity
                   key={index}
-                  className={`w-[31%] border ${selectedWeek === week ? 'border-[#FFB84D]' : 'border-gray-400'} rounded-[12px] py-2 mb-4 justify-center items-center`}
+                  className={`w-[31%] border ${activeWeekStr === week ? 'border-[#FFB84D] bg-[#FFB84D]/10' : 'border-gray-400'} rounded-[12px] py-2 mb-4 justify-center items-center`}
                   onPress={() => {
-                    setSelectedWeek(week);
-                    setIsWeekModalVisible(false);
+                    changeWeek(week);
                   }}
                 >
-                  <Text className={`${selectedWeek === week ? 'text-[#FFB84D]' : 'text-white'} text-[13px]`}>{week}</Text>
+                  <Text className={`${activeWeekStr === week ? 'text-[#FFB84D] font-bold' : 'text-white'} text-[13px]`}>{week}</Text>
                 </TouchableOpacity>
               ))}
             </View>
@@ -781,5 +809,4 @@ export const LeagueTab = ({ leagueId, userTeamId, league }: any) => {
     </View>
   );
 };
-
 

@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useCallback, useState } from 'react';
 import {
   ActivityIndicator,
+  RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
@@ -33,6 +34,16 @@ export default function DfsContestDetailScreen({ navigation, route }: Props) {
   const contestQuery = useGetDfsContestQuery(contestId);
   const entryQuery = useGetMyDfsEntryQuery(contestId);
   const entryMissing = isDfsEntryMissing(entryQuery.error);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      await Promise.all([contestQuery.refetch(), entryQuery.refetch()]);
+    } finally {
+      setRefreshing(false);
+    }
+  }, [contestQuery, entryQuery]);
 
   if (contestQuery.isLoading || entryQuery.isLoading) {
     return (
@@ -57,12 +68,18 @@ export default function DfsContestDetailScreen({ navigation, route }: Props) {
           <Text className="text-white text-lg font-bold">
             Contest unavailable
           </Text>
-          <Text className="text-gray-400 text-sm text-center mt-2">
+          <Text className="text-gray-400 text-sm text-center mt-2 mb-5">
             {getDfsErrorMessage(
               contestQuery.error,
               'This contest is no longer available.',
             )}
           </Text>
+          <TouchableOpacity
+            className="bg-[#8B3DFF] px-5 py-3 rounded-xl"
+            onPress={onRefresh}
+          >
+            <Text className="text-white font-bold">Try Again</Text>
+          </TouchableOpacity>
         </View>
       </SafeAreaView>
     );
@@ -96,7 +113,18 @@ export default function DfsContestDetailScreen({ navigation, route }: Props) {
         </Text>
       </View>
 
-      <ScrollView contentContainerStyle={styles.content}>
+      <ScrollView
+        contentContainerStyle={styles.content}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor="#E0B566"
+            colors={['#E0B566', '#8B3DFF']}
+            progressBackgroundColor="#121212"
+          />
+        }
+      >
         <View className="bg-[#17121f] border border-[#5b387e] rounded-[24px] p-5 mb-5">
           <Text className="text-[#E0B566] text-xs font-bold uppercase">
             {contest.status} ·{' '}
