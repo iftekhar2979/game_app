@@ -459,6 +459,15 @@ export default function DfsLineupScreen({ navigation, route }: Props) {
               data={slateAthletes}
               keyExtractor={getSlateAthleteId}
               contentContainerStyle={styles.playerList}
+              refreshControl={
+                <RefreshControl
+                  refreshing={refreshing}
+                  onRefresh={onRefresh}
+                  tintColor="#E0B566"
+                  colors={['#E0B566', '#8B3DFF']}
+                  progressBackgroundColor="#121212"
+                />
+              }
               ListEmptyComponent={
                 <Text className="text-gray-400 text-center py-8">
                   No players are available.

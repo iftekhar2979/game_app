@@ -61,6 +61,7 @@ export interface ApiLeaguePayload {
   joinedTeamCount?: number;
   membersCount?: number;
   maxTeams?: number;
+  currentWeek?: number;
   code?: string;
   seasonId?: string;
   creatorId?: string;
@@ -88,6 +89,7 @@ export default function LeagueDetailScreen() {
   const navigation = useNavigation<NavigationProp>();
   const route = useRoute<RouteProps>();
   const { leagueId } = route.params;
+  const [selectedMatchupWeek, setSelectedMatchupWeek] = useState<string | null>(null);
 
   // Fetch real API league data if leagueId is a valid 24-character MongoDB ObjectId
   const isRealApiId = !!leagueId && /^[0-9a-fA-F]{24}$/.test(String(leagueId));
@@ -140,9 +142,19 @@ export default function LeagueDetailScreen() {
   const { data: apiRostersData, refetch: refetchLeagueRosters } = useGetLeagueRostersQuery(leagueId, {
     skip: isMockId,
   });
-  const { data: apiMatchupData, refetch: refetchMatchup } = useGetCurrentMatchupQuery(leagueId, {
-    skip: isMockId,
-  });
+  const selectedMatchupWeekNumber = selectedMatchupWeek
+    ? parseInt(selectedMatchupWeek.replace('Week ', ''), 10)
+    : undefined;
+  const leagueCurrentWeek = Number(
+    (apiLeagueData as ApiLeagueDetailsResponse)?.league?.currentWeek ??
+      (apiLeagueData as ApiLeaguePayload)?.currentWeek ??
+      1,
+  );
+  const effectiveMatchupWeek = selectedMatchupWeekNumber || leagueCurrentWeek;
+  const { data: apiMatchupData, refetch: refetchMatchup } = useGetCurrentMatchupQuery(
+    { leagueId, week: effectiveMatchupWeek },
+    { skip: isMockId },
+  );
   const { data: apiStandingsData, refetch: refetchStandings } = useGetLeagueStandingsQuery(leagueId, {
     skip: isMockId,
   });
@@ -221,14 +233,17 @@ export default function LeagueDetailScreen() {
         membersCount: rawLeague.joinedTeamCount ?? rawLeague.membersCount ?? rawLeague.maxTeams ?? 1,
         maxTeams: rawLeague.maxTeams ?? 12,
         status:
-          rawLeague.status === 'registration_open' || rawLeague.status === 'drafting'
+          rawLeague.status === 'registration_open' || rawLeague.status === 'drafting' || rawLeague.status === 'Draft'
             ? 'Draft'
+            : rawLeague.status === 'active' || rawLeague.status === 'auction_active' || rawLeague.status === 'Play'
+            ? 'Play'
             : rawLeague.status || 'Draft',
         code: rawLeague.code || '',
         description: rawLeague.description || '',
         // `status` above is a display label; settings screens need the real value.
         rawStatus: rawLeague.status,
         joinedTeamCount: rawLeague.joinedTeamCount,
+        currentWeek: rawLeague.currentWeek || 1,
         draftSettings: (rawLeague as any).draftSettings,
         matchupSettings: (rawLeague as any).matchupSettings,
         visibility: rawLeague.visibility || 'public',
@@ -240,7 +255,8 @@ export default function LeagueDetailScreen() {
   const [currentLeagueStatus, setCurrentLeagueStatus] = useState(league?.status);
   const [timeLeft, setTimeLeft] = useState<{ days: number; hours: number; minutes: number; seconds: number } | null>(null);
   const [isDraftStarted, setIsDraftStarted] = useState(false);
-  const [activeTab, setActiveTab] = useState<'Matchup' | 'Draft' | 'Team' | 'Players' | 'League'>(currentLeagueStatus === 'Play' ? 'Matchup' : 'Draft');
+  const isPlayMode = currentLeagueStatus === 'Play' || currentLeagueStatus === 'active' || league?.status === 'Play' || league?.status === 'active';
+  const [activeTab, setActiveTab] = useState<'Matchup' | 'Draft' | 'Team' | 'Players' | 'League'>(isPlayMode ? 'Matchup' : 'Draft');
 
   const [isUserJoined, setIsUserJoined] = useState(false);
   const [isJoinModalVisible, setIsJoinModalVisible] = useState(false);
@@ -252,8 +268,12 @@ export default function LeagueDetailScreen() {
   useEffect(() => {
     if (league?.status) {
       setCurrentLeagueStatus(league.status);
+      const isPlay = league.status === 'Play' || league.status === 'active' || (league as any).rawStatus === 'active';
+      if (isPlay) {
+        setActiveTab(prev => (prev === 'Draft' ? 'Matchup' : prev));
+      }
     }
-  }, [league?.status]);
+  }, [league?.status, (league as any)?.rawStatus]);
 
   const dispatch = useDispatch();
   const reduxActiveTeamId = useSelector((state: RootState) => state.league.activeTeams?.[leagueId]?.teamId);
@@ -837,7 +857,7 @@ export default function LeagueDetailScreen() {
 
           {/* Tabs */}
           <View className="flex-row justify-between items-center mb-6 px-1">
-            {currentLeagueStatus === 'Play' ? (
+            {isPlayMode ? (
               <TouchableOpacity
                 className={`${activeTab === 'Matchup' ? 'bg-[#FFB84D]' : 'bg-transparent'} px-5 py-2 rounded-xl`}
                 onPress={() => setActiveTab('Matchup')}
@@ -873,25 +893,29 @@ export default function LeagueDetailScreen() {
           </View>
 
           {/* Matchup Tab Content */}
-          {activeTab === 'Matchup' && (
+          <View style={{ display: activeTab === 'Matchup' ? 'flex' : 'none' }}>
             <MatchupTab
               leagueId={leagueId}
               league={league}
+              selectedWeek={selectedMatchupWeek}
+              setSelectedWeek={setSelectedMatchupWeek}
             />
-          )}
+          </View>
 
           {/* Draft Tab Content */}
-          {activeTab === 'Draft' && currentLeagueStatus !== 'Play' && (
-            <DraftTab
-              isDraftStarted={isDraftStarted}
-              timeLeft={timeLeft}
-              league={league}
-              navigation={navigation}
-            />
+          {!isPlayMode && (
+            <View style={{ display: activeTab === 'Draft' ? 'flex' : 'none' }}>
+              <DraftTab
+                isDraftStarted={isDraftStarted}
+                timeLeft={timeLeft}
+                league={league}
+                navigation={navigation}
+              />
+            </View>
           )}
 
           {/* Team Tab Content */}
-          {activeTab === 'Team' && (
+          <View style={{ display: activeTab === 'Team' ? 'flex' : 'none' }}>
             <TeamTab
               teamSlots={teamSlots}
               setSelectedSlotIndex={setSelectedSlotIndex}
@@ -913,10 +937,10 @@ export default function LeagueDetailScreen() {
                 navigation.navigate('TeamRoster', { leagueId, teamId, teamName });
               }}
             />
-          )}
+          </View>
 
           {/* Players Tab Content */}
-          {activeTab === 'Players' && (
+          <View style={{ display: activeTab === 'Players' ? 'flex' : 'none' }}>
             <PlayersTab
               players={playersList}
               positions={athletePositions}
@@ -934,13 +958,13 @@ export default function LeagueDetailScreen() {
                 setIsPlayerModalVisible(true);
               }}
             />
-          )}
+          </View>
 
 
           {/* League Tab Content */}
-          {activeTab === 'League' && (
+          <View style={{ display: activeTab === 'League' ? 'flex' : 'none' }}>
             <LeagueTab leagueId={leagueId} userTeamId={userTeamId} league={league} />
-          )}
+          </View>
 
         </ScrollView>
       )}

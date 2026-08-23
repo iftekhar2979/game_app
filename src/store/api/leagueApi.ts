@@ -1,4 +1,9 @@
 import { baseApi } from './baseApi';
+import {
+  buildCurrentMatchupRequest,
+  currentMatchupCacheKey,
+  type CurrentMatchupQueryArg,
+} from './matchupQuery';
 
 export interface DraftSettingsPayload {
   // Matches the server DraftType enum; only 'auction' is executable today.
@@ -573,14 +578,16 @@ export const leagueApi = baseApi.injectEndpoints({
       },
       invalidatesTags: (result, error, { leagueId }) => [{ type: 'League', id: leagueId }, 'League'],
     }),
-    getCurrentMatchup: builder.query<any, string>({
-      query: (leagueId) => ({
-        url: `leagues/${leagueId}/matchups/current`,
-      }),
+    getCurrentMatchup: builder.query<any, CurrentMatchupQueryArg>({
+      query: buildCurrentMatchupRequest,
+      serializeQueryArgs: ({ queryArgs }) => currentMatchupCacheKey(queryArgs),
       transformResponse: (response: any) => {
         return response?.data || response;
       },
-      providesTags: (result, error, leagueId) => [{ type: 'League', id: leagueId }, 'League'],
+      providesTags: (result, error, arg) => {
+        const leagueId = typeof arg === 'string' ? arg : arg.leagueId;
+        return [{ type: 'League', id: leagueId }, 'League'];
+      },
     }),
     getLeagueStandings: builder.query<any, string>({
       query: (leagueId) => ({
@@ -634,7 +641,6 @@ export const {
   useGetLeagueStandingsQuery,
   useGetMatchupHistoryQuery,
 } = leagueApi;
-
 
 
 

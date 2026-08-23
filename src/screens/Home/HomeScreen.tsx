@@ -15,6 +15,7 @@ import { ReactionType, useGetFeedQuery, useReactMutation } from '../../store/api
 import { showToast } from '../../utils/toast';
 import { useGetCurrentMatchupQuery, useGetLeagueStandingsQuery, useGetMatchupHistoryQuery, useGetLeaguesQuery } from '../../store/api/leagueApi';
 import { baseApi } from '../../store/api/baseApi';
+import { formatGameStatus, formatMatchupScore } from '../../components/LeagueDetail/matchupDisplay';
 
 const DashboardMatchupCard = ({ leagueId, navigation }: any) => {
   const { data: matchup } = useGetCurrentMatchupQuery(leagueId, {
@@ -31,11 +32,11 @@ const DashboardMatchupCard = ({ leagueId, navigation }: any) => {
     >
       <View className="flex-row justify-between items-center mb-2">
         <Text className="text-[#E0B566] text-[11px] font-bold tracking-wider uppercase">
-          MY MATCHUP • WEEK {matchup.weekNumber || 1}
+          MY MATCHUP &bull; {Number.isInteger(matchup.weekNumber) ? `WEEK ${matchup.weekNumber}` : 'WEEK UNAVAILABLE'}
         </Text>
         <View className="px-2 py-0.5 rounded-full bg-[#8B3DFF]/20 border border-[#8B3DFF]/50">
           <Text className="text-[#8B3DFF] text-[9px] font-bold uppercase">
-            {matchup.result?.status || 'pending'}
+            {formatGameStatus(matchup.result?.status)}
           </Text>
         </View>
       </View>
@@ -43,14 +44,14 @@ const DashboardMatchupCard = ({ leagueId, navigation }: any) => {
       <View className="flex-row items-center justify-between">
         <View className="flex-1">
           <Text className="text-white text-[14px] font-semibold" numberOfLines={1}>{matchup.myTeam?.teamName || 'My Team'}</Text>
-          <Text className="text-[#8B3DFF] text-[18px] font-bold">{matchup.myTeam?.score ?? 0}</Text>
+          <Text className="text-[#8B3DFF] text-[18px] font-bold">{formatMatchupScore(matchup.myTeam?.score)}</Text>
         </View>
 
         <Text className="text-gray-500 font-extrabold text-[12px] mx-3">VS</Text>
 
         <View className="flex-1 items-end">
           <Text className="text-white text-[14px] font-semibold" numberOfLines={1}>{matchup.opponent?.teamName || 'Opponent'}</Text>
-          <Text className="text-gray-300 text-[18px] font-bold">{matchup.opponent?.score ?? 0}</Text>
+          <Text className="text-gray-300 text-[18px] font-bold">{formatMatchupScore(matchup.opponent?.score)}</Text>
         </View>
       </View>
     </TouchableOpacity>
