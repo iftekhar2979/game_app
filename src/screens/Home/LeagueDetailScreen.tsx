@@ -521,6 +521,7 @@ export default function LeagueDetailScreen() {
         });
 
         if (refetchMembers) refetchMembers();
+        if (refetchLeagueDetails) refetchLeagueDetails();
 
         setTimeout(() => {
           setRealtimeNotification(null);

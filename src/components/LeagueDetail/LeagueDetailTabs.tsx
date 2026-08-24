@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, Image, TouchableOpacity, ScrollView, Modal, TextInput } from 'react-native';
+import { View, Text, Image, TouchableOpacity, ScrollView, Modal, TextInput, Share } from 'react-native';
 import { Repeat, Plus, Users, UserCheck, Shield, Globe, Lock, Award, Settings, ChevronRight, Search, X, User } from 'lucide-react-native';
 
 
@@ -338,13 +338,41 @@ export const DraftTab = ({ isDraftStarted, timeLeft, league, navigation }: any) 
       {/* Share / Invite Section */}
       <View className="bg-[#111] border border-[#222] rounded-[24px] p-5 mb-8">
         <Text className="text-white text-[16px] font-bold mb-1">Invite League Members</Text>
-        <Text className="text-gray-400 text-[12px] mb-4">Share this link or QR code with friends to join.</Text>
+        <Text className="text-gray-400 text-[12px] mb-4">Share this 6-digit code or QR code with friends to join.</Text>
 
-        <View className="flex-row items-center justify-center mb-5 bg-white p-3 rounded-2xl self-center">
-          <Image source={{ uri: qrCodeUrl }} className="w-40 h-40" />
+        {/* 6-Digit Join Code Box */}
+        <View className="bg-[#181818] border border-[#333] rounded-2xl p-4 mb-4">
+          <Text className="text-gray-400 text-[11px] font-bold uppercase tracking-wider mb-2 text-center">
+            Private League Join Code
+          </Text>
+          <View className="flex-row items-center justify-center mb-3">
+            <Text className="text-[#FFB84D] text-[28px] font-black tracking-[6px] text-center">
+              {league?.code || league?.joinCode || '------'}
+            </Text>
+          </View>
+          <View className="flex-row justify-center">
+            <TouchableOpacity
+              className="bg-[#FFB84D] px-6 py-2.5 rounded-xl flex-row items-center justify-center"
+              activeOpacity={0.8}
+              onPress={async () => {
+                const codeToShare = league?.code || league?.joinCode || league?.id || '';
+                try {
+                  await Share.share({
+                    message: `Join my private Cheer Fantasy League on CheerBattle! Use join code: ${codeToShare}\nOr join directly: https://cheerbattle.com/leagues/join/${codeToShare}`,
+                  });
+                } catch (e) {}
+              }}
+            >
+              <Text className="text-black text-[13px] font-bold">Share Code</Text>
+            </TouchableOpacity>
+          </View>
         </View>
 
-        <View className="bg-[#1a1a1a] border border-[#333] rounded-xl p-3 flex-row items-center justify-between mb-4">
+        <View className="flex-row items-center justify-center mb-4 bg-white p-3 rounded-2xl self-center">
+          <Image source={{ uri: qrCodeUrl }} className="w-36 h-36" />
+        </View>
+
+        <View className="bg-[#1a1a1a] border border-[#333] rounded-xl p-3 flex-row items-center justify-between">
           <Text className="text-[#E0B566] text-[12px] font-mono flex-1 mr-2" numberOfLines={1}>
             {joinUrl}
           </Text>

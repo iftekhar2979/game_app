@@ -30,6 +30,7 @@ import { useSelector } from 'react-redux';
 import { RootState } from '../../store';
 import { useGetLeaguesQuery, useJoinByCodeMutation } from '../../store/api/leagueApi';
 import { showToast } from '../../utils/toast';
+import { getSocket } from '../../services/socketService';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
@@ -162,6 +163,22 @@ export default function FantasyLeagueScreen() {
     }
   }, [apiResponse, page, formatLeagueItem, debouncedSearch, statusFilter, createdLeagues]);
 
+  // Real-time listener for league updates when teams join
+  useEffect(() => {
+    try {
+      const socket = getSocket();
+      const handleGlobalTeamJoined = () => {
+        refetch();
+      };
+      socket.on('teamJoined', handleGlobalTeamJoined);
+      return () => {
+        socket.off('teamJoined', handleGlobalTeamJoined);
+      };
+    } catch (e) {
+      // ignore
+    }
+  }, [refetch]);
+
   // Handle pull to refresh
   const [refreshing, setRefreshing] = useState(false);
   const onRefresh = useCallback(async () => {
@@ -203,7 +220,12 @@ export default function FantasyLeagueScreen() {
         fantasyTeamName: trimmedTeam,
       }).unwrap();
 
-      showToast.success('Success', 'Successfully joined fantasy league!');
+      if (res?.alreadyJoined) {
+        showToast.info('Already Joined', 'You are already a member of this league. Opening league details...');
+      } else {
+        showToast.success('Success', 'Successfully joined fantasy league!');
+      }
+
       setIsJoinCodeModalVisible(false);
       setInviteCode('');
       setFantasyTeamName('');
@@ -214,7 +236,12 @@ export default function FantasyLeagueScreen() {
         navigation.navigate('LeagueDetail', { leagueId: joinedLeagueId });
       }
     } catch (err: any) {
-      const errorMsg = err?.data?.message || 'Could not join league with this code.';
+      const errorMsg =
+        typeof err?.data?.message === 'string'
+          ? err.data.message
+          : Array.isArray(err?.data?.message)
+          ? err.data.message.join(', ')
+          : 'Could not join league with this code.';
       showToast.error('Join Failed', errorMsg);
     }
   };
@@ -511,18 +538,19 @@ export default function FantasyLeagueScreen() {
             </View>
 
             <Text className="text-gray-400 text-xs mb-5">
-              Enter the private invitation code and choose your fantasy team name to join.
+              Enter the 6-digit private invitation code and choose your fantasy team name to join.
             </Text>
 
             {/* Invite Code Input */}
-            <Text className="text-gray-300 text-xs font-semibold mb-1.5">Invite Code</Text>
+            <Text className="text-gray-300 text-xs font-semibold mb-1.5">6-Digit Join Code</Text>
             <View className="bg-[#181818] border border-[#333] rounded-xl px-4 py-3 mb-4">
               <TextInput
-                className="text-white text-sm p-0 font-mono tracking-widest uppercase"
-                placeholder="e.g. CHEER2026XYZ"
+                className="text-white text-base p-0 font-mono tracking-[4px] uppercase"
+                placeholder="e.g. 849201"
                 placeholderTextColor="#555"
                 value={inviteCode}
                 onChangeText={setInviteCode}
+                maxLength={6}
                 autoCapitalize="characters"
                 autoCorrect={false}
               />

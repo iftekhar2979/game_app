@@ -211,7 +211,7 @@ export default function CreateLeagueScreen() {
         }
       }
 
-      await createLeague({
+      const createdRes: any = await createLeague({
         seasonId,
         name: leagueName,
         description,
@@ -231,7 +231,12 @@ export default function CreateLeagueScreen() {
         }),
       }).unwrap();
 
-      showToast.success('Success', 'League created successfully!');
+      const joinCode = createdRes?.code || createdRes?.league?.code;
+      if (joinCode) {
+        showToast.success('League Created!', `Your 6-digit Join Code is: ${joinCode}`);
+      } else {
+        showToast.success('Success', 'League created successfully!');
+      }
       navigation.goBack();
     } catch (error: any) {
       console.log(error);
