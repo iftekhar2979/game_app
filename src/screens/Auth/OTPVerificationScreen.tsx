@@ -7,18 +7,27 @@ import { ChevronLeft } from 'lucide-react-native';
 import AuthLayout from '../../components/Layout/AuthLayout';
 import OTPInput from '../../components/Input/OTPInput';
 import PrimaryButton from '../../components/Button/PrimaryButton';
-import { useVerifyEmailMutation, useResendOtpMutation } from '../../store/api/authApi';
+import {
+  useForgotPasswordMutation,
+  useVerifyEmailMutation,
+} from '../../store/api/authApi';
 import { showToast } from '../../utils/toast';
-import { Alert } from 'react-native';
+import { useDispatch, useSelector } from 'react-redux';
+import { RootState } from '../../store';
+import { setResetPasswordToken, startPasswordReset } from '../../store/slices/authSlice';
+import { authService } from '../../services/authService';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList, 'OTPVerification'>;
 
 const OTPVerificationScreen = () => {
   const navigation = useNavigation<NavigationProp>();
+  const dispatch = useDispatch();
+  const { pendingAuthFlow, pendingEmail } = useSelector((state: RootState) => state.auth);
   const [otp, setOtp] = useState('');
   const [timeLeft, setTimeLeft] = useState(83); // 01:23 = 83 seconds
   const [verifyEmail, { isLoading }] = useVerifyEmailMutation();
-  const [resendOtp, { isLoading: isResending }] = useResendOtpMutation();
+  const [forgotPassword, { isLoading: isResendingReset }] = useForgotPasswordMutation();
+  const isPasswordReset = pendingAuthFlow === 'passwordReset';
 
   useEffect(() => {
     if (timeLeft <= 0) return;
@@ -37,9 +46,21 @@ const OTPVerificationScreen = () => {
   };
 
   const handleResend = async () => {
-    if (timeLeft === 0 && !isResending) {
+    if (timeLeft === 0 && !isResendingReset) {
       try {
-        await resendOtp().unwrap();
+        if (isPasswordReset) {
+          if (!pendingEmail) throw new Error('The reset email is missing.');
+          const response = await forgotPassword({ email: pendingEmail }).unwrap();
+          const token = response.data?.accessToken;
+          if (!token) throw new Error('Could not create a new reset session.');
+          dispatch(startPasswordReset({ email: pendingEmail, token }));
+        } else {
+          // The API regenerates an unverified account's code on login; it does
+          // not expose a separate resend endpoint for registration sessions.
+          await authService.handleLogout(dispatch as any);
+          showToast.info('Sign in again', 'Signing in will send a new verification code.');
+          return;
+        }
         setTimeLeft(83);
         showToast.success('Success', 'A new verification code has been sent to your email.');
       } catch (error: any) {
@@ -53,7 +74,7 @@ const OTPVerificationScreen = () => {
       {/* Header */}
       <View className="px-6 mb-10 mt-2">
         <TouchableOpacity 
-          onPress={() => navigation.goBack()}
+          onPress={() => authService.handleLogout(dispatch as any)}
           className="w-10 h-10 border border-[#3A144E] rounded-xl items-center justify-center bg-black/40"
         >
           <ChevronLeft color="white" size={24} />
@@ -62,9 +83,9 @@ const OTPVerificationScreen = () => {
 
       {/* Title & Subtitle */}
       <View className="px-6 items-center mb-10 mt-10">
-        <Text className="text-3xl text-white font-bold tracking-tight mb-4">OTP Verification</Text>
+        <Text className="text-3xl text-white font-bold tracking-tight mb-4">Verification code</Text>
         <Text className="text-textSecondary text-center text-sm leading-5 px-4">
-          Enter the input data carefully and create your account, enjoy cheerleading game
+          Enter the 6-digit code sent to {pendingEmail || 'your email'}.
         </Text>
       </View>
 
@@ -77,7 +98,7 @@ const OTPVerificationScreen = () => {
       <View className="px-6 flex-row justify-between items-center">
         <Text className="text-white text-sm">Didn't get the code?</Text>
         <View className="flex-row items-center">
-          <TouchableOpacity onPress={handleResend} disabled={timeLeft > 0}>
+          <TouchableOpacity onPress={handleResend} disabled={timeLeft > 0 || isResendingReset}>
             <Text className={`text-sm font-medium ${timeLeft > 0 ? 'text-[#FF4A4A]/80' : 'text-[#FF4A4A]'}`}>
               {timeLeft > 0 ? 'Resend in' : 'Resend Code'}
             </Text>
@@ -99,13 +120,23 @@ const OTPVerificationScreen = () => {
           title={isLoading ? "Verifying..." : "Verify"} 
           disabled={isLoading || otp.length < 6}
           onPress={async () => {
-            console.log('Verify pressed with OTP:', otp);
             try {
-              await verifyEmail({ code: otp }).unwrap();
-              navigation.navigate('ExploreAvatar' as never);
+              const response = await verifyEmail({ code: otp }).unwrap();
+              if (isPasswordReset) {
+                const resetToken = response.data?.resetPasswordToken;
+                if (!resetToken) {
+                  throw new Error('The server did not return a password reset token.');
+                }
+                dispatch(setResetPasswordToken(resetToken));
+                navigation.replace('ResetPassword');
+              } else {
+                await authService.handleEmailVerified(dispatch as any);
+              }
             } catch (error: any) {
-              console.error('Verify failed:', error);
-              Alert.alert('Error', error?.data?.message || 'Invalid or expired verification code');
+              showToast.error(
+                'Verification failed',
+                error?.data?.message || error?.message || 'Invalid or expired verification code',
+              );
             }
           }}
         />

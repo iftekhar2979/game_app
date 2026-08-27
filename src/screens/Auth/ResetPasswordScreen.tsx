@@ -7,18 +7,49 @@ import { ChevronLeft, KeyRound } from 'lucide-react-native';
 import AuthLayout from '../../components/Layout/AuthLayout';
 import AuthInput from '../../components/Input/AuthInput';
 import PrimaryButton from '../../components/Button/PrimaryButton';
+import { useDispatch, useSelector } from 'react-redux';
+import { RootState } from '../../store';
+import { useResetPasswordMutation } from '../../store/api/authApi';
+import { logout } from '../../store/slices/authSlice';
+import { authStorage } from '../../services/authStorage';
+import { showToast } from '../../utils/toast';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList, 'ResetPassword'>;
 
 const ResetPasswordScreen = () => {
   const navigation = useNavigation<NavigationProp>();
+  const dispatch = useDispatch();
+  const resetPasswordToken = useSelector((state: RootState) => state.auth.resetPasswordToken);
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [resetPassword, { isLoading }] = useResetPasswordMutation();
 
-  const handleResetPassword = () => {
-    console.log('Change password pressed', { newPassword, confirmPassword });
-    // Navigate back to SignIn screen so the user can log in with new password
-    navigation.navigate('SignIn');
+  const handleResetPassword = async () => {
+    if (newPassword.length < 6) {
+      showToast.error('Password too short', 'Use at least 6 characters.');
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      showToast.error('Passwords do not match', 'Enter the same password in both fields.');
+      return;
+    }
+    if (!resetPasswordToken) {
+      showToast.error('Reset session expired', 'Request a new verification code.');
+      dispatch(logout());
+      return;
+    }
+
+    try {
+      const response = await resetPassword({ resetPasswordToken, newPassword }).unwrap();
+      await authStorage.clearSession();
+      dispatch(logout());
+      showToast.success('Password changed', response.message || 'Sign in with your new password.');
+    } catch (error: any) {
+      showToast.error(
+        'Could not change password',
+        error?.data?.message || 'The reset session may have expired.',
+      );
+    }
   };
 
   return (
@@ -66,7 +97,8 @@ const ResetPasswordScreen = () => {
       {/* Bottom Actions */}
       <View className="px-6 pb-6">
         <PrimaryButton 
-          title="Change password" 
+          title={isLoading ? 'Changing password...' : 'Change password'}
+          disabled={isLoading}
           onPress={handleResetPassword}
         />
       </View>

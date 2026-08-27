@@ -1,10 +1,12 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, Image, StyleSheet, FlatList, Dimensions, ScrollView } from 'react-native';
+import { View, Text, TouchableOpacity, Image, StyleSheet, Dimensions, ScrollView } from 'react-native';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { ChevronLeft, Edit2 } from 'lucide-react-native';
 import { RootStackParamList } from '../../../App';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useDispatch } from 'react-redux';
+import { authService } from '../../services/authService';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList, 'ExploreAvatar'>;
 
@@ -99,9 +101,11 @@ const fullBodyAvatars = AVATARS.filter(a => a.isFullbody);
 
 const ExploreAvatarScreen = () => {
   const navigation = useNavigation<NavigationProp>();
+  const dispatch = useDispatch();
   const route = useRoute<RouteProp<RootStackParamList, 'ExploreAvatar'>>();
   const insets = useSafeAreaInsets();
   const returnTo = route.params?.returnTo;
+  const isAccountSetup = route.params?.isAccountSetup === true;
 
   const renderItem = ({ item, index }: { item: { id: number; image: any; isFullbody?: boolean; randomSkirt?: any; randomShoes?: any; randomUpperbody?: any; randomHair?: any; target?: string; avatarCategory?: number }, index: number }) => (
     <TouchableOpacity
@@ -113,7 +117,7 @@ const ExploreAvatarScreen = () => {
         marginBottom: 12,
         marginRight: (index % 3 !== 2) ? 12 : 0,
       }}
-      onPress={() => navigation.navigate('GenerateAvatar', { baseImage: item.image, isFullbody: item.isFullbody, target: item.target as any, avatarCategory: item.avatarCategory, returnTo })}
+      onPress={() => navigation.navigate('GenerateAvatar', { baseImage: item.image, isFullbody: item.isFullbody, target: item.target as any, avatarCategory: item.avatarCategory, returnTo, isAccountSetup })}
     >
       <View className="flex-1 rounded-2xl border-2 border-[#5B1F7D] overflow-hidden bg-[#1A0B2E]">
         <Image
@@ -142,7 +146,10 @@ const ExploreAvatarScreen = () => {
       {/* Header */}
       <View className="px-6 flex-row items-center mb-8">
         <TouchableOpacity
-          onPress={() => navigation.goBack()}
+          onPress={() => isAccountSetup
+            ? authService.handleLogout(dispatch as any)
+            : navigation.goBack()
+          }
           className="w-10 h-10 border border-[#3A144E] rounded-xl items-center justify-center bg-black/40 mr-4"
         >
           <ChevronLeft color="white" size={24} />

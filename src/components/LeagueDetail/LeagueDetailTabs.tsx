@@ -431,7 +431,7 @@ export const TeamTab = ({
           {isMyRosterLoading && !myRoster ? (
             <View className="py-8 items-center justify-center">
               <ActivityIndicator size="small" color="#8B3DFF" />
-              <Text className="text-gray-400 text-[12px] mt-2">Loading your players...</Text>
+              <Text className="text-gray-400 text-[12px] mt-2">Loading your cheer teams...</Text>
             </View>
           ) : !myRoster ? (
             <Text className="text-gray-500 text-[12px] italic">
@@ -439,7 +439,7 @@ export const TeamTab = ({
             </Text>
           ) : rosterCount === 0 ? (
             <Text className="text-gray-500 text-[12px] italic">
-              You have not acquired any players yet. Players you draft or add appear here.
+              You have not acquired any cheer teams yet. Teams you draft or add appear here.
             </Text>
           ) : (
             <RosterSections starters={starters} bench={bench} onSelectPlayer={onSelectRosterPlayer} />
@@ -498,7 +498,7 @@ export const TeamTab = ({
                   <Text className="text-white text-[15px] font-semibold mb-0.5" numberOfLines={1}>{team.name}</Text>
                   <Text className="text-[#E0B566] text-[13px]">{team.handle || `@team${index + 1}`}</Text>
                   {canOpenRoster && (
-                    <Text className="text-gray-500 text-[11px] mt-0.5">Tap to view manager and players</Text>
+                    <Text className="text-gray-500 text-[11px] mt-0.5">Tap to view manager and cheer roster</Text>
                   )}
                 </View>
               </View>
@@ -571,7 +571,7 @@ export const PlayersTab = ({
         <Search color="#666" size={16} />
         <TextInput
           className="flex-1 text-white text-[14px] ml-2.5 p-0"
-          placeholder="Search players"
+          placeholder="Search cheer teams"
           placeholderTextColor="#666"
           value={searchTerm}
           onChangeText={onChangeSearchTerm}
@@ -622,21 +622,21 @@ export const PlayersTab = ({
       {isLoading ? (
         <View className="py-12 items-center justify-center">
           <ActivityIndicator size="large" color="#8B3DFF" />
-          <Text className="text-gray-400 text-[13px] mt-3">Loading players...</Text>
+          <Text className="text-gray-400 text-[13px] mt-3">Loading cheer teams...</Text>
         </View>
       ) : players.length === 0 ? (
         <View className="py-12 items-center justify-center px-6">
-          <Text className="text-white text-[15px] font-semibold mb-1.5">No players available</Text>
+          <Text className="text-white text-[15px] font-semibold mb-1.5">No cheer teams available</Text>
           <Text className="text-gray-400 text-[12px] text-center">
             {searchTerm || selectedPositionId
               ? 'No free agents match this search. Try clearing the filters.'
-              : 'Players appear here once their team has a game coming up and they are not already rostered.'}
+              : 'Eligible season cheer teams appear here until another manager acquires them.'}
           </Text>
         </View>
       ) : (
         <>
           <Text className="text-gray-500 text-[11px] mb-3">
-            {`Showing ${players.length}${totalItems ? ` of ${totalItems}` : ''} free agents`}
+            {`Showing ${players.length}${totalItems ? ` of ${totalItems}` : ''} available cheer teams`}
           </Text>
 
           {players.map((player: any, index: number) => (

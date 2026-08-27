@@ -2,8 +2,8 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { View, Text, Image, TouchableOpacity, ScrollView, Modal, Pressable, TextInput, ActivityIndicator, Alert } from 'react-native';
 import { ChevronLeft, ChevronDown, User, Plus, Minus, Unlock, ShieldAlert, Calendar } from 'lucide-react-native';
 import DatePicker from 'react-native-date-picker';
-import { useGetAthleteGameLogQuery } from '../../store/api/seasonApi';
-import { useAddFreeAgentMutation, useUpdateLineupMutation, useDropPlayerMutation, useGetRosterSettingsQuery, useUpdateRosterSettingsMutation, useUpdateLeagueMutation, useGetScoringSettingsQuery, useGetLeagueMembersQuery, useRemoveLeagueMemberMutation, useUpdateMemberRoleMutation } from '../../store/api/leagueApi';
+import { useGetRosterSettingsQuery, useUpdateRosterSettingsMutation, useUpdateLeagueMutation, useGetScoringSettingsQuery, useGetLeagueMembersQuery, useRemoveLeagueMemberMutation, useUpdateMemberRoleMutation } from '../../store/api/leagueApi';
+import { useAddFantasyCheerFreeAgentMutation, useReleaseFantasyCheerTeamMutation, useUpdateFantasyCheerLineupMutation } from '../../store/api/cheerApi';
 import type { LeagueStatusValue } from '../../store/api/leagueApi';
 import { showToast } from '../../utils/toast';
 
@@ -605,7 +605,71 @@ const Stepper = ({
   </View>
 );
 
-export const RosterSettingsSubModal = ({ isVisible, onClose, leagueId }: any) => {
+export const RosterSettingsSubModal = ({ isVisible, onClose, leagueId, league, canEdit }: any) => {
+  const [updateLeague, { isLoading: isSaving }] = useUpdateLeagueMutation();
+  const settings = league?.fantasyCheerSettings || {};
+  const [rosterSize, setRosterSize] = useState(6);
+  const [starterCount, setStarterCount] = useState(4);
+
+  useEffect(() => {
+    if (isVisible) {
+      setRosterSize(Number(settings.rosterSize || 6));
+      setStarterCount(Number(settings.starterCount || 4));
+    }
+  }, [isVisible, settings.rosterSize, settings.starterCount]);
+
+  const save = async () => {
+    try {
+      await updateLeague({ id: leagueId, fantasyCheerSettings: { rosterSize, starterCount } }).unwrap();
+      showToast.success('Cheer roster saved', `${starterCount} starters and ${rosterSize - starterCount} bench teams.`);
+      onClose();
+    } catch (err: any) {
+      showToast.error('Save Failed', err?.data?.message || err?.message);
+    }
+  };
+
+  return (
+    <Modal visible={isVisible} transparent animationType="slide" onRequestClose={onClose}>
+      <View className="flex-1 bg-black pt-12 px-5">
+        <View className="flex-row items-center mb-8">
+          <TouchableOpacity onPress={onClose} className="w-10 h-10 border border-[#333] rounded-xl justify-center items-center mr-4">
+            <ChevronLeft color="#fff" size={24} />
+          </TouchableOpacity>
+          <View>
+            <Text className="text-white text-[20px] font-medium">Fantasy cheer roster</Text>
+            <Text className="text-gray-400 text-[12px]">Real cheer teams per fantasy manager</Text>
+          </View>
+        </View>
+        <View className="bg-[#111] border border-[#222] rounded-2xl p-4 mb-4">
+          <View className="flex-row items-center justify-between mb-5">
+            <View className="flex-1 mr-4">
+              <Text className="text-white text-[15px] font-semibold">Roster size</Text>
+              <Text className="text-gray-500 text-[11px]">Starters plus bench cheer teams</Text>
+            </View>
+            <Stepper value={rosterSize} min={1} max={30} disabled={!canEdit} onChange={(value) => {
+              setRosterSize(value);
+              setStarterCount((current) => Math.min(current, value));
+            }} />
+          </View>
+          <View className="flex-row items-center justify-between">
+            <View className="flex-1 mr-4">
+              <Text className="text-white text-[15px] font-semibold">Active starters</Text>
+              <Text className="text-gray-500 text-[11px]">Only starters score at performance time</Text>
+            </View>
+            <Stepper value={starterCount} min={1} max={rosterSize} disabled={!canEdit} onChange={setStarterCount} />
+          </View>
+        </View>
+        {canEdit ? (
+          <TouchableOpacity className="bg-[#8B3DFF] rounded-full h-[54px] justify-center items-center" onPress={save} disabled={isSaving}>
+            {isSaving ? <ActivityIndicator color="#fff" /> : <Text className="text-white text-[15px] font-bold">Save cheer roster</Text>}
+          </TouchableOpacity>
+        ) : <Text className="text-gray-500 text-[12px]">Only the commissioner can edit this setting.</Text>}
+      </View>
+    </Modal>
+  );
+};
+
+const LegacyRosterSettingsSubModal = ({ isVisible, onClose, leagueId }: any) => {
   const { data, isLoading, isError, error, refetch } = useGetRosterSettingsQuery(leagueId, {
     skip: !isVisible || !leagueId,
     refetchOnMountOrArgChange: true,
@@ -824,7 +888,99 @@ const formatRuleValue = (rule: any) => {
   return '—';
 };
 
-export const ScoringSettingsSubModal = ({ isVisible, onClose, leagueId }: any) => {
+export const ScoringSettingsSubModal = ({ isVisible, onClose, leagueId, league, canEdit }: any) => {
+  const [updateLeague, { isLoading: isSaving }] = useUpdateLeagueMutation();
+  const settings = useMemo(() => league?.fantasyCheerSettings || {}, [league?.fantasyCheerSettings]);
+  const [values, setValues] = useState<any>({});
+
+  useEffect(() => {
+    if (isVisible) setValues({
+      regularSeasonPeriods: Number(settings.regularSeasonPeriods || 10),
+      officialScoreMultiplier: Number(settings.officialScoreMultiplier ?? 1),
+      deductionMultiplier: Number(settings.deductionMultiplier ?? 1),
+      hitZeroBonus: Number(settings.hitZeroBonus ?? 5),
+      advancementBonus: Number(settings.advancementBonus ?? 3),
+      championshipBonus: Number(settings.championshipBonus ?? 10),
+      placementPoints: settings.placementPoints || { '1': 20, '2': 12, '3': 8, '4': 5, '5': 3 },
+    });
+  }, [isVisible, settings]);
+
+  const setNumber = (key: string, raw: string) => {
+    const number = Number(raw);
+    setValues((current: any) => ({ ...current, [key]: Number.isFinite(number) ? Math.max(0, number) : 0 }));
+  };
+
+  const save = async () => {
+    try {
+      await updateLeague({ id: leagueId, fantasyCheerSettings: values }).unwrap();
+      showToast.success('Cheer scoring saved', 'Future published routines will use these league rules.');
+      onClose();
+    } catch (err: any) {
+      showToast.error('Save Failed', err?.data?.message || err?.message);
+    }
+  };
+
+  const fields = [
+    ['officialScoreMultiplier', 'Official score multiplier'],
+    ['deductionMultiplier', 'Deduction multiplier'],
+    ['hitZeroBonus', 'Hit-zero bonus'],
+    ['advancementBonus', 'Advancement bonus'],
+    ['championshipBonus', 'Championship bonus'],
+  ];
+  return (
+    <Modal visible={isVisible} transparent animationType="slide" onRequestClose={onClose}>
+      <View className="flex-1 bg-black pt-12 px-5">
+        <View className="flex-row items-center mb-6">
+          <TouchableOpacity onPress={onClose} className="w-10 h-10 border border-[#333] rounded-xl justify-center items-center mr-4">
+            <ChevronLeft color="#fff" size={24} />
+          </TouchableOpacity>
+          <View>
+            <Text className="text-white text-[20px] font-medium">Fantasy cheer scoring</Text>
+            <Text className="text-gray-400 text-[12px]">Official routine score plus league bonuses</Text>
+          </View>
+        </View>
+        <ScrollView className="flex-1" showsVerticalScrollIndicator={false}>
+          <View className="bg-[#111] border border-[#222] rounded-2xl p-4">
+            <View className="flex-row items-center justify-between mb-4">
+              <Text className="text-white text-[14px] flex-1">Regular-season periods</Text>
+              <Stepper value={values.regularSeasonPeriods || 10} min={1} max={52} disabled={!canEdit}
+                onChange={(regularSeasonPeriods) => setValues((current: any) => ({ ...current, regularSeasonPeriods }))} />
+            </View>
+            {fields.map(([key, label]) => (
+              <View key={key} className="flex-row items-center justify-between border-t border-[#222] py-3">
+                <Text className="text-white text-[14px] flex-1 mr-4">{label}</Text>
+                <TextInput
+                  className="w-20 h-10 border border-[#333] rounded-xl text-white text-center"
+                  editable={!!canEdit}
+                  keyboardType="decimal-pad"
+                  value={String(values[key] ?? 0)}
+                  onChangeText={(raw) => setNumber(key, raw)}
+                />
+              </View>
+            ))}
+          </View>
+          <Text className="text-[#E0B566] text-[12px] font-bold uppercase mt-6 mb-2">Placement bonuses</Text>
+          <View className="bg-[#111] border border-[#222] rounded-2xl p-4 mb-6">
+            {Object.keys(values.placementPoints || {}).sort((a, b) => Number(a) - Number(b)).map((place) => (
+              <View key={place} className="flex-row items-center justify-between py-2">
+                <Text className="text-white text-[14px]">Place #{place}</Text>
+                <Stepper value={Number(values.placementPoints[place])} min={0} max={100} disabled={!canEdit}
+                  onChange={(value) => setValues((current: any) => ({ ...current, placementPoints: { ...current.placementPoints, [place]: value } }))} />
+              </View>
+            ))}
+          </View>
+        </ScrollView>
+        {canEdit && (
+          <TouchableOpacity className="bg-[#8B3DFF] rounded-full h-[54px] justify-center items-center mb-8" onPress={save} disabled={isSaving}>
+            {isSaving ? <ActivityIndicator color="#fff" /> : <Text className="text-white text-[15px] font-bold">Save scoring</Text>}
+          </TouchableOpacity>
+        )}
+      </View>
+    </Modal>
+  );
+};
+
+const LegacyScoringSettingsSubModal = ({ isVisible, onClose, leagueId }: any) => {
   const { data, isLoading, isError, error, refetch } = useGetScoringSettingsQuery(leagueId, {
     skip: !isVisible || !leagueId,
   });
@@ -1208,85 +1364,41 @@ export const AddTeamModal = ({ isVisible, onClose, teamMembers, onAddTeam }: any
 };
 
 export const PlayerDetailModal = ({ isVisible, onClose, selectedPlayer, seasonId, leagueId, userTeamId, onAddSuccess }: PlayerDetailModalProps) => {
-  const athleteId =
-    typeof selectedPlayer?.seasonAthleteId === 'string'
-      ? selectedPlayer.seasonAthleteId
-      : selectedPlayer?.seasonAthleteId?._id ||
-        selectedPlayer?.seasonAthleteId?.id ||
-        selectedPlayer?.athleteId?._id ||
-        selectedPlayer?.athleteId ||
-        selectedPlayer?._id ||
-        selectedPlayer?.id;
+  void seasonId;
+  const seasonCheerTeamId = selectedPlayer?.seasonCheerTeamId || selectedPlayer?._id || selectedPlayer?.id;
+  const organization = selectedPlayer?.organizationId || {};
+  const organizationName =
+    selectedPlayer?.organizationName ||
+    (typeof organization === 'object' ? organization.name || organization.shortName : '') ||
+    'Independent program';
+  const teamName = selectedPlayer?.name || selectedPlayer?.teamName || 'Cheer team';
+  const logoUrl = selectedPlayer?.avatarUri || selectedPlayer?.photoUrl ||
+    (typeof organization === 'object' ? organization.logoUrl : undefined);
+  const [addFreeAgent, { isLoading: isAddingTeam }] = useAddFantasyCheerFreeAgentMutation();
 
-  const targetSeasonId =
-    seasonId ||
-    (typeof selectedPlayer?.seasonId === 'string' ? selectedPlayer.seasonId : selectedPlayer?.seasonId?._id) ||
-    selectedPlayer?.seasonAthleteId?.seasonId;
-
-  const [addFreeAgent, { isLoading: isAddingPlayer }] = useAddFreeAgentMutation();
-
-  const { data: gameLogData, isLoading: isLogLoading } = useGetAthleteGameLogQuery(
-    { seasonId: targetSeasonId as string, athleteId: athleteId as string },
-    { skip: !isVisible || !athleteId || !targetSeasonId }
-  );
-
-  const handleAddPlayer = async () => {
-    console.log('[PlayerDetailModal handleAddPlayer] Invoked:', {
-      leagueId,
-      userTeamId,
-      athleteId,
-      selectedPlayerName: selectedPlayer?.name || selectedPlayer?.displayName,
-    });
-
+  const handleAddTeam = async () => {
     if (!leagueId || !userTeamId) {
-      console.warn('[PlayerDetailModal handleAddPlayer] Missing leagueId or userTeamId:', { leagueId, userTeamId });
       showToast.error('Team Not Found', 'Your fantasy team was not found in this league.');
       return;
     }
-    if (!athleteId) {
-      console.warn('[PlayerDetailModal handleAddPlayer] Missing athleteId:', { athleteId });
-      showToast.error('Invalid Selection', 'Invalid athlete selected.');
+    if (!seasonCheerTeamId) {
+      showToast.error('Invalid Selection', 'Invalid cheer team selected.');
       return;
     }
-
     try {
-      console.log('[PlayerDetailModal handleAddPlayer] Executing addFreeAgent mutation:', {
+      await addFreeAgent({
         leagueId,
-        teamId: userTeamId,
-        seasonAthleteId: String(athleteId),
-      });
-      const res = await addFreeAgent({ leagueId, teamId: userTeamId, seasonAthleteId: String(athleteId) }).unwrap();
-      console.log('[PlayerDetailModal handleAddPlayer] addFreeAgent SUCCESS:', res);
-      showToast.success('Player Added!', `${selectedPlayer?.name || selectedPlayer?.displayName || 'Player'} added to your fantasy team!`);
+        fantasyTeamId: userTeamId,
+        seasonCheerTeamId: String(seasonCheerTeamId),
+      }).unwrap();
+      showToast.success('Cheer Team Added', `${teamName} was added to your fantasy roster.`);
       if (onAddSuccess) onAddSuccess();
       onClose();
     } catch (err: any) {
-      console.error('[PlayerDetailModal handleAddPlayer] addFreeAgent FAILED:', err);
-      const msg = err?.data?.message || err?.message || 'Failed to add player to fantasy team.';
-      showToast.error('Add Player Failed', msg);
+      const msg = err?.data?.message || err?.message || 'Failed to add this cheer team.';
+      showToast.error('Add Team Failed', msg);
     }
   };
-
-  const logs = useMemo(() => {
-    const raw = Array.isArray(gameLogData)
-      ? gameLogData
-      : Array.isArray((gameLogData as any)?.data)
-      ? (gameLogData as any).data
-      : [];
-
-    if (raw.length > 0) {
-      return raw.map((log: any, idx: number) => ({
-        id: log.id || `log-${idx}`,
-        week: idx + 1,
-        opp: log.teamShortName || log.teamName || 'OPP',
-        fpts: log.fantasyPoints !== undefined ? log.fantasyPoints.toFixed(2) : '0.00',
-        passing: log.passYards ?? log.recYards ?? 0,
-        rushing: log.rushYards ?? 0,
-      }));
-    }
-
-    return [];
-  }, [gameLogData]);
 
   return (
     <Modal
@@ -1297,19 +1409,18 @@ export const PlayerDetailModal = ({ isVisible, onClose, selectedPlayer, seasonId
     >
       <View className="flex-1 bg-black/80 justify-center items-center px-3">
         <View className="w-full bg-[#1e1e1e] rounded-[16px] overflow-hidden border border-[#333]">
-          {/* Blue Header Section */}
-          <View className="bg-[#0b3887] px-4 pt-4 pb-3 relative">
+          <View className="bg-[#0b3887] px-5 pt-5 pb-6 relative">
             <View className="flex-row justify-between items-start mb-2">
               <TouchableOpacity onPress={onClose} className="p-1 -ml-1">
                 <ChevronLeft color="#fff" size={24} />
               </TouchableOpacity>
               <TouchableOpacity
                 className="bg-white/20 rounded-full px-4 py-1.5 flex-row items-center border border-white/30"
-                onPress={handleAddPlayer}
-                disabled={isAddingPlayer}
+                onPress={handleAddTeam}
+                disabled={isAddingTeam}
                 activeOpacity={0.8}
               >
-                {isAddingPlayer ? (
+                {isAddingTeam ? (
                   <ActivityIndicator size="small" color="#fff" />
                 ) : (
                   <Text className="text-white text-[12px] font-bold">+ ADD</Text>
@@ -1317,11 +1428,10 @@ export const PlayerDetailModal = ({ isVisible, onClose, selectedPlayer, seasonId
               </TouchableOpacity>
             </View>
 
-            {/* Player Header Info */}
             <View className="flex-row items-center mb-5">
-              {selectedPlayer?.avatarUri || selectedPlayer?.photoUrl || selectedPlayer?.athlete?.photoUrl ? (
+              {logoUrl ? (
                 <Image
-                  source={{ uri: selectedPlayer?.avatarUri || selectedPlayer?.photoUrl || selectedPlayer?.athlete?.photoUrl }}
+                  source={{ uri: logoUrl }}
                   className="w-16 h-16 rounded-full border-2 border-[#1e1e1e] mr-3 bg-white"
                   resizeMode="cover"
                 />
@@ -1332,96 +1442,33 @@ export const PlayerDetailModal = ({ isVisible, onClose, selectedPlayer, seasonId
               )}
               <View className="flex-1">
                 <Text className="text-white text-[22px] font-bold" numberOfLines={1}>
-                  {selectedPlayer?.name || selectedPlayer?.displayName || selectedPlayer?.athlete?.displayName || 'Athlete'}
+                  {teamName}
                 </Text>
                 <View className="flex-row items-center mt-1">
                   <View className="bg-[#ff2a5f] px-2 py-0.5 rounded mr-2">
                     <Text className="text-white text-[10px] font-bold">
-                      {selectedPlayer?.position || selectedPlayer?.eligiblePositionIds?.[0]?.code || 'CHEER'}
+                      CHEER
                     </Text>
                   </View>
                   <Text className="text-white text-[12px] font-medium uppercase" numberOfLines={1}>
-                    {selectedPlayer?.organizationName || selectedPlayer?.organizationId?.name || selectedPlayer?.teamName || 'CHEER SQUAD'}
+                    {organizationName}
                   </Text>
                 </View>
               </View>
             </View>
 
-            {/* Stats Row */}
             <View className="flex-row justify-between mb-4 px-1">
-              <View><Text className="text-[#88b0ff] text-[9px] mb-1">POS</Text><Text className="text-white text-[14px] font-bold">{selectedPlayer?.position || 'ATH'}</Text></View>
-              <View><Text className="text-[#88b0ff] text-[9px] mb-1">POINTS</Text><Text className="text-white text-[14px] font-bold">{selectedPlayer?.points || '+10'}</Text></View>
-              <View><Text className="text-[#88b0ff] text-[9px] mb-1">ROSTERED</Text><Text className="text-white text-[14px] font-bold">{selectedPlayer?.rostered || '17%'}</Text></View>
+              <View><Text className="text-[#88b0ff] text-[9px] mb-1">TYPE</Text><Text className="text-white text-[14px] font-bold">TEAM</Text></View>
+              <View><Text className="text-[#88b0ff] text-[9px] mb-1">VALUE</Text><Text className="text-white text-[14px] font-bold">{selectedPlayer?.openingValue ?? selectedPlayer?.value ?? 0}</Text></View>
+              <View><Text className="text-[#88b0ff] text-[9px] mb-1">DIVISIONS</Text><Text className="text-white text-[14px] font-bold">{selectedPlayer?.eligibleDivisionIds?.length ?? 0}</Text></View>
               <View><Text className="text-[#88b0ff] text-[9px] mb-1">STATUS</Text><Text className="text-white text-[14px] font-bold">Active</Text></View>
             </View>
-
-            {/* Rankings Row */}
-            <View className="flex-row justify-between border-t border-[#1a4baf] pt-3 px-1">
-              <View className="flex-row items-center"><Text className="text-white font-bold text-[14px] mr-1">#1</Text><Text className="text-[#88b0ff] text-[9px] font-bold">RANK</Text></View>
-              <View className="flex-row items-center"><Text className="text-white font-bold text-[14px] mr-1">PROJ</Text><Text className="text-[#88b0ff] text-[9px] font-bold">{selectedPlayer?.points || '+10'}</Text></View>
-              <View className="flex-row items-center"><Text className="text-white font-bold text-[14px] mr-1">{selectedPlayer?.rostered || '17%'}</Text><Text className="text-[#88b0ff] text-[9px] font-bold">OWNED</Text></View>
-            </View>
           </View>
-
-
-          {/* Dark Body Section */}
-          <View className="p-4 flex-row">
-            {/* Game Logs Area (Left) */}
-            <View className="flex-[1.5] mr-4 border-r border-[#333] pr-4">
-              <Text className="text-[#88b0ff] text-[11px] font-bold mb-3 tracking-wider">GAME LOGS</Text>
-              
-              {/* Year Tabs */}
-              <View className="flex-row mb-3 justify-between pr-2">
-                <View className="bg-[#00e5ff] rounded-full px-2 py-0.5"><Text className="text-black text-[9px] font-bold">2026</Text></View>
-                <Text className="text-gray-400 text-[9px] font-bold mt-0.5">2025</Text>
-                <Text className="text-gray-400 text-[9px] font-bold mt-0.5">2024</Text>
-                <Text className="text-gray-400 text-[9px] font-bold mt-0.5">MORE</Text>
-              </View>
-
-              {/* Table Header */}
-              <View className="flex-row justify-between border-b border-[#333] pb-1.5 mb-2">
-                <Text className="text-gray-500 text-[8px] w-5">WK</Text>
-                <Text className="text-gray-500 text-[8px] w-6">OPP</Text>
-                <Text className="text-gray-500 text-[8px] w-8">FPTS</Text>
-                <Text className="text-gray-500 text-[8px] flex-1 text-center">PASSING</Text>
-                <Text className="text-gray-500 text-[8px] flex-1 text-center">RUSHING</Text>
-              </View>
-
-              {/* Dynamic Game Logs */}
-              {isLogLoading ? (
-                <ActivityIndicator size="small" color="#00e5ff" className="my-4" />
-              ) : logs.length > 0 ? (
-                logs.map((row: any, idx: number) => (
-                  <View key={`${row.id || 'log'}-${idx}`} className="flex-row justify-between items-center mb-2">
-                    <Text className="text-white text-[9px] w-5">{row.week}</Text>
-                    <Text className="text-white text-[9px] w-6" numberOfLines={1}>{row.opp}</Text>
-                    <Text className="text-white text-[9px] w-8 font-bold">{row.fpts}</Text>
-                    <Text className="text-gray-400 text-[9px] flex-1 text-center">{row.passing}</Text>
-                    <Text className="text-gray-400 text-[9px] flex-1 text-center">{row.rushing}</Text>
-                  </View>
-                ))
-              ) : (
-                <View className="py-4 items-center">
-                  <Text className="text-gray-500 text-[9px]">No match game logs recorded yet</Text>
-                </View>
-              )}
-
-              <TouchableOpacity className="mt-2 border-t border-[#333] pt-2">
-                <Text className="text-[#88b0ff] text-[10px] text-center font-medium">View Full Stats</Text>
-              </TouchableOpacity>
-            </View>
-
-            {/* Latest News Area (Right) */}
-            <View className="flex-1">
-              <Text className="text-white text-[11px] font-bold mb-3 tracking-wider">LATEST NEWS</Text>
-              <Text className="text-white text-[10px] font-bold mb-1 leading-4">
-                {selectedPlayer?.name || selectedPlayer?.displayName || 'Athlete'} Season Outlook
-              </Text>
-              <Text className="text-gray-500 text-[7px] mb-2">Active Season</Text>
-              <Text className="text-gray-400 text-[8px] leading-3" numberOfLines={12}>
-                Official match telemetry and performance metrics are updated in real-time as competition results are finalized.
-              </Text>
-            </View>
+          <View className="p-5">
+            <Text className="text-white text-[15px] font-bold mb-2">Fantasy scoring</Text>
+            <Text className="text-gray-400 text-[12px] leading-5">
+              This real cheer team earns fantasy points from published routine scores, deductions, placement, hit-zero, advancement, and championship bonuses. Lineups lock when its performance starts.
+            </Text>
           </View>
         </View>
       </View>
@@ -1622,48 +1669,18 @@ export const RosterPlayerActionModal = ({
   userTeamId: string;
   onSuccess?: () => void;
 }) => {
-  const [updateLineup, { isLoading: isUpdating }] = useUpdateLineupMutation();
-  const [dropPlayer, { isLoading: isDropping }] = useDropPlayerMutation();
-  const [selectedPositionId, setSelectedPositionId] = useState<string | null>(null);
+  const [updateLineup, { isLoading: isUpdating }] = useUpdateFantasyCheerLineupMutation();
+  const [releaseTeam, { isLoading: isDropping }] = useReleaseFantasyCheerTeamMutation();
 
   // selectedRosterItem is a flattened RosterPlayer from the team roster endpoint.
   const player = selectedRosterItem || {};
-  const playerName = player.name || 'Player';
-  const posCode = player.positionCode || 'ATH';
-  const teamName = player.nflTeam || 'NFL';
+  const playerName = player.name || 'Cheer Team';
+  const posCode = 'CHEER';
+  const teamName = player.nflTeam || 'Cheer Program';
   const avatarUri = player.photoUrl;
 
   const isStarter = player.lineupStatus === 'starter';
   const ownershipId = player.ownershipId;
-  const seasonAthleteId = player.seasonAthleteId;
-  const assignedPosId = player.assignedPositionId;
-
-  const eligiblePositions = useMemo(() => {
-    const rawList = Array.isArray(player.eligiblePositions) ? player.eligiblePositions : [];
-    const mapped = rawList
-      .filter((p: any) => p && (p._id || p.id))
-      .map((p: any) => ({
-        id: String(p._id || p.id),
-        code: p.code || p.name || 'ATH',
-        name: p.name || p.code || 'Position',
-      }));
-
-    if (mapped.length > 0) return mapped;
-
-    // Fall back to whatever position the player is currently assigned to.
-    return assignedPosId
-      ? [{ id: String(assignedPosId), code: posCode, name: player.assignedPosition || posCode }]
-      : [];
-  }, [player.eligiblePositions, player.assignedPosition, assignedPosId, posCode]);
-
-  useEffect(() => {
-    if (eligiblePositions.length > 0) {
-      const matching = eligiblePositions.find((p: any) => String(p.id) === String(assignedPosId));
-      setSelectedPositionId(matching ? matching.id : eligiblePositions[0].id);
-    } else {
-      setSelectedPositionId(assignedPosId ? String(assignedPosId) : null);
-    }
-  }, [eligiblePositions, assignedPosId]);
 
   if (!selectedRosterItem) return null;
 
@@ -1674,17 +1691,12 @@ export const RosterPlayerActionModal = ({
     }
 
     const newStatus = isStarter ? 'bench' : 'starter';
-    const targetPosId = newStatus === 'starter'
-      ? (selectedPositionId || (typeof assignedPosId === 'string' ? assignedPosId : assignedPosId?._id))
-      : undefined;
-
     try {
       await updateLineup({
         leagueId,
-        teamId: userTeamId,
+        fantasyTeamId: userTeamId,
         ownershipId: String(ownershipId),
         lineupStatus: newStatus,
-        assignedPositionId: targetPosId,
       }).unwrap();
 
       showToast.success('Lineup Updated!', `${playerName} moved to ${newStatus.toUpperCase()}!`);
@@ -1699,30 +1711,30 @@ export const RosterPlayerActionModal = ({
   const handleConfirmDrop = () => {
     Alert.alert(
       `Drop ${playerName}?`,
-      `Are you sure you want to drop ${playerName} from your team? They will return to the available player pool.`,
+      `Are you sure you want to release ${playerName}? It will return to the available cheer-team pool.`,
       [
         { text: 'Cancel', style: 'cancel' },
         {
-          text: 'Drop Player',
+          text: 'Release Team',
           style: 'destructive',
           onPress: async () => {
-            if (!leagueId || !userTeamId || !seasonAthleteId) {
-              showToast.error('Error', 'Missing required athlete data.');
+            if (!leagueId || !userTeamId || !ownershipId) {
+              showToast.error('Error', 'Missing required cheer-team ownership data.');
               return;
             }
             try {
-              await dropPlayer({
+              await releaseTeam({
                 leagueId,
-                teamId: userTeamId,
-                seasonAthleteId: String(seasonAthleteId),
+                fantasyTeamId: userTeamId,
+                ownershipId: String(ownershipId),
               }).unwrap();
 
-              showToast.success('Player Dropped', `${playerName} has been dropped from your team.`);
+              showToast.success('Team Released', `${playerName} returned to the available pool.`);
               if (onSuccess) onSuccess();
               onClose();
             } catch (err: any) {
-              const msg = err?.data?.message || err?.message || 'Failed to drop player.';
-              showToast.error('Drop Error', msg);
+              const msg = err?.data?.message || err?.message || 'Failed to release cheer team.';
+              showToast.error('Release Error', msg);
             }
           },
         },
@@ -1756,37 +1768,6 @@ export const RosterPlayerActionModal = ({
             </View>
           </View>
 
-          {/* Position Selector for Moving to Starter */}
-          {!isStarter && eligiblePositions.length > 1 && (
-            <View className="mb-5 bg-[#262626] p-3.5 rounded-2xl border border-[#383838]">
-              <Text className="text-gray-300 text-[12px] font-semibold mb-2.5">
-                Select Starting Position Slot:
-              </Text>
-              <View className="flex-row flex-wrap gap-2">
-                {eligiblePositions.map((pos: any, idx: number) => {
-                  const isSelected = String(selectedPositionId) === String(pos.id);
-                  return (
-                    <TouchableOpacity
-                      key={`${pos.id}-${idx}`}
-                      className={`px-3.5 py-2 rounded-xl border ${
-                        isSelected
-                          ? 'bg-[#8B3DFF] border-[#9d5bff]'
-                          : 'bg-[#1e1e1e] border-[#444]'
-                      }`}
-                      onPress={() => setSelectedPositionId(pos.id)}
-                      disabled={isUpdating || isDropping}
-                      activeOpacity={0.7}
-                    >
-                      <Text className={`${isSelected ? 'text-white font-bold' : 'text-gray-300'} text-[12px]`}>
-                        {pos.code}
-                      </Text>
-                    </TouchableOpacity>
-                  );
-                })}
-              </View>
-            </View>
-          )}
-
           {/* Lineup Action Button */}
           <TouchableOpacity
             className={`h-[52px] rounded-full justify-center items-center mb-3 ${isStarter ? 'bg-[#333] border border-[#555]' : 'bg-[#8B3DFF]'}`}
@@ -1803,7 +1784,7 @@ export const RosterPlayerActionModal = ({
             )}
           </TouchableOpacity>
 
-          {/* Drop Player Button */}
+          {/* Release cheer team button */}
           <TouchableOpacity
             className="h-[52px] rounded-full border border-red-500/60 bg-red-950/40 justify-center items-center mb-3"
             onPress={handleConfirmDrop}
@@ -1813,7 +1794,7 @@ export const RosterPlayerActionModal = ({
             {isDropping ? (
               <ActivityIndicator color="#ff6b6b" size="small" />
             ) : (
-              <Text className="text-red-400 text-[15px] font-bold">Drop Player</Text>
+              <Text className="text-red-400 text-[15px] font-bold">Release Cheer Team</Text>
             )}
           </TouchableOpacity>
 

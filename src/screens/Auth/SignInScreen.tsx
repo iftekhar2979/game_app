@@ -11,7 +11,6 @@ import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useDispatch } from 'react-redux';
-import { setCredentials } from '../../store/slices/authSlice';
 import { useLoginMutation } from '../../store/api/authApi';
 import { showToast } from '../../utils/toast';
 
@@ -47,18 +46,27 @@ const SignInScreen = () => {
       const resData = response?.data || response;
       const accessToken = resData?.accessToken;
       const refreshToken = resData?.refreshToken;
-      const isEmailVerified = resData?.isEmailVerified;
+      const isEmailVerified = resData?.isEmailVerified ?? resData?.user?.isEmailVerified;
       const user = resData?.user;
 
       if (accessToken) {
         const userObj = { email: user?.email || data.email, name: user?.fullName || user?.name || '' };
-        await authService.handleLoginSuccess(dispatch, accessToken, refreshToken || '', userObj);
-
         if (isEmailVerified === false) {
-          navigation.navigate('OTPVerification' as never);
+          await authService.handleVerificationRequired(
+            dispatch as any,
+            accessToken,
+            userObj,
+          );
         } else {
-          navigation.navigate('Home' as never);
+          await authService.handleLoginSuccess(
+            dispatch as any,
+            accessToken,
+            refreshToken || '',
+            { ...user, ...userObj, isEmailVerified: true },
+          );
         }
+      } else {
+        showToast.error('Login Failed', 'The server did not return a login session.');
       }
     } catch (error: any) {
       console.error('Login failed:', error);
@@ -112,7 +120,7 @@ const SignInScreen = () => {
 
         <TouchableOpacity
           className="items-end mt-2"
-          onPress={() => navigation.navigate('EmailVerification')}
+          onPress={() => navigation.navigate('ForgotPassword')}
         >
           <Text className="text-[#FFB444] font-medium text-sm">Forgot Password</Text>
         </TouchableOpacity>

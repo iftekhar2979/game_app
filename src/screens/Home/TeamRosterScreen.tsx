@@ -5,7 +5,7 @@ import { ChevronLeft, Shield, Trophy, User } from 'lucide-react-native';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../../../App';
-import { useGetTeamRosterQuery } from '../../store/api/leagueApi';
+import { useGetFantasyCheerRosterQuery } from '../../store/api/cheerApi';
 import { RosterSections } from '../../components/LeagueDetail/RosterPlayerRow';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList, 'TeamRoster'>;
@@ -23,8 +23,8 @@ export default function TeamRosterScreen() {
   const route = useRoute<RouteProps>();
   const { leagueId, teamId, teamName } = route.params;
 
-  const { data, isLoading, isFetching, isError, error, refetch } = useGetTeamRosterQuery(
-    { leagueId, teamId },
+  const { data, isLoading, isFetching, isError, error, refetch } = useGetFantasyCheerRosterQuery(
+    { leagueId, fantasyTeamId: teamId },
     { skip: !leagueId || !teamId, refetchOnMountOrArgChange: true },
   );
 
@@ -47,7 +47,7 @@ export default function TeamRosterScreen() {
         <View className="flex-1">
           <Text className="text-white text-[20px] font-bold" numberOfLines={1}>{headerTitle}</Text>
           <Text className="text-gray-400 text-[12px]">
-            {data ? `${data.rosterCount} players • ${data.starterCount} starting` : 'Team roster'}
+            {data ? `${data.rosterCount} cheer teams • ${data.starterCount} starting` : 'Fantasy cheer roster'}
           </Text>
         </View>
       </View>
@@ -55,13 +55,13 @@ export default function TeamRosterScreen() {
       {isLoading ? (
         <View className="flex-1 items-center justify-center">
           <ActivityIndicator size="large" color="#8B3DFF" />
-          <Text className="text-gray-400 text-[13px] mt-3">Loading players...</Text>
+          <Text className="text-gray-400 text-[13px] mt-3">Loading cheer teams...</Text>
         </View>
       ) : isError || !data ? (
         <View className="flex-1 items-center justify-center px-8">
           <Text className="text-white text-[15px] font-semibold mb-2">Roster unavailable</Text>
           <Text className="text-gray-400 text-[12px] text-center mb-4">
-            {(error as any)?.data?.message || 'This team’s players could not be loaded.'}
+            {(error as any)?.data?.message || 'This fantasy cheer roster could not be loaded.'}
           </Text>
           <TouchableOpacity className="bg-[#8B3DFF] px-5 py-2.5 rounded-full" onPress={() => refetch()}>
             <Text className="text-white text-[13px] font-medium">Retry</Text>
@@ -157,7 +157,7 @@ export default function TeamRosterScreen() {
           <View className="bg-[#111] border border-[#222] rounded-[24px] p-4 mb-8">
             {data.rosterCount === 0 ? (
               <Text className="text-gray-500 text-[12px] italic">
-                This team has not acquired any players yet.
+                This manager has not acquired any cheer teams yet.
               </Text>
             ) : (
               <RosterSections starters={data.starters} bench={data.bench} />

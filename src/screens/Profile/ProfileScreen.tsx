@@ -220,7 +220,7 @@ export default function ProfileScreen() {
 
           <View className="flex-1 border border-[#331166] rounded-[24px] p-4 ml-1.5 items-center bg-[#1a0533]">
             <BarChart3 color="#00FFFF" size={24} className="mb-2" />
-            <Text className="text-[#FFB84D] text-[11px] mb-1">DFS record</Text>
+            <Text className="text-[#FFB84D] text-[11px] mb-1">Fantasy score</Text>
             <Text className="text-white text-[14px] font-semibold">142</Text>
           </View>
         </View>

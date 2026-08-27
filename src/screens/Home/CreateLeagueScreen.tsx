@@ -98,7 +98,7 @@ export default function CreateLeagueScreen() {
   const [visibility, setVisibility] = useState<'public' | 'private'>('public');
 
   // Draft Settings
-  const [draftType, setDraftType] = useState<DraftTypeValue>('auction');
+  const [draftType, setDraftType] = useState<DraftTypeValue>('snake');
   const [startingBudget, setStartingBudget] = useState('200');
   const [minimumBid, setMinimumBid] = useState('1');
   const [bidIncrement, setBidIncrement] = useState('1');
