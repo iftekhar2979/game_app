@@ -1,9 +1,39 @@
 import { authStorage, UserProfileData } from './authStorage';
-import { setCredentials, logout, setInitializing } from '../store/slices/authSlice';
+import {
+  completeEmailVerification,
+  logout,
+  setCredentials,
+  setInitializing,
+  startEmailVerification,
+} from '../store/slices/authSlice';
 import { AppDispatch } from '../store';
 import { API_URL } from '../config';
 
 export class AuthService {
+  /** Keeps the short-lived registration token available without opening the app. */
+  async handleVerificationRequired(
+    dispatch: AppDispatch,
+    accessToken: string,
+    user: UserProfileData
+  ): Promise<void> {
+    const pendingUser = { ...user, isEmailVerified: false, needsAvatarSetup: false };
+    await authStorage.clearTokens();
+    await authStorage.saveTokens(accessToken, '');
+    await authStorage.saveUser(pendingUser);
+    dispatch(startEmailVerification({ user: pendingUser, token: accessToken }));
+  }
+
+  /** Promotes a verified registration into the app and starts avatar setup. */
+  async handleEmailVerified(dispatch: AppDispatch): Promise<void> {
+    const storedUser = (await authStorage.getUser()) || {};
+    await authStorage.saveUser({
+      ...storedUser,
+      isEmailVerified: true,
+      needsAvatarSetup: true,
+    });
+    dispatch(completeEmailVerification());
+  }
+
   /**
    * Called immediately after a successful login API response.
    * Saves access token + refresh token in Keychain, saves user profile in storage,
@@ -37,17 +67,19 @@ export class AuthService {
   async handleLogout(dispatch: AppDispatch): Promise<void> {
     try {
       const accessToken = await authStorage.getAccessToken();
+      const refreshToken = await authStorage.getRefreshToken();
       if (accessToken) {
         // Optional backend logout call
-        fetch(`${API_URL}auth/logout`, {
+        fetch(`${API_URL}/auth/logout`, {
           method: 'POST',
           headers: {
             Authorization: `Bearer ${accessToken}`,
             'Content-Type': 'application/json',
           },
+          body: JSON.stringify({ refreshToken: refreshToken || '' }),
         }).catch(() => {});
       }
-    } catch (e) {
+    } catch {
       // Ignore network failures on logout
     }
 
@@ -75,6 +107,16 @@ export class AuthService {
 
       // If access token exists, test/restore session
       if (accessToken) {
+        if (storedUser?.isEmailVerified === false) {
+          dispatch(
+            startEmailVerification({
+              user: storedUser,
+              token: accessToken,
+            })
+          );
+          return false;
+        }
+
         dispatch(
           setCredentials({
             user: storedUser || {},
@@ -87,7 +129,7 @@ export class AuthService {
 
       // If access token expired but refresh token exists, attempt refresh
       if (refreshToken) {
-        const response = await fetch(`${API_URL}auth/refresh-token`, {
+        const response = await fetch(`${API_URL}/auth/refresh-token`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ refreshToken }),
@@ -117,7 +159,7 @@ export class AuthService {
       await authStorage.clearSession();
       dispatch(logout());
       return false;
-    } catch (error) {
+    } catch {
       await authStorage.clearSession();
       dispatch(logout());
       return false;

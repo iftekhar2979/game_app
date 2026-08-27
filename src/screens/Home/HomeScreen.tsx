@@ -1,7 +1,15 @@
 import React, { useState, useCallback } from 'react';
-import { View, Text, StyleSheet, Image, TouchableOpacity, ScrollView, RefreshControl } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  Image,
+  TouchableOpacity,
+  ScrollView,
+  RefreshControl,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Bell, PlusSquare, Trophy } from 'lucide-react-native';
+import { Bell, CalendarDays, PlusSquare, Trophy } from 'lucide-react-native';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../../../App';
@@ -11,11 +19,24 @@ import CustomLoader from '../../components/Loader/CustomLoader';
 import { PostCard } from '../../components/Community/PostCard';
 import Avatar from '../../components/common/Avatar';
 import { useGetMeQuery } from '../../store/api/usersApi';
-import { ReactionType, useGetFeedQuery, useReactMutation } from '../../store/api/socialApi';
+import {
+  ReactionType,
+  useGetFeedQuery,
+  useReactMutation,
+} from '../../store/api/socialApi';
 import { showToast } from '../../utils/toast';
-import { useGetCurrentMatchupQuery, useGetLeagueStandingsQuery, useGetMatchupHistoryQuery, useGetLeaguesQuery } from '../../store/api/leagueApi';
+import {
+  useGetCurrentMatchupQuery,
+  useGetLeagueStandingsQuery,
+  useGetMatchupHistoryQuery,
+  useGetLeaguesQuery,
+} from '../../store/api/leagueApi';
 import { baseApi } from '../../store/api/baseApi';
-import { formatGameStatus, formatMatchupScore } from '../../components/LeagueDetail/matchupDisplay';
+import {
+  formatGameStatus,
+  formatMatchupScore,
+} from '../../components/LeagueDetail/matchupDisplay';
+import { useGetCheerCompetitionsQuery } from '../../store/api/cheerApi';
 
 const DashboardMatchupCard = ({ leagueId, navigation }: any) => {
   const { data: matchup } = useGetCurrentMatchupQuery(leagueId, {
@@ -32,7 +53,10 @@ const DashboardMatchupCard = ({ leagueId, navigation }: any) => {
     >
       <View className="flex-row justify-between items-center mb-2">
         <Text className="text-[#E0B566] text-[11px] font-bold tracking-wider uppercase">
-          MY MATCHUP &bull; {Number.isInteger(matchup.weekNumber) ? `WEEK ${matchup.weekNumber}` : 'WEEK UNAVAILABLE'}
+          MY MATCHUP &bull;{' '}
+          {Number.isInteger(matchup.weekNumber)
+            ? `WEEK ${matchup.weekNumber}`
+            : 'WEEK UNAVAILABLE'}
         </Text>
         <View className="px-2 py-0.5 rounded-full bg-[#8B3DFF]/20 border border-[#8B3DFF]/50">
           <Text className="text-[#8B3DFF] text-[9px] font-bold uppercase">
@@ -43,15 +67,31 @@ const DashboardMatchupCard = ({ leagueId, navigation }: any) => {
 
       <View className="flex-row items-center justify-between">
         <View className="flex-1">
-          <Text className="text-white text-[14px] font-semibold" numberOfLines={1}>{matchup.myTeam?.teamName || 'My Team'}</Text>
-          <Text className="text-[#8B3DFF] text-[18px] font-bold">{formatMatchupScore(matchup.myTeam?.score)}</Text>
+          <Text
+            className="text-white text-[14px] font-semibold"
+            numberOfLines={1}
+          >
+            {matchup.myTeam?.teamName || 'My Team'}
+          </Text>
+          <Text className="text-[#8B3DFF] text-[18px] font-bold">
+            {formatMatchupScore(matchup.myTeam?.score)}
+          </Text>
         </View>
 
-        <Text className="text-gray-500 font-extrabold text-[12px] mx-3">VS</Text>
+        <Text className="text-gray-500 font-extrabold text-[12px] mx-3">
+          VS
+        </Text>
 
         <View className="flex-1 items-end">
-          <Text className="text-white text-[14px] font-semibold" numberOfLines={1}>{matchup.opponent?.teamName || 'Opponent'}</Text>
-          <Text className="text-gray-300 text-[18px] font-bold">{formatMatchupScore(matchup.opponent?.score)}</Text>
+          <Text
+            className="text-white text-[14px] font-semibold"
+            numberOfLines={1}
+          >
+            {matchup.opponent?.teamName || 'Opponent'}
+          </Text>
+          <Text className="text-gray-300 text-[18px] font-bold">
+            {formatMatchupScore(matchup.opponent?.score)}
+          </Text>
         </View>
       </View>
     </TouchableOpacity>
@@ -63,12 +103,18 @@ const DashboardStandingsCard = ({ leagueId, navigation }: any) => {
     skip: !leagueId || leagueId.startsWith('mock-'),
   });
 
-  const currentUserId = useSelector((state: RootState) => (state.auth?.user as any)?._id || (state.auth?.user as any)?.id);
+  const currentUserId = useSelector(
+    (state: RootState) =>
+      (state.auth?.user as any)?._id || (state.auth?.user as any)?.id,
+  );
   const standings = standingsData?.standings || [];
 
   if (standings.length === 0) return null;
 
-  const myStanding = standings.find((s: any) => String(s.userId || s.ownerId) === String(currentUserId)) || standings[0];
+  const myStanding =
+    standings.find(
+      (s: any) => String(s.userId || s.ownerId) === String(currentUserId),
+    ) || standings[0];
 
   return (
     <TouchableOpacity
@@ -80,13 +126,18 @@ const DashboardStandingsCard = ({ leagueId, navigation }: any) => {
         <Text className="text-[#E0B566] text-[11px] font-bold tracking-wider uppercase mb-1">
           CURRENT STANDING
         </Text>
-        <Text className="text-white text-[15px] font-bold" numberOfLines={1}>{myStanding.teamName}</Text>
+        <Text className="text-white text-[15px] font-bold" numberOfLines={1}>
+          {myStanding.teamName}
+        </Text>
         <Text className="text-gray-400 text-[12px] mt-0.5">
-          {myStanding.wins}W - {myStanding.losses}L - {myStanding.ties}T • PF: {myStanding.pointsFor}
+          {myStanding.wins}W - {myStanding.losses}L - {myStanding.ties}T • PF:{' '}
+          {myStanding.pointsFor}
         </Text>
       </View>
       <View className="w-11 h-11 rounded-full bg-[#8B3DFF]/20 border border-[#8B3DFF]/50 items-center justify-center">
-        <Text className="text-[#8B3DFF] text-[16px] font-extrabold">#{myStanding.rank}</Text>
+        <Text className="text-[#8B3DFF] text-[16px] font-extrabold">
+          #{myStanding.rank}
+        </Text>
       </View>
     </TouchableOpacity>
   );
@@ -134,8 +185,6 @@ const DashboardRecentMatchupCard = ({ leagueId, navigation }: any) => {
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
-
-
 export default function HomeScreen() {
   const navigation = useNavigation<NavigationProp>();
   const dispatch = useDispatch();
@@ -149,21 +198,40 @@ export default function HomeScreen() {
   const userDisplayName = me?.fullName || currentUser?.fullName || 'there';
 
   const { data: apiLeagues, refetch: refetchLeagues } = useGetLeaguesQuery();
-  const createdLeagues = useSelector((state: RootState) => state.league.leagues);
+  const createdLeagues = useSelector(
+    (state: RootState) => state.league.leagues,
+  );
 
-  const leagueList = (Array.isArray(apiLeagues) ? apiLeagues : apiLeagues?.data) || [];
+  const leagueList =
+    (Array.isArray(apiLeagues) ? apiLeagues : apiLeagues?.data) || [];
   const formattedApiLeagues = leagueList.map((league: any) => ({
     id: league._id || league.id,
     name: league.name || 'Fantasy League',
-    logoUri: league.logoUri || league.logoUrl || 'https://images.unsplash.com/photo-1614680376593-902f74cf0d41?q=80&w=150&auto=format&fit=crop',
+    logoUri:
+      league.logoUri ||
+      league.logoUrl ||
+      'https://images.unsplash.com/photo-1614680376593-902f74cf0d41?q=80&w=150&auto=format&fit=crop',
     visibility: league.visibility || 'public',
   }));
 
-  const allLeagues = formattedApiLeagues.length > 0 ? formattedApiLeagues : createdLeagues;
+  const allLeagues =
+    formattedApiLeagues.length > 0 ? formattedApiLeagues : createdLeagues;
+  const { data: cheerEvents = [], refetch: refetchEvents } =
+    useGetCheerCompetitionsQuery({});
+  const featuredEvent =
+    cheerEvents.find((event: any) => event.status === 'live') ||
+    cheerEvents.find(
+      (event: any) => new Date(event.endsAt).getTime() >= Date.now(),
+    ) ||
+    cheerEvents[0];
 
   // The dashboard shows a short preview of the community feed; the full,
   // paginated and shuffled feed lives on CommunityFeedScreen.
-  const { data: feed, isLoading: isLoadingFeed, refetch: refetchFeed } = useGetFeedQuery({ page: 1, limit: 3 });
+  const {
+    data: feed,
+    isLoading: isLoadingFeed,
+    refetch: refetchFeed,
+  } = useGetFeedQuery({ page: 1, limit: 3 });
   const previewPosts = feed?.posts ?? [];
 
   const [react] = useReactMutation();
@@ -179,30 +247,44 @@ export default function HomeScreen() {
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
     try {
-      dispatch(baseApi.util.invalidateTags(['League', 'Matchup', 'Roster', 'Social', 'User']));
+      dispatch(
+        baseApi.util.invalidateTags([
+          'League',
+          'Matchup',
+          'Roster',
+          'Social',
+          'User',
+        ]),
+      );
       await Promise.all([
         refetchMe(),
         refetchLeagues(),
         refetchFeed(),
+        refetchEvents(),
       ]);
     } catch (error) {
       // ignore
     } finally {
       setRefreshing(false);
     }
-  }, [dispatch, refetchMe, refetchLeagues, refetchFeed]);
+  }, [dispatch, refetchMe, refetchLeagues, refetchFeed, refetchEvents]);
 
   return (
     <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
       {/* Header */}
       <View style={styles.header}>
         <View style={styles.headerLeft}>
-          <TouchableOpacity 
-            style={{ flexDirection: 'row', alignItems: 'center' }} 
+          <TouchableOpacity
+            style={{ flexDirection: 'row', alignItems: 'center' }}
             onPress={() => navigation.navigate('Profile')}
             activeOpacity={0.8}
           >
-            <Avatar uri={userAvatarUri} name={userDisplayName} size={44} style={styles.userAvatar} />
+            <Avatar
+              uri={userAvatarUri}
+              name={userDisplayName}
+              size={44}
+              style={styles.userAvatar}
+            />
             <View style={styles.userInfo}>
               <Text style={styles.userName}>{userDisplayName}</Text>
               <Text style={styles.userSubtext}>Welcome to CHEERBATTLE</Text>
@@ -217,8 +299,8 @@ export default function HomeScreen() {
         </TouchableOpacity>
       </View>
 
-      <ScrollView 
-        contentContainerStyle={styles.scrollContent} 
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl
@@ -234,20 +316,31 @@ export default function HomeScreen() {
         <View style={styles.fantasySection}>
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Fantasy</Text>
-            <TouchableOpacity onPress={() => navigation.navigate('FantasyLeague')}>
+            <TouchableOpacity
+              onPress={() => navigation.navigate('FantasyLeague')}
+            >
               <Text style={styles.seeAllText}>See all</Text>
             </TouchableOpacity>
           </View>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.horizontalScroll}>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            style={styles.horizontalScroll}
+          >
             {allLeagues.map((league: any) => (
-              <TouchableOpacity 
-                key={league.id} 
+              <TouchableOpacity
+                key={league.id}
                 style={styles.fantasyCard}
                 activeOpacity={0.8}
-                onPress={() => navigation.navigate('LeagueDetail', { leagueId: league.id })}
+                onPress={() =>
+                  navigation.navigate('LeagueDetail', { leagueId: league.id })
+                }
               >
                 {league.logoUri ? (
-                  <Image source={{ uri: league.logoUri }} style={styles.cardLogoPlaceholder} />
+                  <Image
+                    source={{ uri: league.logoUri }}
+                    style={styles.cardLogoPlaceholder}
+                  />
                 ) : (
                   <View style={styles.cardLogoPlaceholder} />
                 )}
@@ -265,27 +358,89 @@ export default function HomeScreen() {
           </View>
         </View>
 
-        <TouchableOpacity
-          style={styles.dfsCard}
-          activeOpacity={0.85}
-          onPress={() => navigation.navigate('DfsContests')}
-        >
-          <View style={styles.dfsIcon}>
-            <Trophy color="#E0B566" size={25} />
+        {/* Real Cheer Events */}
+        <View className="mt-7">
+          <View style={styles.sectionHeader}>
+            <View>
+              <Text style={styles.sectionTitle}>Cheer Events</Text>
+              <Text className="text-gray-500 text-xs mt-1">
+                Official competitions and results
+              </Text>
+            </View>
+            <TouchableOpacity
+              onPress={() => navigation.navigate('CheerEvents')}
+            >
+              <Text style={styles.seeAllText}>See all</Text>
+            </TouchableOpacity>
           </View>
-          <View style={styles.dfsText}>
-            <Text style={styles.dfsTitle}>Daily Fantasy</Text>
-            <Text style={styles.dfsSubtitle}>Pick a contest and build your lineup</Text>
-          </View>
-          <Text style={styles.dfsAction}>Play</Text>
-        </TouchableOpacity>
+          {featuredEvent ? (
+            <TouchableOpacity
+              className="mx-5 bg-[#21190f] border border-[#E0B566]/30 rounded-[22px] p-5"
+              activeOpacity={0.85}
+              onPress={() =>
+                navigation.navigate('CheerEventDetail', {
+                    eventId: featuredEvent._id,
+                })
+              }
+            >
+              <View className="flex-row items-center">
+                <View className="w-12 h-12 rounded-2xl bg-[#E0B566]/15 items-center justify-center mr-3">
+                  <Trophy color="#E0B566" size={23} />
+                </View>
+                <View className="flex-1">
+                  <Text className="text-[#E0B566] text-[10px] font-bold uppercase">
+                    {String(featuredEvent.status).replace(/_/g, ' ')} · Period{' '}
+                    {featuredEvent.fantasyPeriod}
+                  </Text>
+                  <Text
+                    className="text-white text-base font-bold mt-1"
+                    numberOfLines={2}
+                  >
+                    {featuredEvent.name}
+                  </Text>
+                </View>
+              </View>
+              <View className="flex-row items-center mt-4 pt-3 border-t border-white/10">
+                <CalendarDays color="#888" size={16} />
+                <Text className="text-gray-300 text-xs ml-2">
+                  {new Date(featuredEvent.startsAt).toLocaleDateString()}
+                </Text>
+                <Text className="text-gray-500 text-xs ml-auto">
+                  View event →
+                </Text>
+              </View>
+            </TouchableOpacity>
+          ) : (
+            <TouchableOpacity
+              className="mx-5 bg-[#121212] border border-white/10 rounded-[20px] p-5 items-center"
+              onPress={() => navigation.navigate('CheerEvents')}
+            >
+              <CalendarDays color="#666" size={25} />
+              <Text className="text-white font-semibold mt-3">
+                Competition calendar
+              </Text>
+              <Text className="text-gray-500 text-xs mt-1">
+                Events will appear when registration opens.
+              </Text>
+            </TouchableOpacity>
+          )}
+        </View>
 
         {/* Dashboard Cards */}
         {allLeagues.length > 0 && (
           <>
-            <DashboardMatchupCard leagueId={allLeagues[0].id || (allLeagues[0] as any)._id} navigation={navigation} />
-            <DashboardStandingsCard leagueId={allLeagues[0].id || (allLeagues[0] as any)._id} navigation={navigation} />
-            <DashboardRecentMatchupCard leagueId={allLeagues[0].id || (allLeagues[0] as any)._id} navigation={navigation} />
+            <DashboardMatchupCard
+              leagueId={allLeagues[0].id || (allLeagues[0] as any)._id}
+              navigation={navigation}
+            />
+            <DashboardStandingsCard
+              leagueId={allLeagues[0].id || (allLeagues[0] as any)._id}
+              navigation={navigation}
+            />
+            <DashboardRecentMatchupCard
+              leagueId={allLeagues[0].id || (allLeagues[0] as any)._id}
+              navigation={navigation}
+            />
           </>
         )}
 
@@ -314,8 +469,12 @@ export default function HomeScreen() {
                 key={post.id}
                 post={post}
                 onReact={type => handleReact(post.id, type)}
-                onOpenComments={() => navigation.navigate('PostDetails', { postId: post.id })}
-                onPressImage={() => navigation.navigate('PostDetails', { postId: post.id })}
+                onOpenComments={() =>
+                  navigation.navigate('PostDetails', { postId: post.id })
+                }
+                onPressImage={() =>
+                  navigation.navigate('PostDetails', { postId: post.id })
+                }
               />
             ))
           )}
@@ -323,13 +482,12 @@ export default function HomeScreen() {
       </ScrollView>
 
       {/* Floating Action Button */}
-      <TouchableOpacity 
+      <TouchableOpacity
         style={styles.fab}
         onPress={() => navigation.navigate('CreatePost')}
       >
         <PlusSquare color="#fff" size={24} />
       </TouchableOpacity>
-
     </SafeAreaView>
   );
 }

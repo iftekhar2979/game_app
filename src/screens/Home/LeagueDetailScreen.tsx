@@ -8,7 +8,8 @@ import { RootStackParamList } from '../../../App';
 import { useSelector, useDispatch } from 'react-redux';
 import { RootState } from '../../store';
 import { setActiveTeam } from '../../store/slices/leagueSlice';
-import { useGetLeagueDetailsQuery, useGetLeagueMembersQuery, useJoinLeagueMutation, useGetAvailableAthletesQuery, useGetAthletePositionsQuery, useGetRosterSettingsQuery, useGetLeagueRostersQuery, useGetMyTeamRosterQuery, useGetCurrentMatchupQuery, useGetLeagueStandingsQuery, useGetMatchupHistoryQuery } from '../../store/api/leagueApi';
+import { useGetLeagueDetailsQuery, useGetLeagueMembersQuery, useJoinLeagueMutation, useGetRosterSettingsQuery, useGetLeagueRostersQuery, useGetCurrentMatchupQuery, useGetLeagueStandingsQuery, useGetMatchupHistoryQuery } from '../../store/api/leagueApi';
+import { useGetAvailableCheerTeamsQuery, useGetFantasyCheerRosterQuery } from '../../store/api/cheerApi';
 import { MatchupTab, DraftTab, TeamTab, PlayersTab, LeagueTab } from '../../components/LeagueDetail/LeagueDetailTabs';
 import { AddTeamModal, PlayerDetailModal, LeagueSettingsModal, LeagueSettingsSubModal, DraftSettingsSubModal, RosterSettingsSubModal, ScoringSettingsSubModal, MemberSettingsSubModal, GiveCommissionerAccessModal, LockRosterModal, DeleteLeagueModal, JoinLeagueModal, RosterPlayerActionModal } from '../../components/LeagueDetail/LeagueDetailModals';
 import { getSocket, joinLeagueRoom, leaveLeagueRoom } from '../../services/socketService';
@@ -118,23 +119,13 @@ export default function LeagueDetailScreen() {
   }, [debouncedPlayerSearch, playerPositionId]);
 
   const {
-    data: apiAthletesData,
+    data: availableCheerTeams = [],
     isLoading: isPlayersLoading,
     isFetching: isPlayersFetching,
     refetch: refetchAvailableAthletes,
-  } = useGetAvailableAthletesQuery(
-    {
-      leagueId,
-      term: debouncedPlayerSearch || undefined,
-      positionId: playerPositionId || undefined,
-      page: playersPage,
-    },
-    { skip: isMockId },
-  );
+  } = useGetAvailableCheerTeamsQuery(leagueId, { skip: isMockId });
 
-  const { data: athletePositions = [] } = useGetAthletePositionsQuery(undefined, {
-    skip: isMockId,
-  });
+  const athletePositions: any[] = [];
 
   const { data: rosterSettings, refetch: refetchRosterSettings } = useGetRosterSettingsQuery(leagueId, {
     skip: isMockId,
@@ -182,28 +173,25 @@ export default function LeagueDetailScreen() {
   const [joinLeagueMutation, { isLoading: isJoiningLeague }] = useJoinLeagueMutation();
 
   const playersList = useMemo(() => {
-    const rawList = apiAthletesData?.items || [];
+    const rawList = availableCheerTeams || [];
 
     return rawList.map((item: any, idx: number) => {
-      const athlete = item.athlete || item.athleteId || {};
-      const name =
-        athlete.displayName ||
-        `${athlete.firstName || ''} ${athlete.lastName || ''}`.trim() ||
-        'Unknown Player';
+      const organization = typeof item.organizationId === 'object' ? item.organizationId : {};
+      const name = item.teamName || 'Unknown Cheer Team';
 
-      const positionCode = item.eligiblePositionIds?.[0]?.code;
-      const nflTeam = item.organizationId?.shortName || item.organizationId?.name;
+      const positionCode = 'CHEER';
+      const nflTeam = organization.shortName || organization.name;
 
       return {
         id: item._id || item.id || `p-${idx}`,
-        seasonAthleteId: item._id,
+        seasonCheerTeamId: item._id,
         name,
         subtitle: [positionCode, nflTeam].filter(Boolean).join(' • ') || 'Free agent',
         value: item.openingValue ?? null,
-        avatarUri: athlete.photoUrl || null,
+        avatarUri: organization.logoUrl || null,
       };
     });
-  }, [apiAthletesData]);
+  }, [availableCheerTeams]);
 
   const callerInfo = apiLeagueData?.caller;
 
@@ -246,6 +234,9 @@ export default function LeagueDetailScreen() {
         currentWeek: rawLeague.currentWeek || 1,
         draftSettings: (rawLeague as any).draftSettings,
         matchupSettings: (rawLeague as any).matchupSettings,
+        fantasyCheerSettings: (rawLeague as any).fantasyCheerSettings,
+        currentFantasyPeriod: (rawLeague as any).currentFantasyPeriod || 1,
+        championFantasyTeamId: (rawLeague as any).championFantasyTeamId,
         visibility: rawLeague.visibility || 'public',
         draftStartsAt,
       }
@@ -278,6 +269,10 @@ export default function LeagueDetailScreen() {
   const dispatch = useDispatch();
   const reduxActiveTeamId = useSelector((state: RootState) => state.league.activeTeams?.[leagueId]?.teamId);
   const currentUserId = useSelector((state: RootState) => (state.auth?.user as any)?._id || (state.auth?.user as any)?.id);
+  const callerTeamId =
+    reduxActiveTeamId ||
+    (apiLeagueData as any)?.caller?.team?._id ||
+    (apiLeagueData as any)?.caller?.team?.id;
 
   // The authenticated user's own fantasy team roster, resolved by the backend
   // rather than filtered out of the full league roster list client-side.
@@ -285,8 +280,8 @@ export default function LeagueDetailScreen() {
     data: myRoster,
     isLoading: isMyRosterLoading,
     refetch: refetchMyRoster,
-  } = useGetMyTeamRosterQuery(leagueId, {
-    skip: isMockId || !isUserJoined,
+  } = useGetFantasyCheerRosterQuery({ leagueId, fantasyTeamId: callerTeamId || '' }, {
+    skip: isMockId || !isUserJoined || !callerTeamId,
     refetchOnMountOrArgChange: true,
   });
 
@@ -883,7 +878,7 @@ export default function LeagueDetailScreen() {
               className={`${activeTab === 'Players' ? 'bg-[#FFB84D]' : 'bg-transparent'} px-3 py-2 rounded-xl`}
               onPress={() => setActiveTab('Players')}
             >
-              <Text className={`${activeTab === 'Players' ? 'text-white' : 'text-gray-400'} text-[15px] font-semibold`}>Players</Text>
+              <Text className={`${activeTab === 'Players' ? 'text-white' : 'text-gray-400'} text-[15px] font-semibold`}>Cheer Teams</Text>
             </TouchableOpacity>
             <TouchableOpacity
               className={`${activeTab === 'League' ? 'bg-[#FFB84D]' : 'bg-transparent'} px-3 py-2 rounded-xl`}
@@ -951,8 +946,8 @@ export default function LeagueDetailScreen() {
               onSelectPosition={setPlayerPositionId}
               isLoading={isPlayersLoading}
               isFetching={isPlayersFetching}
-              hasMore={!!apiAthletesData?.pagination?.nextPage}
-              totalItems={apiAthletesData?.pagination?.totalItems ?? 0}
+              hasMore={false}
+              totalItems={availableCheerTeams.length}
               onLoadMore={() => setPlayersPage((p) => p + 1)}
               onSelectPlayer={(player: any) => {
                 setSelectedPlayer(player);
@@ -1045,6 +1040,8 @@ export default function LeagueDetailScreen() {
         isVisible={isRosterSettingsSubModalVisible}
         onClose={() => setIsRosterSettingsSubModalVisible(false)}
         leagueId={leagueId}
+        league={league}
+        canEdit={!!callerInfo?.isCreator}
       />
 
       <MemberSettingsSubModal
@@ -1059,6 +1056,8 @@ export default function LeagueDetailScreen() {
         isVisible={isScoringSettingsSubModalVisible}
         onClose={() => setIsScoringSettingsSubModalVisible(false)}
         leagueId={leagueId}
+        league={league}
+        canEdit={!!callerInfo?.isCreator}
       />
 
       <GiveCommissionerAccessModal

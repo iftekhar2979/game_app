@@ -211,6 +211,17 @@ export interface UpdateLeaguePayload {
   maxTeams?: number;
   status?: LeagueStatusValue;
   draftSettings?: PartialDraftSettings;
+  fantasyCheerSettings?: Partial<{
+    rosterSize: number;
+    starterCount: number;
+    regularSeasonPeriods: number;
+    officialScoreMultiplier: number;
+    deductionMultiplier: number;
+    hitZeroBonus: number;
+    advancementBonus: number;
+    championshipBonus: number;
+    placementPoints: Record<string, number>;
+  }>;
 }
 
 export interface DraftTeamRef {

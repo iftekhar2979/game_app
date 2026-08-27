@@ -5,7 +5,7 @@ import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { ChevronLeft } from 'lucide-react-native';
 import { useDispatch } from 'react-redux';
-import { updateUser } from '../../store/slices/authSlice';
+import { finishAvatarSetup, updateUser } from '../../store/slices/authSlice';
 import ViewShot from 'react-native-view-shot';
 import { RootStackParamList } from '../../../App';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -913,10 +913,18 @@ const GenerateAvatarScreen = () => {
               const signedAvatarUrl = saved.avatarUrl ?? undefined;
               dispatch(updateUser({ avatarUrl: signedAvatarUrl }));
               const storedUser = (await authStorage.getUser()) || {};
-              await authStorage.saveUser({ ...storedUser, avatarUrl: signedAvatarUrl });
+              await authStorage.saveUser({
+                ...storedUser,
+                avatarUrl: signedAvatarUrl,
+                ...(route.params?.isAccountSetup ? { needsAvatarSetup: false } : {}),
+              });
 
               showToast.success('Avatar saved');
-              navigation.navigate((route.params?.returnTo as any) ?? 'Home');
+              if (route.params?.isAccountSetup) {
+                dispatch(finishAvatarSetup());
+              } else {
+                navigation.navigate((route.params?.returnTo as any) ?? 'Home');
+              }
             } catch (error: any) {
               // Previously this was a bare console.error, so every failure -
               // including the presign rejecting an invalid primaryPath - looked

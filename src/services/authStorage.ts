@@ -12,6 +12,8 @@ export interface UserProfileData {
   fullName?: string;
   username?: string;
   avatarUrl?: string;
+  isEmailVerified?: boolean;
+  needsAvatarSetup?: boolean;
   [key: string]: any;
 }
 
@@ -37,7 +39,7 @@ class AuthStorageService {
         });
       }
       return true;
-    } catch (error) {
+    } catch {
       return false;
     }
   }
@@ -56,7 +58,7 @@ class AuthStorageService {
         return credentials.password;
       }
       return null;
-    } catch (error) {
+    } catch {
       return null;
     }
   }
@@ -75,7 +77,7 @@ class AuthStorageService {
         return credentials.password;
       }
       return null;
-    } catch (error) {
+    } catch {
       return null;
     }
   }
@@ -90,7 +92,7 @@ class AuthStorageService {
       await Keychain.resetGenericPassword({ service: ACCESS_TOKEN_SERVICE });
       await Keychain.resetGenericPassword({ service: REFRESH_TOKEN_SERVICE });
       return true;
-    } catch (error) {
+    } catch {
       return false;
     }
   }
@@ -102,7 +104,7 @@ class AuthStorageService {
     try {
       await AsyncStorage.setItem(USER_KEY, JSON.stringify(user));
       return true;
-    } catch (error) {
+    } catch {
       return false;
     }
   }
@@ -114,7 +116,7 @@ class AuthStorageService {
     try {
       const json = await AsyncStorage.getItem(USER_KEY);
       return json ? JSON.parse(json) : null;
-    } catch (error) {
+    } catch {
       return null;
     }
   }
@@ -126,7 +128,7 @@ class AuthStorageService {
     await this.clearTokens();
     try {
       await AsyncStorage.removeItem(USER_KEY);
-    } catch (error) {
+    } catch {
       // Ignore
     }
   }

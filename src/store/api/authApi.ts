@@ -16,6 +16,11 @@ export interface RegisterResponse {
   };
 }
 
+export interface ForgotPasswordResponse {
+  message: string;
+  data?: { accessToken?: string };
+}
+
 export interface VerifyEmailRequest {
   code: string;
 }
@@ -44,10 +49,21 @@ export const authApi = baseApi.injectEndpoints({
         body: data,
       }),
     }),
-    resendOtp: builder.mutation<{ message: string }, void>({
-      query: () => ({
-        url: '/auth/resend-otp',
+    forgotPassword: builder.mutation<ForgotPasswordResponse, { email: string }>({
+      query: (body) => ({
+        url: '/auth/forgot-password',
         method: 'POST',
+        body,
+      }),
+    }),
+    resetPassword: builder.mutation<
+      { message: string },
+      { resetPasswordToken: string; newPassword: string }
+    >({
+      query: (body) => ({
+        url: '/auth/reset-password',
+        method: 'POST',
+        body,
       }),
     }),
     login: builder.mutation<any, any>({
@@ -60,4 +76,10 @@ export const authApi = baseApi.injectEndpoints({
   }),
 });
 
-export const { useRegisterMutation, useVerifyEmailMutation, useResendOtpMutation, useLoginMutation } = authApi;
+export const {
+  useRegisterMutation,
+  useVerifyEmailMutation,
+  useForgotPasswordMutation,
+  useResetPasswordMutation,
+  useLoginMutation,
+} = authApi;

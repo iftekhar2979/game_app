@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { View, Text, Image, TouchableOpacity, ScrollView, Modal, ActivityIndicator, Alert } from 'react-native';
+import { View, Text, Image, TouchableOpacity, ScrollView, Modal, ActivityIndicator, Alert, TextInput } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ChevronLeft, Users } from 'lucide-react-native';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
@@ -11,14 +11,22 @@ import { setActiveTeam } from '../../store/slices/leagueSlice';
 import {
   useGetLeagueDetailsQuery,
   useGetLeagueMembersQuery,
-  useGetAvailableAthletesQuery,
   useGetLeagueRostersQuery,
   useJoinLeagueMutation,
-  useDraftPickMutation,
   useGetDraftStateQuery,
   useStartDraftMutation,
   useGetDraftPicksQuery,
 } from '../../store/api/leagueApi';
+import {
+  useDraftCheerTeamMutation,
+  useGetAvailableCheerTeamsQuery,
+  useGetCheerAuctionQuery,
+  useStartCheerAuctionMutation,
+  useNominateCheerTeamMutation,
+  useBidOnCheerTeamMutation,
+  useFinalizeCheerAuctionTurnMutation,
+  useCompleteCheerAuctionMutation,
+} from '../../store/api/cheerApi';
 import { getSocket, joinLeagueRoom, leaveLeagueRoom } from '../../services/socketService';
 import { showToast } from '../../utils/toast';
 import { DraftBoard, DraftPickFeed, MyDraftedStrip } from '../../components/LeagueDetail/DraftBoard';
@@ -50,7 +58,7 @@ export default function DraftRoomScreen() {
       (state.auth?.user as any)?.sub ||
       (state.auth?.user as any)?.userId
   );
-  const [draftPick, { isLoading: isDrafting }] = useDraftPickMutation();
+  const [draftCheerTeam, { isLoading: isDrafting }] = useDraftCheerTeamMutation();
   const { data: draftState, refetch: refetchDraftState } = useGetDraftStateQuery(leagueId, {
     skip: isMockId,
   });
@@ -63,6 +71,21 @@ export default function DraftRoomScreen() {
   const { data: apiLeagueData } = useGetLeagueDetailsQuery(leagueId, {
     skip: isMockId,
   });
+  const draftType =
+    (apiLeagueData as any)?.draftSettings?.type ||
+    (apiLeagueData as any)?.league?.draftSettings?.type ||
+    (league as any)?.draftType ||
+    (league as any)?.draftSettings?.type;
+  const isAuctionDraft = draftType === 'auction';
+  const { data: auctionState, refetch: refetchAuction } = useGetCheerAuctionQuery(leagueId, {
+    skip: isMockId || !isAuctionDraft,
+  });
+  const [startAuction, { isLoading: isStartingAuction }] = useStartCheerAuctionMutation();
+  const [nominateCheerTeam, { isLoading: isNominating }] = useNominateCheerTeamMutation();
+  const [bidOnCheerTeam, { isLoading: isBidding }] = useBidOnCheerTeamMutation();
+  const [finalizeAuctionTurn, { isLoading: isFinalizingAuction }] = useFinalizeCheerAuctionTurnMutation();
+  const [completeAuction, { isLoading: isCompletingAuction }] = useCompleteCheerAuctionMutation();
+  const [bidAmount, setBidAmount] = useState('');
 
   const { data: apiMembersData, isLoading: isLoadingMembers } = useGetLeagueMembersQuery(leagueId, {
     skip: isMockId,
@@ -70,10 +93,11 @@ export default function DraftRoomScreen() {
   const { data: apiRostersData } = useGetLeagueRostersQuery(leagueId, {
     skip: isMockId,
   });
-  const { data: apiAthletesData, isLoading: isLoadingAthletes, refetch: refetchAvailableAthletes } = useGetAvailableAthletesQuery(
-    { leagueId, limit: 50 },
-    { skip: isMockId },
-  );
+  const {
+    data: availableCheerTeams = [],
+    isLoading: isLoadingAthletes,
+    refetch: refetchAvailableAthletes,
+  } = useGetAvailableCheerTeamsQuery(leagueId, { skip: isMockId });
 
   const callerInfo = (apiLeagueData as any)?.caller;
 
@@ -165,7 +189,7 @@ export default function DraftRoomScreen() {
   }, [leagueId, isMockId, refetchAvailableAthletes, refetchDraftState, refetchDraftPicks]);
 
   // Every value below is read from the server. No snake maths on the client.
-  const isSnakeDraft = draftState?.isTurnOrdered === true;
+  const isSnakeDraft = !isAuctionDraft && draftState?.isTurnOrdered === true;
   const isDraftRunning = draftState?.status === 'active';
   const isMyTurn =
     !isSnakeDraft ||
@@ -179,6 +203,63 @@ export default function DraftRoomScreen() {
       showToast.success('Draft started', 'The pick order has been generated.');
     } catch (err: any) {
       showToast.error('Could not start draft', err?.data?.message || err?.message);
+    }
+  };
+
+  const auctionTurn = auctionState?.currentTurn;
+  const auctionIsActive = auctionState?.status === 'active';
+  const minimumAuctionBid = auctionTurn
+    ? Number(auctionTurn.currentBid || 0) + Number((apiLeagueData as any)?.draftSettings?.bidIncrement || 1)
+    : Number((apiLeagueData as any)?.draftSettings?.minimumBid || 1);
+
+  const handleAuctionStart = async () => {
+    try {
+      await startAuction(leagueId).unwrap();
+      await refetchAuction();
+      showToast.success('Auction started', 'The first manager may nominate a cheer team.');
+    } catch (err: any) {
+      showToast.error('Could not start auction', err?.data?.message || err?.message);
+    }
+  };
+
+  const handleAuctionNomination = async (player: any) => {
+    if (!auctionIsActive) {
+      showToast.error('Auction not open', 'The commissioner must start the auction first.');
+      return;
+    }
+    if (auctionTurn) {
+      showToast.error('Bidding in progress', 'Finish the current nomination before selecting another team.');
+      return;
+    }
+    try {
+      await nominateCheerTeam({
+        leagueId,
+        seasonCheerTeamId: String(player.seasonCheerTeamId || player.id),
+        openingBid: minimumAuctionBid,
+      }).unwrap();
+      setSetPlayerModalVisible(false);
+      await refetchAuction();
+      showToast.success('Team nominated', `Bidding is open for ${player.name}.`);
+    } catch (err: any) {
+      showToast.error('Nomination failed', err?.data?.message || err?.message);
+    }
+  };
+
+  const handleAuctionBid = async () => {
+    const amount = Number(bidAmount || minimumAuctionBid);
+    if (!auctionTurn?._id || !Number.isFinite(amount)) return;
+    try {
+      await bidOnCheerTeam({
+        leagueId,
+        turnId: String(auctionTurn._id),
+        requestId: `mobile:${userTeamId}:${Date.now()}`,
+        amount,
+      }).unwrap();
+      setBidAmount('');
+      await refetchAuction();
+      showToast.success('Bid accepted', `Your bid of ${amount} is now leading.`);
+    } catch (err: any) {
+      showToast.error('Bid failed', err?.data?.message || err?.message);
     }
   };
 
@@ -213,28 +294,25 @@ export default function DraftRoomScreen() {
   }, [apiMembersData]);
 
   const playersList = useMemo(() => {
-    const rawList = apiAthletesData?.items || [];
+    const rawList = availableCheerTeams || [];
 
     return rawList.map((item: any, idx: number) => {
-      const athlete = item.athlete || item.athleteId || {};
-      const name =
-        athlete.displayName ||
-        `${athlete.firstName || ''} ${athlete.lastName || ''}`.trim() ||
-        'Unknown Player';
+      const organization = typeof item.organizationId === 'object' ? item.organizationId : {};
+      const name = item.teamName || 'Unknown Cheer Team';
 
-      const positionCode = item.eligiblePositionIds?.[0]?.code;
-      const nflTeam = item.organizationId?.shortName || item.organizationId?.name;
+      const positionCode = 'CHEER';
+      const nflTeam = organization.shortName || organization.name;
 
       return {
         id: item._id || item.id || `p-${idx}`,
-        seasonAthleteId: item._id,
+        seasonCheerTeamId: item._id,
         name,
         subtitle: [positionCode, nflTeam].filter(Boolean).join(' • ') || 'Free agent',
         value: item.openingValue ?? null,
-        avatarUri: athlete.photoUrl || null,
+        avatarUri: organization.logoUrl || null,
       };
     });
-  }, [apiAthletesData]);
+  }, [availableCheerTeams]);
 
   const [setPlayerModalVisible, setSetPlayerModalVisible] = useState(false);
   const [isDraftStarted, setIsDraftStarted] = useState(false);
@@ -288,6 +366,90 @@ export default function DraftRoomScreen() {
       </View>
 
       <ScrollView className="flex-1" showsVerticalScrollIndicator={false}>
+        {isAuctionDraft && (
+          <View className="mx-5 mt-4 bg-[#111] border border-[#222] rounded-2xl p-4">
+            <View className="flex-row items-center justify-between mb-3">
+              <Text className="text-white text-[15px] font-bold">Cheer Team Auction</Text>
+              <Text className="text-[#8B3DFF] text-[10px] font-bold uppercase">
+                {auctionState?.status || 'scheduled'}
+              </Text>
+            </View>
+            {!auctionIsActive ? (
+              <TouchableOpacity
+                className="bg-[#8B3DFF] rounded-full py-3 items-center"
+                disabled={isStartingAuction}
+                onPress={handleAuctionStart}
+              >
+                {isStartingAuction ? <ActivityIndicator color="#fff" /> : (
+                  <Text className="text-white text-[14px] font-bold">Start auction</Text>
+                )}
+              </TouchableOpacity>
+            ) : auctionTurn ? (
+              <View>
+                <Text className="text-gray-400 text-[10px] uppercase font-bold">Now bidding</Text>
+                <Text className="text-white text-[17px] font-bold mt-1">
+                  {auctionTurn?.seasonCheerTeamId?.teamName || 'Cheer Team'}
+                </Text>
+                <Text className="text-[#E0B566] text-[13px] mt-1">Current bid: {auctionTurn.currentBid}</Text>
+                <Text className="text-gray-500 text-[11px] mt-1">
+                  Ends {new Date(auctionTurn.biddingEndsAt).toLocaleTimeString()}
+                </Text>
+                <View className="flex-row mt-3">
+                  <TextInput
+                    className="flex-1 h-11 rounded-xl border border-[#333] bg-black px-3 text-white mr-2"
+                    keyboardType="number-pad"
+                    placeholder={`Min ${minimumAuctionBid}`}
+                    placeholderTextColor="#666"
+                    value={bidAmount}
+                    onChangeText={setBidAmount}
+                  />
+                  <TouchableOpacity
+                    className="bg-[#8B3DFF] px-5 rounded-xl justify-center"
+                    disabled={isBidding}
+                    onPress={handleAuctionBid}
+                  >
+                    {isBidding ? <ActivityIndicator color="#fff" size="small" /> : <Text className="text-white font-bold">Bid</Text>}
+                  </TouchableOpacity>
+                </View>
+                <TouchableOpacity
+                  className="border border-[#444] rounded-xl py-2.5 items-center mt-3"
+                  disabled={isFinalizingAuction}
+                  onPress={async () => {
+                    try {
+                      await finalizeAuctionTurn({ leagueId, turnId: String(auctionTurn._id) }).unwrap();
+                      await Promise.all([refetchAuction(), refetchAvailableAthletes()]);
+                    } catch (err: any) {
+                      showToast.error('Cannot finalize yet', err?.data?.message || err?.message);
+                    }
+                  }}
+                >
+                  <Text className="text-gray-300 text-[12px] font-semibold">Finalize after timer</Text>
+                </TouchableOpacity>
+              </View>
+            ) : (
+              <View>
+                <Text className="text-gray-400 text-[12px] mb-3">
+                  The manager on nomination duty should select an available cheer team below.
+                </Text>
+                <TouchableOpacity
+                  className="border border-[#444] rounded-xl py-2.5 items-center"
+                  disabled={isCompletingAuction}
+                  onPress={async () => {
+                    try {
+                      await completeAuction(leagueId).unwrap();
+                      showToast.success('Auction complete', 'All rosters are filled and league play is active.');
+                    } catch (err: any) {
+                      showToast.error('Auction still open', err?.data?.message || err?.message);
+                    }
+                  }}
+                >
+                  <Text className="text-gray-300 text-[12px] font-semibold">Complete filled auction</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+          </View>
+        )}
+
         {/* Server-driven draft status */}
         {isSnakeDraft && (
           <View className="mx-5 mt-4 bg-[#111] border border-[#222] rounded-2xl p-4">
@@ -399,7 +561,9 @@ export default function DraftRoomScreen() {
             ) : (
               <>
                 <Users color="#fff" size={20} className="mr-2" />
-                <Text className="text-white text-[15px] font-bold">Pick Draft Player</Text>
+                <Text className="text-white text-[15px] font-bold">
+                  {isAuctionDraft ? 'Nominate Cheer Team' : 'Draft Cheer Team'}
+                </Text>
               </>
             )}
           </TouchableOpacity>
@@ -408,7 +572,7 @@ export default function DraftRoomScreen() {
         {/* Available Players Pool Section */}
         <View className="px-5 pb-10">
           <View className="flex-row items-center justify-between mb-4">
-            <Text className="text-white text-[18px] font-bold">Available Players Pool</Text>
+            <Text className="text-white text-[18px] font-bold">Available Cheer Teams</Text>
             <Text className="text-gray-400 text-[12px]">{playersList.length} Available</Text>
           </View>
 
@@ -417,9 +581,9 @@ export default function DraftRoomScreen() {
             <ActivityIndicator color="#8B3DFF" size="large" style={{ marginVertical: 30 }} />
           ) : playersList.length === 0 ? (
             <View className="py-10 items-center justify-center px-4">
-              <Text className="text-white text-[14px] font-semibold mb-1.5">No players available</Text>
+              <Text className="text-white text-[14px] font-semibold mb-1.5">No cheer teams available</Text>
               <Text className="text-gray-400 text-[12px] text-center">
-                Players appear here once their team has a game coming up and they are not already rostered.
+                Eligible real-world cheer teams appear here until another fantasy manager drafts them.
               </Text>
             </View>
           ) : (
@@ -430,15 +594,12 @@ export default function DraftRoomScreen() {
                 activeOpacity={0.8}
                 disabled={isDrafting}
                 onPress={async () => {
-                  const seasonAthleteId =
-                    typeof player.seasonAthleteId === 'string'
-                      ? player.seasonAthleteId
-                      : player.seasonAthleteId?._id ||
-                        player.seasonAthleteId?.id ||
-                        player.rawItem?.seasonAthleteId?._id ||
-                        player.rawItem?.seasonAthleteId ||
-                        player._id ||
-                        player.id;
+                  const seasonCheerTeamId = player.seasonCheerTeamId || player.id;
+
+                  if (isAuctionDraft) {
+                    await handleAuctionNomination(player);
+                    return;
+                  }
 
                   if (isSnakeDraft && !isDraftRunning) {
                     showToast.error('Draft not open', 'The draft has not started yet.');
@@ -454,7 +615,7 @@ export default function DraftRoomScreen() {
                   if (!leagueId || !userTeamId) {
                     Alert.alert(
                       'Not Joined Yet',
-                      'You must join this league to pick draft players.',
+                      'You must join this league to draft cheer teams.',
                       [
                         { text: 'Cancel', style: 'cancel' },
                         {
@@ -478,11 +639,11 @@ export default function DraftRoomScreen() {
                     return;
                   }
                   try {
-                    await draftPick({ leagueId, teamId: userTeamId, seasonAthleteId: String(seasonAthleteId), acquisitionCost: 0 }).unwrap();
+                    await draftCheerTeam({ leagueId, seasonCheerTeamId: String(seasonCheerTeamId) }).unwrap();
                     showToast.success('Draft Pick Success!', `${player.name} was drafted to your team.`);
                     if (refetchAvailableAthletes) refetchAvailableAthletes();
                   } catch (err: any) {
-                    const msg = err?.data?.message || err?.message || 'Failed to draft player.';
+                    const msg = err?.data?.message || err?.message || 'Failed to draft cheer team.';
                     showToast.error('Draft Error', msg);
                   }
                 }}
@@ -495,7 +656,9 @@ export default function DraftRoomScreen() {
                   </View>
                 </View>
                 <View className="bg-[#8B3DFF]/20 px-3 py-1.5 rounded-xl border border-[#8B3DFF]/40">
-                  <Text className="text-[#8B3DFF] text-[13px] font-bold">Draft</Text>
+                  <Text className="text-[#8B3DFF] text-[13px] font-bold">
+                    {isAuctionDraft ? 'Nominate' : 'Draft'}
+                  </Text>
                 </View>
               </TouchableOpacity>
             ))
@@ -514,7 +677,7 @@ export default function DraftRoomScreen() {
           <View className="w-full h-[80%] bg-[#1a1a1a] border-t border-[#333] rounded-t-[32px] p-6">
             {/* Modal Header */}
             <View className="flex-row items-center justify-between mb-5 pb-4 border-b border-[#333]">
-              <Text className="text-white text-[20px] font-bold">Select Draft Player</Text>
+              <Text className="text-white text-[20px] font-bold">Select Cheer Team</Text>
               <TouchableOpacity
                 className="px-3 py-1.5 rounded-full bg-[#2b2b2b]"
                 onPress={() => setSetPlayerModalVisible(false)}
@@ -528,7 +691,7 @@ export default function DraftRoomScreen() {
               {playersList.length === 0 && (
                 <View className="py-10 items-center justify-center px-4">
                   <Text className="text-gray-400 text-[12px] text-center">
-                    No players are available to draft right now.
+                    No cheer teams are available to draft right now.
                   </Text>
                 </View>
               )}
@@ -539,15 +702,12 @@ export default function DraftRoomScreen() {
                   activeOpacity={0.7}
                   disabled={isDrafting || (isSnakeDraft && !isMyTurn)}
                   onPress={async () => {
-                    const seasonAthleteId =
-                      typeof player.seasonAthleteId === 'string'
-                        ? player.seasonAthleteId
-                        : player.seasonAthleteId?._id ||
-                          player.seasonAthleteId?.id ||
-                          player.rawItem?.seasonAthleteId?._id ||
-                          player.rawItem?.seasonAthleteId ||
-                          player._id ||
-                          player.id;
+                    const seasonCheerTeamId = player.seasonCheerTeamId || player.id;
+
+                    if (isAuctionDraft) {
+                      await handleAuctionNomination(player);
+                      return;
+                    }
 
                     if (isSnakeDraft && !isDraftRunning) {
                       showToast.error('Draft not open', 'The draft has not started yet.');
@@ -563,7 +723,7 @@ export default function DraftRoomScreen() {
                     if (!leagueId || !userTeamId) {
                       Alert.alert(
                         'Not Joined Yet',
-                        'You must join this league to pick draft players.',
+                        'You must join this league to draft cheer teams.',
                         [
                           { text: 'Cancel', style: 'cancel' },
                           {
@@ -587,12 +747,12 @@ export default function DraftRoomScreen() {
                       return;
                     }
                     try {
-                      await draftPick({ leagueId, teamId: userTeamId, seasonAthleteId: String(seasonAthleteId), acquisitionCost: 0 }).unwrap();
+                      await draftCheerTeam({ leagueId, seasonCheerTeamId: String(seasonCheerTeamId) }).unwrap();
                       setSetPlayerModalVisible(false);
                       showToast.success('Draft Pick Success!', `${player.name} was drafted to your team.`);
                       if (refetchAvailableAthletes) refetchAvailableAthletes();
                     } catch (err: any) {
-                      const msg = err?.data?.message || err?.message || 'Failed to draft player.';
+                      const msg = err?.data?.message || err?.message || 'Failed to draft cheer team.';
                       showToast.error('Draft Error', msg);
                     }
                   }}
@@ -605,7 +765,9 @@ export default function DraftRoomScreen() {
                     </View>
                   </View>
                   <View className="bg-[#8B3DFF] px-4 py-2 rounded-xl">
-                    <Text className="text-white text-[13px] font-bold">Pick</Text>
+                    <Text className="text-white text-[13px] font-bold">
+                      {isAuctionDraft ? 'Nominate' : 'Pick'}
+                    </Text>
                   </View>
                 </TouchableOpacity>
               ))}

@@ -10,6 +10,7 @@ import './api/leagueApi';
 import './api/socialApi';
 import './api/avatarApi';
 import './api/dfsApi';
+import './api/adminCheerApi';
 
 export const store = configureStore({
   reducer: {
@@ -19,7 +20,7 @@ export const store = configureStore({
     league: leagueReducer,
     post: postReducer,
   },
-  middleware: (getDefaultMiddleware) =>
+  middleware: getDefaultMiddleware =>
     getDefaultMiddleware().concat(baseApi.middleware),
 });
 

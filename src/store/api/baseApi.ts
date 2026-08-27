@@ -1,5 +1,9 @@
 import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react';
-import type { BaseQueryFn, FetchArgs, FetchBaseQueryError } from '@reduxjs/toolkit/query';
+import type {
+  BaseQueryFn,
+  FetchArgs,
+  FetchBaseQueryError,
+} from '@reduxjs/toolkit/query';
 import { Mutex } from 'async-mutex';
 import { API_URL } from '../../config';
 import { authStorage } from '../../services/authStorage';
@@ -20,11 +24,11 @@ const rawBaseQuery = fetchBaseQuery({
   },
 });
 
-const baseQueryWithReauth: BaseQueryFn<string | FetchArgs, unknown, FetchBaseQueryError> = async (
-  args,
-  api,
-  extraOptions
-) => {
+const baseQueryWithReauth: BaseQueryFn<
+  string | FetchArgs,
+  unknown,
+  FetchBaseQueryError
+> = async (args, api, extraOptions) => {
   // Wait until the mutex is unlocked (if another request is already refreshing)
   await mutex.waitForUnlock();
 
@@ -44,11 +48,12 @@ const baseQueryWithReauth: BaseQueryFn<string | FetchArgs, unknown, FetchBaseQue
               body: { refreshToken },
             },
             api,
-            extraOptions
+            extraOptions,
           );
 
           if (refreshResult.data) {
-            const data: any = (refreshResult.data as any).data || refreshResult.data;
+            const data: any =
+              (refreshResult.data as any).data || refreshResult.data;
             const newAccessToken = data.accessToken;
             const newRefreshToken = data.refreshToken || refreshToken;
 
@@ -75,12 +80,37 @@ const baseQueryWithReauth: BaseQueryFn<string | FetchArgs, unknown, FetchBaseQue
     }
   }
 
+  // A request that is still unauthorized after the refresh attempt cannot use
+  // the current navigation tree. Clear it once and let the auth navigator open
+  // directly on Sign In.
+  if (result.error && result.error.status === 401) {
+    await authStorage.clearSession();
+    api.dispatch(logout());
+  }
+
   return result;
 };
 
 export const baseApi = createApi({
   reducerPath: 'baseApi',
   baseQuery: baseQueryWithReauth,
-  tagTypes: ['Auth', 'User', 'League', 'Team', 'Game', 'Player', 'Draft', 'Roster', 'Matchup', 'Social', 'Avatar', 'AvatarAsset', 'DfsContest', 'DfsSlate', 'DfsEntry'],
+  tagTypes: [
+    'Auth',
+    'User',
+    'League',
+    'Team',
+    'Game',
+    'Player',
+    'Draft',
+    'Roster',
+    'Matchup',
+    'Social',
+    'Avatar',
+    'AvatarAsset',
+    'DfsContest',
+    'DfsSlate',
+    'DfsEntry',
+    'AdminCheer',
+  ],
   endpoints: () => ({}),
 });
