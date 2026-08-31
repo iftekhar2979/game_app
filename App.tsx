@@ -50,6 +50,7 @@ import AdminCheerFormScreen, {
 } from './src/screens/Admin/AdminCheerFormScreen';
 import CheerEventsScreen from './src/screens/Events/CheerEventsScreen';
 import CheerEventDetailScreen from './src/screens/Events/CheerEventDetailScreen';
+import NotificationScreen from './src/screens/Notification/NotificationScreen';
 
 export type RootStackParamList = {
   Onboarding1: undefined;
@@ -59,6 +60,7 @@ export type RootStackParamList = {
   ForgotPassword: undefined;
   OTPVerification: undefined;
   ResetPassword: undefined;
+  Notification: undefined;
   ExploreAvatar:
     | { returnTo?: keyof RootStackParamList; isAccountSetup?: boolean }
     | undefined;
@@ -239,6 +241,10 @@ function AppContent() {
             <Stack.Screen
               name="CheerEventDetail"
               component={CheerEventDetailScreen}
+            />
+            <Stack.Screen
+              name="Notification"
+              component={NotificationScreen}
             />
             <Stack.Screen
               name="ExploreAvatar"

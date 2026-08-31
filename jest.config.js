@@ -3,4 +3,3 @@ module.exports = {
   transformIgnorePatterns: [
     'node_modules/(?!(@?react-native.*|@react-navigation|@reduxjs|immer|react-redux|lucide-react-native)/)',
   ],
-};
