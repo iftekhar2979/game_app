@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -7,6 +7,8 @@ import {
   TouchableOpacity,
   ScrollView,
   RefreshControl,
+  NativeSyntheticEvent,
+  NativeScrollEvent,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Bell, CalendarDays, PlusSquare, Trophy } from 'lucide-react-native';
@@ -37,11 +39,7 @@ import {
   formatMatchupScore,
 } from '../../components/LeagueDetail/matchupDisplay';
 import { useGetCheerCompetitionsQuery } from '../../store/api/cheerApi';
-import {
-  GRAND_CHAMPION_BONUS,
-  HIT_ZERO_BONUS,
-  SCORE_BANDS,
-} from '../../utils/cheerScoring';
+import { useGetNotificationBadgeQuery } from '../../store/api/notificationApi';
 
 const DashboardMatchupCard = ({ leagueId, leagueName, navigation }: any) => {
   const { data: matchup } = useGetCurrentMatchupQuery(leagueId, {
@@ -116,12 +114,14 @@ const DashboardStandingsCard = ({ leagueId, navigation }: any) => {
 
   if (standings.length === 0) return null;
 
-  const myStanding =
-    standings.find(
-      (s: any) =>
-        s.isMyTeam ||
-        String(s.userId || s.ownerId) === String(currentUserId),
-    ) || standings[0];
+  const myStanding = standings.find(
+    (s: any) =>
+      s.isMyTeam ||
+      (currentUserId && String(s.userId || s.ownerId) === String(currentUserId)),
+  );
+
+  // If the logged-in user has no team/standing in this league, do not show card
+  if (!myStanding) return null;
 
   return (
     <TouchableOpacity
@@ -191,41 +191,6 @@ const DashboardRecentMatchupCard = ({ leagueId, navigation }: any) => {
   );
 };
 
-const DashboardScoringCard = ({ leagueId, navigation }: any) => (
-  <TouchableOpacity
-    className="bg-[#21190f] border border-[#E0B566]/30 p-4 rounded-[20px] mb-4 mx-5"
-    activeOpacity={0.85}
-    onPress={() => navigation.navigate('LeagueDetail', { leagueId })}
-  >
-    <View className="flex-row items-center justify-between mb-3">
-      <View className="flex-1 mr-3">
-        <Text className="text-[#E0B566] text-[11px] font-bold tracking-wider uppercase">
-          TEAM SCORING
-        </Text>
-        <Text className="text-white text-[14px] font-semibold mt-1">
-          Official results become fantasy points
-        </Text>
-      </View>
-      <Trophy color="#E0B566" size={21} />
-    </View>
-    <View className="flex-row border-t border-white/10 pt-3">
-      {[
-        [`${SCORE_BANDS[0].points}`, 'Top score'],
-        [`+${HIT_ZERO_BONUS}`, 'Hit zero'],
-        [`+${GRAND_CHAMPION_BONUS}`, 'Champion'],
-      ].map(([value, label], index) => (
-        <View
-          key={label}
-          className={`flex-1 items-center ${index < 2 ? 'border-r border-white/10' : ''}`}
-        >
-          <Text className="text-white text-base font-bold">{value}</Text>
-          <Text className="text-gray-500 text-[10px] mt-0.5">{label}</Text>
-        </View>
-      ))}
-    </View>
-  </TouchableOpacity>
-);
-
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
 export default function HomeScreen() {
@@ -240,7 +205,16 @@ export default function HomeScreen() {
   const userAvatarUri = me?.avatarUrl || currentUser?.avatarUrl || null;
   const userDisplayName = me?.fullName || currentUser?.fullName || 'there';
 
+  const { data: badgeData } = useGetNotificationBadgeQuery();
+  const unreadBadgeCount = badgeData?.data?.unreadCount ?? 0;
+
   const { data: apiLeagues, refetch: refetchLeagues } = useGetLeaguesQuery();
+  const { data: myLeaguesData, refetch: refetchMyLeagues } = useGetLeaguesQuery({
+    mine: true,
+  });
+  const myLeagues =
+    (Array.isArray(myLeaguesData) ? myLeaguesData : myLeaguesData?.data) || [];
+
   const createdLeagues = useSelector(
     (state: RootState) => state.league.leagues,
   );
@@ -260,6 +234,22 @@ export default function HomeScreen() {
 
   const allLeagues =
     formattedApiLeagues.length > 0 ? formattedApiLeagues : createdLeagues;
+  const displayedLeagues = allLeagues.slice(0, 3);
+  const [activeFantasyIndex, setActiveFantasyIndex] = useState(0);
+
+  const handleFantasyScroll = (
+    event: NativeSyntheticEvent<NativeScrollEvent>,
+  ) => {
+    const offsetX = event.nativeEvent.contentOffset.x;
+    const index = Math.round(offsetX / 272);
+    const clamped = Math.max(
+      0,
+      Math.min(index, displayedLeagues.length - 1),
+    );
+    if (clamped !== activeFantasyIndex) {
+      setActiveFantasyIndex(clamped);
+    }
+  };
   const { data: cheerEvents = [], refetch: refetchEvents } =
     useGetCheerCompetitionsQuery({});
   const featuredEvent =
@@ -303,6 +293,7 @@ export default function HomeScreen() {
       await Promise.all([
         refetchMe(),
         refetchLeagues(),
+        refetchMyLeagues(),
         refetchFeed(),
         refetchEvents(),
       ]);
@@ -311,7 +302,14 @@ export default function HomeScreen() {
     } finally {
       setRefreshing(false);
     }
-  }, [dispatch, refetchMe, refetchLeagues, refetchFeed, refetchEvents]);
+  }, [
+    dispatch,
+    refetchMe,
+    refetchLeagues,
+    refetchMyLeagues,
+    refetchFeed,
+    refetchEvents,
+  ]);
 
   return (
     <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
@@ -335,11 +333,19 @@ export default function HomeScreen() {
             </View>
           </TouchableOpacity>
         </View>
-        <TouchableOpacity style={styles.bellButton}>
-          <Bell color="#999" size={22} />
-          <View style={styles.badge}>
-            <Text style={styles.badgeText}>0</Text>
-          </View>
+        <TouchableOpacity
+          style={styles.bellButton}
+          onPress={() => navigation.navigate('Notification')}
+          activeOpacity={0.8}
+        >
+          <Bell color={unreadBadgeCount > 0 ? '#8B3DFF' : '#999'} size={22} />
+          {unreadBadgeCount > 0 && (
+            <View style={styles.badge}>
+              <Text style={styles.badgeText}>
+                {unreadBadgeCount > 99 ? '99+' : unreadBadgeCount}
+              </Text>
+            </View>
+          )}
         </TouchableOpacity>
       </View>
 
@@ -360,46 +366,88 @@ export default function HomeScreen() {
         <View style={styles.fantasySection}>
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Fantasy</Text>
-            <TouchableOpacity
-              onPress={() => navigation.navigate('FantasyLeague')}
-            >
-              <Text style={styles.seeAllText}>See all</Text>
-            </TouchableOpacity>
-          </View>
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            style={styles.horizontalScroll}
-          >
-            {allLeagues.map((league: any) => (
+            {allLeagues.length > 0 && (
               <TouchableOpacity
-                key={league.id}
-                style={styles.fantasyCard}
-                activeOpacity={0.8}
-                onPress={() =>
-                  navigation.navigate('LeagueDetail', { leagueId: league.id })
-                }
+                onPress={() => navigation.navigate('FantasyLeague')}
               >
-                {league.logoUri ? (
-                  <Image
-                    source={{ uri: league.logoUri }}
-                    style={styles.cardLogoPlaceholder}
-                  />
-                ) : (
-                  <View style={styles.cardLogoPlaceholder} />
-                )}
-                <View>
-                  <Text style={styles.cardTitle}>{league.name}</Text>
-                  <Text style={styles.cardSubtext}>Head-to-head cheer team rosters</Text>
-                </View>
+                <Text style={styles.seeAllText}>See all</Text>
               </TouchableOpacity>
-            ))}
-          </ScrollView>
-          <View style={styles.paginationDots}>
-            <View style={[styles.dot, styles.activeDot]} />
-            <View style={styles.dot} />
-            <View style={styles.dot} />
+            )}
           </View>
+          {displayedLeagues.length === 0 ? (
+            <View className="mx-5 bg-[#121212] border border-[#333] rounded-[20px] p-5 items-center justify-center">
+              <Text className="text-gray-400 text-sm text-center mb-3">
+                No fantasy league available. Create new.
+              </Text>
+              <TouchableOpacity
+                className="bg-[#8B3DFF] px-4 py-2.5 rounded-xl flex-row items-center"
+                onPress={() => navigation.navigate('CreateLeague')}
+                activeOpacity={0.85}
+              >
+                <PlusSquare color="#fff" size={16} />
+                <Text className="text-white text-xs font-bold ml-1.5">
+                  Create League
+                </Text>
+              </TouchableOpacity>
+            </View>
+          ) : (
+            <>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                style={styles.horizontalScroll}
+                contentContainerStyle={{ paddingRight: 20 }}
+                decelerationRate="fast"
+                snapToInterval={272}
+                snapToAlignment="start"
+                scrollEventThrottle={16}
+                onScroll={handleFantasyScroll}
+              >
+                {displayedLeagues.map((league: any) => (
+                  <TouchableOpacity
+                    key={league.id}
+                    style={styles.fantasyCard}
+                    activeOpacity={0.8}
+                    onPress={() =>
+                      navigation.navigate('LeagueDetail', {
+                        leagueId: league.id,
+                      })
+                    }
+                  >
+                    {league.logoUri ? (
+                      <Image
+                        source={{ uri: league.logoUri }}
+                        style={styles.cardLogoPlaceholder}
+                      />
+                    ) : (
+                      <View style={styles.cardLogoPlaceholder} />
+                    )}
+                    <View className="flex-1">
+                      <Text style={styles.cardTitle} numberOfLines={1}>
+                        {league.name}
+                      </Text>
+                      <Text style={styles.cardSubtext} numberOfLines={1}>
+                        Head-to-head cheer team rosters
+                      </Text>
+                    </View>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+              {displayedLeagues.length > 1 && (
+                <View style={styles.paginationDots}>
+                  {displayedLeagues.map((_, index) => (
+                    <View
+                      key={`dot-${index}`}
+                      style={[
+                        styles.dot,
+                        activeFantasyIndex === index && styles.activeDot,
+                      ]}
+                    />
+                  ))}
+                </View>
+              )}
+            </>
+          )}
         </View>
 
         {/* Real Cheer Events */}
@@ -473,8 +521,8 @@ export default function HomeScreen() {
           )}
         </View>
 
-        {/* Dashboard Cards */}
-        {allLeagues.length > 0 && (
+        {/* Dashboard Cards (Only shown if user has joined at least one league) */}
+        {myLeagues.length > 0 && (
           <>
             <View className="mx-5 mt-7 mb-3">
               <Text style={styles.sectionTitle}>My Cheer Battle</Text>
@@ -483,20 +531,16 @@ export default function HomeScreen() {
               </Text>
             </View>
             <DashboardMatchupCard
-              leagueId={allLeagues[0].id || (allLeagues[0] as any)._id}
-              leagueName={allLeagues[0].name}
+              leagueId={myLeagues[0].id || (myLeagues[0] as any)._id}
+              leagueName={myLeagues[0].name}
               navigation={navigation}
             />
             <DashboardStandingsCard
-              leagueId={allLeagues[0].id || (allLeagues[0] as any)._id}
+              leagueId={myLeagues[0].id || (myLeagues[0] as any)._id}
               navigation={navigation}
             />
             <DashboardRecentMatchupCard
-              leagueId={allLeagues[0].id || (allLeagues[0] as any)._id}
-              navigation={navigation}
-            />
-            <DashboardScoringCard
-              leagueId={allLeagues[0].id || (allLeagues[0] as any)._id}
+              leagueId={myLeagues[0].id || (myLeagues[0] as any)._id}
               navigation={navigation}
             />
           </>

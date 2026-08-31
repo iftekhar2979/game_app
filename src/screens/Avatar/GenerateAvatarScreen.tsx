@@ -5,7 +5,7 @@ import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { ChevronLeft } from 'lucide-react-native';
 import { useDispatch } from 'react-redux';
-import { finishAvatarSetup, updateUser } from '../../store/slices/authSlice';
+import { updateUser } from '../../store/slices/authSlice';
 import ViewShot from 'react-native-view-shot';
 import { RootStackParamList } from '../../../App';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -17,6 +17,7 @@ import { useAssetCatalogue } from '../../avatar/useAssetCatalogue';
 import AssetPickerTile from '../../components/Avatar/AssetPickerTile';
 import { uploadImage } from '../../services/mediaUpload';
 import { authStorage } from '../../services/authStorage';
+import { authService } from '../../services/authService';
 import { showToast } from '../../utils/toast';
 import { BASES, FULLBODY_STAGE_SCALE, indexOfAsset, listFor } from '../../avatar/registry';
 import { REGISTRY_VERSION } from '../../avatar/registry';
@@ -910,20 +911,32 @@ const GenerateAvatarScreen = () => {
               // Redux alone is wiped on relaunch.
               // The API returns a signed URL; `?? undefined` because the auth
               // user type models "no avatar" as absent rather than null.
-              const signedAvatarUrl = saved.avatarUrl ?? undefined;
+              const signedAvatarUrl = saved?.avatarUrl ?? undefined;
               dispatch(updateUser({ avatarUrl: signedAvatarUrl }));
               const storedUser = (await authStorage.getUser()) || {};
               await authStorage.saveUser({
                 ...storedUser,
                 avatarUrl: signedAvatarUrl,
-                ...(route.params?.isAccountSetup ? { needsAvatarSetup: false } : {}),
+                needsAvatarSetup: false,
               });
 
-              showToast.success('Avatar saved');
-              if (route.params?.isAccountSetup) {
-                dispatch(finishAvatarSetup());
+              await authService.handleAvatarSetupCompleted(dispatch as any);
+
+              showToast.success('Avatar created successfully');
+
+              const returnTo = route.params?.returnTo;
+              if (
+                returnTo &&
+                returnTo !== 'Home' &&
+                returnTo !== 'ExploreAvatar' &&
+                returnTo !== 'GenerateAvatar'
+              ) {
+                navigation.navigate(returnTo as any);
               } else {
-                navigation.navigate((route.params?.returnTo as any) ?? 'Home');
+                navigation.reset({
+                  index: 0,
+                  routes: [{ name: 'Home' }],
+                });
               }
             } catch (error: any) {
               // Previously this was a bare console.error, so every failure -
