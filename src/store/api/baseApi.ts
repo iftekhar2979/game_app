@@ -113,6 +113,7 @@ export const baseApi = createApi({
     'AdminCheer',
     'Wallet',
     'CoinPackage',
+    'Notification',
   ],
   endpoints: () => ({}),
 });
