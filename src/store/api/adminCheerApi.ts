@@ -4,7 +4,14 @@ const unwrap = (response: any) => response?.data ?? response;
 
 export interface AdminCheerDashboard {
   scope: { seasonId: string | null };
-  counts: Record<string, number>;
+  counts: {
+    competitions?: number;
+    seasonTeams?: number;
+    teams?: number;
+    divisions?: number;
+    unpublishedScores?: number;
+    [key: string]: number | undefined;
+  };
   statusCounts: {
     competitions: Record<string, number>;
     entries: Record<string, number>;
@@ -105,7 +112,13 @@ export const adminCheerApi = baseApi.injectEndpoints({
         method: 'POST',
       }),
       transformResponse: unwrap,
-      invalidatesTags: ['AdminCheer', 'Game', 'League'],
+      invalidatesTags: [
+        'AdminCheer',
+        'Game',
+        'League',
+        'Matchup',
+        'Roster',
+      ],
     }),
     updateAdminCompetitionStatus: builder.mutation<
       any,

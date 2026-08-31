@@ -1,11 +1,50 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { View, Text, Image, TouchableOpacity, ScrollView, Modal, Pressable, TextInput, ActivityIndicator, Alert } from 'react-native';
-import { ChevronLeft, ChevronDown, User, Plus, Minus, Unlock, ShieldAlert, Calendar } from 'lucide-react-native';
+import {
+  View,
+  Text,
+  Image,
+  TouchableOpacity,
+  ScrollView,
+  Modal,
+  Pressable,
+  TextInput,
+  ActivityIndicator,
+  Alert,
+} from 'react-native';
+import {
+  ChevronLeft,
+  ChevronDown,
+  User,
+  Plus,
+  Minus,
+  Unlock,
+  ShieldAlert,
+  Calendar,
+} from 'lucide-react-native';
 import DatePicker from 'react-native-date-picker';
-import { useGetRosterSettingsQuery, useUpdateRosterSettingsMutation, useUpdateLeagueMutation, useGetScoringSettingsQuery, useGetLeagueMembersQuery, useRemoveLeagueMemberMutation, useUpdateMemberRoleMutation } from '../../store/api/leagueApi';
-import { useAddFantasyCheerFreeAgentMutation, useReleaseFantasyCheerTeamMutation, useUpdateFantasyCheerLineupMutation } from '../../store/api/cheerApi';
+import {
+  useGetRosterSettingsQuery,
+  useUpdateRosterSettingsMutation,
+  useUpdateLeagueMutation,
+  useGetScoringSettingsQuery,
+  useGetLeagueMembersQuery,
+  useRemoveLeagueMemberMutation,
+  useUpdateMemberRoleMutation,
+} from '../../store/api/leagueApi';
+import {
+  useAddFantasyCheerFreeAgentMutation,
+  useReleaseFantasyCheerTeamMutation,
+  useUpdateFantasyCheerLineupMutation,
+} from '../../store/api/cheerApi';
 import type { LeagueStatusValue } from '../../store/api/leagueApi';
 import { showToast } from '../../utils/toast';
+import {
+  DIVISION_WIN_BONUSES,
+  GRAND_CHAMPION_BONUS,
+  HIT_ZERO_BONUS,
+  LAST_PLACE_PENALTIES,
+  SCORE_BANDS,
+} from '../../utils/cheerScoring';
 
 export interface LeagueSettingsModalProps {
   isVisible: boolean;
@@ -31,7 +70,12 @@ export interface MemberSettingsSubModalProps {
 export interface AddTeamModalProps {
   isVisible: boolean;
   onClose: () => void;
-  teamMembers: Array<{ id: string; name: string; handle: string; avatarUri?: string }>;
+  teamMembers: Array<{
+    id: string;
+    name: string;
+    handle: string;
+    avatarUri?: string;
+  }>;
   onAddTeam: (team: any) => void;
 }
 
@@ -61,8 +105,11 @@ export interface DeleteLeagueModalProps {
   onDelete?: () => void;
 }
 
-export const LeagueSettingsModal = ({ isVisible, onClose, onOptionSelect }: LeagueSettingsModalProps) => {
-
+export const LeagueSettingsModal = ({
+  isVisible,
+  onClose,
+  onOptionSelect,
+}: LeagueSettingsModalProps) => {
   const SETTINGS_OPTIONS = [
     { id: '1', title: 'League settings' },
     { id: '2', title: 'Team settings' },
@@ -81,22 +128,30 @@ export const LeagueSettingsModal = ({ isVisible, onClose, onOptionSelect }: Leag
       animationType="fade"
       onRequestClose={onClose}
     >
-      <Pressable 
-        className="flex-1 bg-black/50 justify-center items-center px-6" 
+      <Pressable
+        className="flex-1 bg-black/50 justify-center items-center px-6"
         onPress={onClose}
       >
         <Pressable className="w-full bg-[#1e1e1e] rounded-[16px] border border-[#333] overflow-hidden">
           {SETTINGS_OPTIONS.map((option, index) => (
             <TouchableOpacity
               key={`${option.id}-${index}`}
-              className={`p-4 ${index !== SETTINGS_OPTIONS.length - 1 ? 'border-b border-[#333]' : ''}`}
+              className={`p-4 ${
+                index !== SETTINGS_OPTIONS.length - 1
+                  ? 'border-b border-[#333]'
+                  : ''
+              }`}
               activeOpacity={0.7}
               onPress={() => {
                 onClose();
                 if (onOptionSelect) onOptionSelect(option.title);
               }}
             >
-              <Text className={`${option.isDanger ? 'text-[#ff4444]' : 'text-white'} text-[16px]`}>
+              <Text
+                className={`${
+                  option.isDanger ? 'text-[#ff4444]' : 'text-white'
+                } text-[16px]`}
+              >
                 {option.title}
               </Text>
             </TouchableOpacity>
@@ -107,13 +162,37 @@ export const LeagueSettingsModal = ({ isVisible, onClose, onOptionSelect }: Leag
   );
 };
 
-const STATUS_OPTIONS: { value: LeagueStatusValue; label: string; hint: string }[] = [
+const STATUS_OPTIONS: {
+  value: LeagueStatusValue;
+  label: string;
+  hint: string;
+}[] = [
   { value: 'draft', label: 'Draft', hint: 'Not published yet' },
-  { value: 'registration_open', label: 'Registration open', hint: 'Managers can join' },
-  { value: 'registration_closed', label: 'Registration closed', hint: 'Roster is set, draft can be scheduled' },
-  { value: 'auction_scheduled', label: 'Auction scheduled', hint: 'Draft picks allowed' },
-  { value: 'auction_active', label: 'Auction active', hint: 'Draft picks allowed' },
-  { value: 'active', label: 'Active', hint: 'Normal play — free agent adds allowed' },
+  {
+    value: 'registration_open',
+    label: 'Registration open',
+    hint: 'Managers can join',
+  },
+  {
+    value: 'registration_closed',
+    label: 'Registration closed',
+    hint: 'Roster is set, draft can be scheduled',
+  },
+  {
+    value: 'auction_scheduled',
+    label: 'Auction scheduled',
+    hint: 'Draft picks allowed',
+  },
+  {
+    value: 'auction_active',
+    label: 'Auction active',
+    hint: 'Draft picks allowed',
+  },
+  {
+    value: 'active',
+    label: 'Active',
+    hint: 'Normal play — free agent adds allowed',
+  },
   { value: 'completed', label: 'Completed', hint: 'Locks all league settings' },
   { value: 'cancelled', label: 'Cancelled', hint: 'Locks all league settings' },
 ];
@@ -131,7 +210,13 @@ const SettingsField = ({
   </View>
 );
 
-export const LeagueSettingsSubModal = ({ isVisible, onClose, leagueId, league, canEdit }: any) => {
+export const LeagueSettingsSubModal = ({
+  isVisible,
+  onClose,
+  leagueId,
+  league,
+  canEdit,
+}: any) => {
   const [updateLeague, { isLoading: isSaving }] = useUpdateLeagueMutation();
 
   const [name, setName] = useState('');
@@ -159,7 +244,8 @@ export const LeagueSettingsSubModal = ({ isVisible, onClose, leagueId, league, c
 
   const isTerminal = status === 'completed' || status === 'cancelled';
   const currentStatus = (league?.rawStatus || league?.status || '') as string;
-  const isLockedByStatus = currentStatus === 'completed' || currentStatus === 'cancelled';
+  const isLockedByStatus =
+    currentStatus === 'completed' || currentStatus === 'cancelled';
   const editable = canEdit !== false && !isLockedByStatus;
 
   const parsedMaxTeams = parseInt(maxTeams, 10);
@@ -175,7 +261,11 @@ export const LeagueSettingsSubModal = ({ isVisible, onClose, leagueId, league, c
       showToast.error('Name required', 'Give the league a name before saving.');
       return;
     }
-    if (Number.isNaN(parsedMaxTeams) || parsedMaxTeams < 4 || parsedMaxTeams > 20) {
+    if (
+      Number.isNaN(parsedMaxTeams) ||
+      parsedMaxTeams < 4 ||
+      parsedMaxTeams > 20
+    ) {
       showToast.error('Invalid capacity', 'Teams must be between 4 and 20.');
       return;
     }
@@ -192,19 +282,33 @@ export const LeagueSettingsSubModal = ({ isVisible, onClose, leagueId, league, c
       showToast.success('League updated', `Settings saved for ${name.trim()}.`);
       onClose();
     } catch (err: any) {
-      const msg = err?.data?.message || err?.message || 'Failed to update the league.';
-      showToast.error('Update Failed', Array.isArray(msg) ? msg.join('\n') : msg);
+      const msg =
+        err?.data?.message || err?.message || 'Failed to update the league.';
+      showToast.error(
+        'Update Failed',
+        Array.isArray(msg) ? msg.join('\n') : msg,
+      );
     }
   };
 
   return (
-    <Modal visible={isVisible} transparent={true} animationType="slide" onRequestClose={onClose}>
+    <Modal
+      visible={isVisible}
+      transparent={true}
+      animationType="slide"
+      onRequestClose={onClose}
+    >
       <View className="flex-1 bg-black pt-12 px-5">
         <View className="flex-row items-center mb-6">
-          <TouchableOpacity onPress={onClose} className="w-10 h-10 border border-[#333] rounded-xl justify-center items-center mr-4">
+          <TouchableOpacity
+            onPress={onClose}
+            className="w-10 h-10 border border-[#333] rounded-xl justify-center items-center mr-4"
+          >
             <ChevronLeft color="#fff" size={24} />
           </TouchableOpacity>
-          <Text className="text-white text-[20px] font-medium">League settings</Text>
+          <Text className="text-white text-[20px] font-medium">
+            League settings
+          </Text>
         </View>
 
         {!editable && (
@@ -263,11 +367,12 @@ export const LeagueSettingsSubModal = ({ isVisible, onClose, leagueId, league, c
             <TouchableOpacity
               className="border border-[#333] rounded-[16px] flex-row items-center justify-between px-4 h-[56px]"
               disabled={!editable}
-              onPress={() => setIsStatusPickerOpen((open) => !open)}
+              onPress={() => setIsStatusPickerOpen(open => !open)}
               activeOpacity={0.7}
             >
               <Text className="text-white text-[14px]">
-                {STATUS_OPTIONS.find((o) => o.value === status)?.label || 'Select status'}
+                {STATUS_OPTIONS.find(o => o.value === status)?.label ||
+                  'Select status'}
               </Text>
               <ChevronDown color="#ccc" size={20} />
             </TouchableOpacity>
@@ -279,19 +384,27 @@ export const LeagueSettingsSubModal = ({ isVisible, onClose, leagueId, league, c
                   return (
                     <TouchableOpacity
                       key={option.value}
-                      className={`px-4 py-3 ${index !== STATUS_OPTIONS.length - 1 ? 'border-b border-[#262626]' : ''} ${
-                        isSelected ? 'bg-[#8B3DFF]/15' : ''
-                      }`}
+                      className={`px-4 py-3 ${
+                        index !== STATUS_OPTIONS.length - 1
+                          ? 'border-b border-[#262626]'
+                          : ''
+                      } ${isSelected ? 'bg-[#8B3DFF]/15' : ''}`}
                       onPress={() => {
                         setStatus(option.value);
                         setIsStatusPickerOpen(false);
                       }}
                       activeOpacity={0.7}
                     >
-                      <Text className={`${isSelected ? 'text-[#8B3DFF]' : 'text-white'} text-[14px] font-medium`}>
+                      <Text
+                        className={`${
+                          isSelected ? 'text-[#8B3DFF]' : 'text-white'
+                        } text-[14px] font-medium`}
+                      >
                         {option.label}
                       </Text>
-                      <Text className="text-gray-500 text-[11px] mt-0.5">{option.hint}</Text>
+                      <Text className="text-gray-500 text-[11px] mt-0.5">
+                        {option.hint}
+                      </Text>
                     </TouchableOpacity>
                   );
                 })}
@@ -358,7 +471,13 @@ const NumberField = ({
   </View>
 );
 
-export const DraftSettingsSubModal = ({ isVisible, onClose, leagueId, league, canEdit }: any) => {
+export const DraftSettingsSubModal = ({
+  isVisible,
+  onClose,
+  leagueId,
+  league,
+  canEdit,
+}: any) => {
   const [updateLeague, { isLoading: isSaving }] = useUpdateLeagueMutation();
 
   const settings = league?.draftSettings || {};
@@ -391,10 +510,13 @@ export const DraftSettingsSubModal = ({ isVisible, onClose, leagueId, league, ca
   }, [isVisible]);
 
   const currentStatus = (league?.rawStatus || league?.status || '') as string;
-  const isLockedByStatus = currentStatus === 'completed' || currentStatus === 'cancelled';
+  const isLockedByStatus =
+    currentStatus === 'completed' || currentStatus === 'cancelled';
   const editable = canEdit !== false && !isLockedByStatus;
 
-  const originalDate = settings.draftStartsAt ? new Date(settings.draftStartsAt).getTime() : null;
+  const originalDate = settings.draftStartsAt
+    ? new Date(settings.draftStartsAt).getTime()
+    : null;
   const isDirty =
     !!league &&
     (startingBudget !== String(settings.startingBudget ?? '') ||
@@ -410,12 +532,18 @@ export const DraftSettingsSubModal = ({ isVisible, onClose, leagueId, league, ca
     const bid = parseInt(minimumBid, 10);
     const increment = parseInt(bidIncrement, 10);
 
-    if ([budget, bid, increment].some((n) => Number.isNaN(n) || n < 1)) {
-      showToast.error('Invalid amounts', 'Budget, minimum bid and increment must be at least 1.');
+    if ([budget, bid, increment].some(n => Number.isNaN(n) || n < 1)) {
+      showToast.error(
+        'Invalid amounts',
+        'Budget, minimum bid and increment must be at least 1.',
+      );
       return;
     }
     if (bid > budget || increment > budget) {
-      showToast.error('Invalid amounts', 'Minimum bid and increment cannot exceed the starting budget.');
+      showToast.error(
+        'Invalid amounts',
+        'Minimum bid and increment cannot exceed the starting budget.',
+      );
       return;
     }
 
@@ -430,30 +558,60 @@ export const DraftSettingsSubModal = ({ isVisible, onClose, leagueId, league, ca
           startingBudget: budget,
           minimumBid: bid,
           bidIncrement: increment,
-          nominationDurationSeconds: Math.min(300, Math.max(10, parseInt(nominationSeconds, 10) || 30)),
-          biddingDurationSeconds: Math.min(300, Math.max(10, parseInt(biddingSeconds, 10) || 30)),
-          pickDurationSeconds: Math.min(600, Math.max(1, parseInt(pickSeconds, 10) || 60)),
-          ...(dateChanged && draftStartsAt ? { draftStartsAt: draftStartsAt.toISOString() } : {}),
+          nominationDurationSeconds: Math.min(
+            300,
+            Math.max(10, parseInt(nominationSeconds, 10) || 30),
+          ),
+          biddingDurationSeconds: Math.min(
+            300,
+            Math.max(10, parseInt(biddingSeconds, 10) || 30),
+          ),
+          pickDurationSeconds: Math.min(
+            600,
+            Math.max(1, parseInt(pickSeconds, 10) || 60),
+          ),
+          ...(dateChanged && draftStartsAt
+            ? { draftStartsAt: draftStartsAt.toISOString() }
+            : {}),
         },
       }).unwrap();
 
-      showToast.success('Draft settings saved', 'Auction rules updated for this league.');
+      showToast.success(
+        'Draft settings saved',
+        'Auction rules updated for this league.',
+      );
       onClose();
     } catch (err: any) {
-      const msg = err?.data?.message || err?.message || 'Failed to update draft settings.';
-      showToast.error('Update Failed', Array.isArray(msg) ? msg.join('\n') : msg);
+      const msg =
+        err?.data?.message ||
+        err?.message ||
+        'Failed to update draft settings.';
+      showToast.error(
+        'Update Failed',
+        Array.isArray(msg) ? msg.join('\n') : msg,
+      );
     }
   };
 
   return (
-    <Modal visible={isVisible} transparent={true} animationType="slide" onRequestClose={onClose}>
+    <Modal
+      visible={isVisible}
+      transparent={true}
+      animationType="slide"
+      onRequestClose={onClose}
+    >
       <View className="flex-1 bg-black pt-12 px-5">
         <View className="flex-row items-center mb-6">
-          <TouchableOpacity onPress={onClose} className="w-10 h-10 border border-[#333] rounded-xl justify-center items-center mr-4">
+          <TouchableOpacity
+            onPress={onClose}
+            className="w-10 h-10 border border-[#333] rounded-xl justify-center items-center mr-4"
+          >
             <ChevronLeft color="#fff" size={24} />
           </TouchableOpacity>
           <View className="flex-1">
-            <Text className="text-white text-[20px] font-medium">Draft settings</Text>
+            <Text className="text-white text-[20px] font-medium">
+              Draft settings
+            </Text>
             <Text className="text-gray-400 text-[12px]">Auction draft</Text>
           </View>
         </View>
@@ -511,20 +669,29 @@ export const DraftSettingsSubModal = ({ isVisible, onClose, leagueId, league, ca
           />
 
           <View className="mb-8">
-            <Text className="text-gray-400 text-[12px] mb-2">Draft starts at</Text>
+            <Text className="text-gray-400 text-[12px] mb-2">
+              Draft starts at
+            </Text>
             <TouchableOpacity
               className="border border-[#333] rounded-[16px] flex-row items-center justify-between px-4 h-[56px]"
               disabled={!editable}
               onPress={() => setIsDatePickerOpen(true)}
               activeOpacity={0.7}
             >
-              <Text className={`${draftStartsAt ? 'text-white' : 'text-gray-500'} text-[14px]`}>
-                {draftStartsAt ? draftStartsAt.toLocaleString() : 'Not scheduled'}
+              <Text
+                className={`${
+                  draftStartsAt ? 'text-white' : 'text-gray-500'
+                } text-[14px]`}
+              >
+                {draftStartsAt
+                  ? draftStartsAt.toLocaleString()
+                  : 'Not scheduled'}
               </Text>
               <Calendar color="#ccc" size={18} />
             </TouchableOpacity>
             <Text className="text-gray-500 text-[11px] mt-1.5">
-              A new draft time must be in the future and on or before the season start.
+              A new draft time must be in the future and on or before the season
+              start.
             </Text>
           </View>
         </ScrollView>
@@ -556,7 +723,7 @@ export const DraftSettingsSubModal = ({ isVisible, onClose, leagueId, league, ca
           date={draftStartsAt || new Date()}
           mode="datetime"
           theme="dark"
-          onConfirm={(date) => {
+          onConfirm={date => {
             setIsDatePickerOpen(false);
             setDraftStartsAt(date);
           }}
@@ -605,7 +772,13 @@ const Stepper = ({
   </View>
 );
 
-export const RosterSettingsSubModal = ({ isVisible, onClose, leagueId, league, canEdit }: any) => {
+export const RosterSettingsSubModal = ({
+  isVisible,
+  onClose,
+  leagueId,
+  league,
+  canEdit,
+}: any) => {
   const [updateLeague, { isLoading: isSaving }] = useUpdateLeagueMutation();
   const settings = league?.fantasyCheerSettings || {};
   const [rosterSize, setRosterSize] = useState(6);
@@ -620,8 +793,16 @@ export const RosterSettingsSubModal = ({ isVisible, onClose, leagueId, league, c
 
   const save = async () => {
     try {
-      await updateLeague({ id: leagueId, fantasyCheerSettings: { rosterSize, starterCount } }).unwrap();
-      showToast.success('Cheer roster saved', `${starterCount} starters and ${rosterSize - starterCount} bench teams.`);
+      await updateLeague({
+        id: leagueId,
+        fantasyCheerSettings: { rosterSize, starterCount },
+      }).unwrap();
+      showToast.success(
+        'Cheer roster saved',
+        `${starterCount} starters and ${
+          rosterSize - starterCount
+        } bench teams.`,
+      );
       onClose();
     } catch (err: any) {
       showToast.error('Save Failed', err?.data?.message || err?.message);
@@ -629,52 +810,104 @@ export const RosterSettingsSubModal = ({ isVisible, onClose, leagueId, league, c
   };
 
   return (
-    <Modal visible={isVisible} transparent animationType="slide" onRequestClose={onClose}>
+    <Modal
+      visible={isVisible}
+      transparent
+      animationType="slide"
+      onRequestClose={onClose}
+    >
       <View className="flex-1 bg-black pt-12 px-5">
         <View className="flex-row items-center mb-8">
-          <TouchableOpacity onPress={onClose} className="w-10 h-10 border border-[#333] rounded-xl justify-center items-center mr-4">
+          <TouchableOpacity
+            onPress={onClose}
+            className="w-10 h-10 border border-[#333] rounded-xl justify-center items-center mr-4"
+          >
             <ChevronLeft color="#fff" size={24} />
           </TouchableOpacity>
           <View>
-            <Text className="text-white text-[20px] font-medium">Fantasy cheer roster</Text>
-            <Text className="text-gray-400 text-[12px]">Real cheer teams per fantasy manager</Text>
+            <Text className="text-white text-[20px] font-medium">
+              Fantasy cheer roster
+            </Text>
+            <Text className="text-gray-400 text-[12px]">
+              Real cheer teams per fantasy manager
+            </Text>
           </View>
         </View>
         <View className="bg-[#111] border border-[#222] rounded-2xl p-4 mb-4">
           <View className="flex-row items-center justify-between mb-5">
             <View className="flex-1 mr-4">
-              <Text className="text-white text-[15px] font-semibold">Roster size</Text>
-              <Text className="text-gray-500 text-[11px]">Starters plus bench cheer teams</Text>
+              <Text className="text-white text-[15px] font-semibold">
+                Roster size
+              </Text>
+              <Text className="text-gray-500 text-[11px]">
+                Starters plus bench cheer teams
+              </Text>
             </View>
-            <Stepper value={rosterSize} min={1} max={30} disabled={!canEdit} onChange={(value) => {
-              setRosterSize(value);
-              setStarterCount((current) => Math.min(current, value));
-            }} />
+            <Stepper
+              value={rosterSize}
+              min={1}
+              max={30}
+              disabled={!canEdit}
+              onChange={value => {
+                setRosterSize(value);
+                setStarterCount(current => Math.min(current, value));
+              }}
+            />
           </View>
           <View className="flex-row items-center justify-between">
             <View className="flex-1 mr-4">
-              <Text className="text-white text-[15px] font-semibold">Active starters</Text>
-              <Text className="text-gray-500 text-[11px]">Only starters score at performance time</Text>
+              <Text className="text-white text-[15px] font-semibold">
+                Active starters
+              </Text>
+              <Text className="text-gray-500 text-[11px]">
+                Only starters score at performance time
+              </Text>
             </View>
-            <Stepper value={starterCount} min={1} max={rosterSize} disabled={!canEdit} onChange={setStarterCount} />
+            <Stepper
+              value={starterCount}
+              min={1}
+              max={rosterSize}
+              disabled={!canEdit}
+              onChange={setStarterCount}
+            />
           </View>
         </View>
         {canEdit ? (
-          <TouchableOpacity className="bg-[#8B3DFF] rounded-full h-[54px] justify-center items-center" onPress={save} disabled={isSaving}>
-            {isSaving ? <ActivityIndicator color="#fff" /> : <Text className="text-white text-[15px] font-bold">Save cheer roster</Text>}
+          <TouchableOpacity
+            className="bg-[#8B3DFF] rounded-full h-[54px] justify-center items-center"
+            onPress={save}
+            disabled={isSaving}
+          >
+            {isSaving ? (
+              <ActivityIndicator color="#fff" />
+            ) : (
+              <Text className="text-white text-[15px] font-bold">
+                Save cheer roster
+              </Text>
+            )}
           </TouchableOpacity>
-        ) : <Text className="text-gray-500 text-[12px]">Only the commissioner can edit this setting.</Text>}
+        ) : (
+          <Text className="text-gray-500 text-[12px]">
+            Only the commissioner can edit this setting.
+          </Text>
+        )}
       </View>
     </Modal>
   );
 };
 
-const LegacyRosterSettingsSubModal = ({ isVisible, onClose, leagueId }: any) => {
-  const { data, isLoading, isError, error, refetch } = useGetRosterSettingsQuery(leagueId, {
-    skip: !isVisible || !leagueId,
-    refetchOnMountOrArgChange: true,
-  });
-  const [updateRosterSettings, { isLoading: isSaving }] = useUpdateRosterSettingsMutation();
+const LegacyRosterSettingsSubModal = ({
+  isVisible,
+  onClose,
+  leagueId,
+}: any) => {
+  const { data, isLoading, isError, error, refetch } =
+    useGetRosterSettingsQuery(leagueId, {
+      skip: !isVisible || !leagueId,
+      refetchOnMountOrArgChange: true,
+    });
+  const [updateRosterSettings, { isLoading: isSaving }] =
+    useUpdateRosterSettingsMutation();
 
   const [slots, setSlots] = useState<any[]>([]);
   const [benchSize, setBenchSize] = useState(0);
@@ -709,8 +942,8 @@ const LegacyRosterSettingsSubModal = ({ isVisible, onClose, leagueId }: any) => 
   }, [slots, benchSize, data]);
 
   const updateSlot = (positionId: string, field: string, next: number) => {
-    setSlots((prev) =>
-      prev.map((slot) => {
+    setSlots(prev =>
+      prev.map(slot => {
         if (slot.positionId !== positionId) return slot;
         const updated = { ...slot, [field]: next };
         // Keep each slot internally consistent: minimum <= starters <= maximum.
@@ -730,7 +963,7 @@ const LegacyRosterSettingsSubModal = ({ isVisible, onClose, leagueId }: any) => 
       await updateRosterSettings({
         leagueId,
         benchSize,
-        slots: slots.map((slot) => ({
+        slots: slots.map(slot => ({
           positionId: slot.positionId,
           minimum: slot.minimum,
           maximum: slot.maximum,
@@ -738,23 +971,37 @@ const LegacyRosterSettingsSubModal = ({ isVisible, onClose, leagueId }: any) => 
         })),
       }).unwrap();
 
-      showToast.success('Roster settings saved', `Teams now carry ${totalRosterSize} players.`);
+      showToast.success(
+        'Roster settings saved',
+        `Fantasy rosters now carry ${totalRosterSize} cheer teams.`,
+      );
       onClose();
     } catch (err: any) {
-      const msg = err?.data?.message || err?.message || 'Failed to save roster settings.';
+      const msg =
+        err?.data?.message || err?.message || 'Failed to save roster settings.';
       showToast.error('Save Failed', msg);
     }
   };
 
   return (
-    <Modal visible={isVisible} transparent={true} animationType="slide" onRequestClose={onClose}>
+    <Modal
+      visible={isVisible}
+      transparent={true}
+      animationType="slide"
+      onRequestClose={onClose}
+    >
       <View className="flex-1 bg-black pt-12 px-5">
         <View className="flex-row items-center mb-6">
-          <TouchableOpacity onPress={onClose} className="w-10 h-10 border border-[#333] rounded-xl justify-center items-center mr-4">
+          <TouchableOpacity
+            onPress={onClose}
+            className="w-10 h-10 border border-[#333] rounded-xl justify-center items-center mr-4"
+          >
             <ChevronLeft color="#fff" size={24} />
           </TouchableOpacity>
           <View className="flex-1">
-            <Text className="text-white text-[20px] font-medium">Roster settings</Text>
+            <Text className="text-white text-[20px] font-medium">
+              Roster settings
+            </Text>
             {!!data && (
               <Text className="text-gray-400 text-[12px]">
                 {`${starterTotal} starters + ${benchSize} bench = ${totalRosterSize} per team`}
@@ -766,15 +1013,23 @@ const LegacyRosterSettingsSubModal = ({ isVisible, onClose, leagueId }: any) => 
         {isLoading ? (
           <View className="flex-1 items-center justify-center">
             <ActivityIndicator size="large" color="#8B3DFF" />
-            <Text className="text-gray-400 text-[13px] mt-3">Loading roster settings...</Text>
+            <Text className="text-gray-400 text-[13px] mt-3">
+              Loading roster settings...
+            </Text>
           </View>
         ) : isError || !data ? (
           <View className="flex-1 items-center justify-center px-6">
-            <Text className="text-white text-[15px] font-semibold mb-2">Settings unavailable</Text>
-            <Text className="text-gray-400 text-[12px] text-center mb-4">
-              {(error as any)?.data?.message || 'Roster settings could not be loaded.'}
+            <Text className="text-white text-[15px] font-semibold mb-2">
+              Settings unavailable
             </Text>
-            <TouchableOpacity className="bg-[#8B3DFF] px-5 py-2.5 rounded-full" onPress={() => refetch()}>
+            <Text className="text-gray-400 text-[12px] text-center mb-4">
+              {(error as any)?.data?.message ||
+                'Roster settings could not be loaded.'}
+            </Text>
+            <TouchableOpacity
+              className="bg-[#8B3DFF] px-5 py-2.5 rounded-full"
+              onPress={() => refetch()}
+            >
               <Text className="text-white text-[13px] font-medium">Retry</Text>
             </TouchableOpacity>
           </View>
@@ -783,49 +1038,72 @@ const LegacyRosterSettingsSubModal = ({ isVisible, onClose, leagueId }: any) => 
             {!canEdit && (
               <View className="bg-[#1a1a1a] border border-[#333] rounded-2xl px-4 py-3 mb-4">
                 <Text className="text-gray-400 text-[12px]">
-                  {data.lockedReason || 'Only the league commissioner can change roster settings.'}
+                  {data.lockedReason ||
+                    'Only the league commissioner can change roster settings.'}
                 </Text>
               </View>
             )}
 
             <ScrollView showsVerticalScrollIndicator={false} className="flex-1">
               <View className="flex-row px-1 mb-2">
-                <Text className="text-gray-500 text-[10px] uppercase font-bold w-[104px]">Starters</Text>
-                <Text className="text-gray-500 text-[10px] uppercase font-bold ml-4 flex-1">Position</Text>
-                <Text className="text-gray-500 text-[10px] uppercase font-bold">Max</Text>
+                <Text className="text-gray-500 text-[10px] uppercase font-bold w-[104px]">
+                  Starters
+                </Text>
+                <Text className="text-gray-500 text-[10px] uppercase font-bold ml-4 flex-1">
+                  Division
+                </Text>
+                <Text className="text-gray-500 text-[10px] uppercase font-bold">
+                  Max
+                </Text>
               </View>
 
               {slots.map((slot, idx) => (
-                <View key={`${slot.positionId}-${idx}`} className="flex-row items-center mb-4">
+                <View
+                  key={`${slot.positionId}-${idx}`}
+                  className="flex-row items-center mb-4"
+                >
                   <Stepper
                     value={slot.starterCount}
                     min={0}
                     max={slot.maximum}
                     disabled={!canEdit}
-                    onChange={(next) => updateSlot(slot.positionId, 'starterCount', next)}
+                    onChange={next =>
+                      updateSlot(slot.positionId, 'starterCount', next)
+                    }
                   />
                   <View className="flex-1 mx-4">
                     <Text className="text-white text-[13px]" numberOfLines={1}>
-                      {slot.name || slot.code || 'Position'}
+                      {slot.name || slot.code || 'Division'}
                     </Text>
                     <Text className="text-gray-500 text-[11px]">
-                      {`${slot.code ? `${slot.code} • ` : ''}min ${slot.minimum}`}
+                      {`${slot.code ? `${slot.code} • ` : ''}min ${
+                        slot.minimum
+                      }`}
                     </Text>
                   </View>
                   <Stepper
                     value={slot.maximum}
                     min={Math.max(slot.starterCount, slot.minimum)}
                     disabled={!canEdit}
-                    onChange={(next) => updateSlot(slot.positionId, 'maximum', next)}
+                    onChange={next =>
+                      updateSlot(slot.positionId, 'maximum', next)
+                    }
                   />
                 </View>
               ))}
 
               <View className="flex-row items-center mb-4 pt-4 border-t border-[#222]">
-                <Stepper value={benchSize} min={0} disabled={!canEdit} onChange={setBenchSize} />
+                <Stepper
+                  value={benchSize}
+                  min={0}
+                  disabled={!canEdit}
+                  onChange={setBenchSize}
+                />
                 <View className="flex-1 ml-4">
                   <Text className="text-white text-[13px]">Bench</Text>
-                  <Text className="text-gray-500 text-[11px]">Reserves beyond the starting lineup</Text>
+                  <Text className="text-gray-500 text-[11px]">
+                    Reserves beyond the starting lineup
+                  </Text>
                 </View>
               </View>
             </ScrollView>
@@ -872,14 +1150,19 @@ const METRIC_LABELS: Record<string, string> = {
 /** PASS_YARDS -> Pass yards, for codes we have no friendly label for. */
 const humanise = (code: string) =>
   METRIC_LABELS[code] ||
-  code.toLowerCase().replace(/_/g, ' ').replace(/^./, (c) => c.toUpperCase());
+  code
+    .toLowerCase()
+    .replace(/_/g, ' ')
+    .replace(/^./, c => c.toUpperCase());
 
 const formatRuleValue = (rule: any) => {
   if (rule.calculationType === 'multiplier' && rule.multiplier !== null) {
     return `${rule.multiplier} / unit`;
   }
   if (rule.calculationType === 'placement_table') {
-    const count = rule.placementPoints ? Object.keys(rule.placementPoints).length : 0;
+    const count = rule.placementPoints
+      ? Object.keys(rule.placementPoints).length
+      : 0;
     return count ? `${count} placements` : 'Placement table';
   }
   if (rule.points !== null && rule.points !== undefined) {
@@ -888,112 +1171,169 @@ const formatRuleValue = (rule: any) => {
   return '—';
 };
 
-export const ScoringSettingsSubModal = ({ isVisible, onClose, leagueId, league, canEdit }: any) => {
-  const [updateLeague, { isLoading: isSaving }] = useUpdateLeagueMutation();
-  const settings = useMemo(() => league?.fantasyCheerSettings || {}, [league?.fantasyCheerSettings]);
-  const [values, setValues] = useState<any>({});
+const pointsLabel = (points: number) => `${points > 0 ? '+' : ''}${points} pts`;
 
-  useEffect(() => {
-    if (isVisible) setValues({
-      regularSeasonPeriods: Number(settings.regularSeasonPeriods || 10),
-      officialScoreMultiplier: Number(settings.officialScoreMultiplier ?? 1),
-      deductionMultiplier: Number(settings.deductionMultiplier ?? 1),
-      hitZeroBonus: Number(settings.hitZeroBonus ?? 5),
-      advancementBonus: Number(settings.advancementBonus ?? 3),
-      championshipBonus: Number(settings.championshipBonus ?? 10),
-      placementPoints: settings.placementPoints || { '1': 20, '2': 12, '3': 8, '4': 5, '5': 3 },
-    });
-  }, [isVisible, settings]);
+const otherTeamsLabel = (
+  minimumOtherTeams: number,
+  maximumOtherTeams: number | null,
+) =>
+  maximumOtherTeams === null
+    ? `${minimumOtherTeams}+ other teams`
+    : `${minimumOtherTeams}–${maximumOtherTeams} other teams`;
 
-  const setNumber = (key: string, raw: string) => {
-    const number = Number(raw);
-    setValues((current: any) => ({ ...current, [key]: Number.isFinite(number) ? Math.max(0, number) : 0 }));
-  };
-
-  const save = async () => {
-    try {
-      await updateLeague({ id: leagueId, fantasyCheerSettings: values }).unwrap();
-      showToast.success('Cheer scoring saved', 'Future published routines will use these league rules.');
-      onClose();
-    } catch (err: any) {
-      showToast.error('Save Failed', err?.data?.message || err?.message);
-    }
-  };
-
-  const fields = [
-    ['officialScoreMultiplier', 'Official score multiplier'],
-    ['deductionMultiplier', 'Deduction multiplier'],
-    ['hitZeroBonus', 'Hit-zero bonus'],
-    ['advancementBonus', 'Advancement bonus'],
-    ['championshipBonus', 'Championship bonus'],
-  ];
+export const ScoringSettingsSubModal = ({ isVisible, onClose }: any) => {
   return (
-    <Modal visible={isVisible} transparent animationType="slide" onRequestClose={onClose}>
+    <Modal
+      visible={isVisible}
+      transparent
+      animationType="slide"
+      onRequestClose={onClose}
+    >
       <View className="flex-1 bg-black pt-12 px-5">
         <View className="flex-row items-center mb-6">
-          <TouchableOpacity onPress={onClose} className="w-10 h-10 border border-[#333] rounded-xl justify-center items-center mr-4">
+          <TouchableOpacity
+            onPress={onClose}
+            className="w-10 h-10 border border-[#333] rounded-xl justify-center items-center mr-4"
+          >
             <ChevronLeft color="#fff" size={24} />
           </TouchableOpacity>
-          <View>
-            <Text className="text-white text-[20px] font-medium">Fantasy cheer scoring</Text>
-            <Text className="text-gray-400 text-[12px]">Official routine score plus league bonuses</Text>
+          <View className="flex-1">
+            <Text className="text-white text-[20px] font-medium">
+              Scoring rules
+            </Text>
+            <Text className="text-gray-400 text-[12px]">
+              One standard system for every drafted team
+            </Text>
           </View>
         </View>
         <ScrollView className="flex-1" showsVerticalScrollIndicator={false}>
-          <View className="bg-[#111] border border-[#222] rounded-2xl p-4">
-            <View className="flex-row items-center justify-between mb-4">
-              <Text className="text-white text-[14px] flex-1">Regular-season periods</Text>
-              <Stepper value={values.regularSeasonPeriods || 10} min={1} max={52} disabled={!canEdit}
-                onChange={(regularSeasonPeriods) => setValues((current: any) => ({ ...current, regularSeasonPeriods }))} />
-            </View>
-            {fields.map(([key, label]) => (
-              <View key={key} className="flex-row items-center justify-between border-t border-[#222] py-3">
-                <Text className="text-white text-[14px] flex-1 mr-4">{label}</Text>
-                <TextInput
-                  className="w-20 h-10 border border-[#333] rounded-xl text-white text-center"
-                  editable={!!canEdit}
-                  keyboardType="decimal-pad"
-                  value={String(values[key] ?? 0)}
-                  onChangeText={(raw) => setNumber(key, raw)}
-                />
+          <Text className="text-[#E0B566] text-[12px] font-bold uppercase mb-2">
+            Official score
+          </Text>
+          <View className="bg-[#111] border border-[#222] rounded-2xl px-4 mb-6">
+            {SCORE_BANDS.map((band, index) => (
+              <View
+                key={`${band.minimum}-${band.maximum}`}
+                className={`flex-row items-center justify-between py-3 ${
+                  index < SCORE_BANDS.length - 1 ? 'border-b border-[#222]' : ''
+                }`}
+              >
+                <Text className="text-white text-[14px]">
+                  {band.minimum === 0
+                    ? 'Below 87.5'
+                    : band.maximum === 100
+                    ? '98.5–100'
+                    : `${band.minimum}–under ${band.maximum}`}
+                </Text>
+                <Text
+                  className={`text-[14px] font-bold ${
+                    band.points < 0 ? 'text-red-400' : 'text-emerald-400'
+                  }`}
+                >
+                  {pointsLabel(band.points)}
+                </Text>
               </View>
             ))}
           </View>
-          <Text className="text-[#E0B566] text-[12px] font-bold uppercase mt-6 mb-2">Placement bonuses</Text>
-          <View className="bg-[#111] border border-[#222] rounded-2xl p-4 mb-6">
-            {Object.keys(values.placementPoints || {}).sort((a, b) => Number(a) - Number(b)).map((place) => (
-              <View key={place} className="flex-row items-center justify-between py-2">
-                <Text className="text-white text-[14px]">Place #{place}</Text>
-                <Stepper value={Number(values.placementPoints[place])} min={0} max={100} disabled={!canEdit}
-                  onChange={(value) => setValues((current: any) => ({ ...current, placementPoints: { ...current.placementPoints, [place]: value } }))} />
+
+          <Text className="text-[#E0B566] text-[12px] font-bold uppercase mb-2">
+            Bonuses
+          </Text>
+          <View className="bg-[#111] border border-[#222] rounded-2xl px-4 mb-6">
+            {DIVISION_WIN_BONUSES.map(rule => (
+              <View
+                key={`win-${rule.minimumOtherTeams}`}
+                className="flex-row items-center justify-between border-b border-[#222] py-3"
+              >
+                <Text className="text-white text-[14px] flex-1 mr-4">
+                  Win division ·{' '}
+                  {otherTeamsLabel(
+                    rule.minimumOtherTeams,
+                    rule.maximumOtherTeams,
+                  )}
+                </Text>
+                <Text className="text-emerald-400 text-[14px] font-bold">
+                  {pointsLabel(rule.points)}
+                </Text>
+              </View>
+            ))}
+            <View className="flex-row items-center justify-between border-b border-[#222] py-3">
+              <Text className="text-white text-[14px]">
+                Hit zero deductions
+              </Text>
+              <Text className="text-emerald-400 text-[14px] font-bold">
+                {pointsLabel(HIT_ZERO_BONUS)}
+              </Text>
+            </View>
+            <View className="flex-row items-center justify-between py-3">
+              <Text className="text-white text-[14px]">Grand champion</Text>
+              <Text className="text-emerald-400 text-[14px] font-bold">
+                {pointsLabel(GRAND_CHAMPION_BONUS)}
+              </Text>
+            </View>
+          </View>
+
+          <Text className="text-red-400 text-[12px] font-bold uppercase mb-2">
+            Deductions
+          </Text>
+          <View className="bg-[#111] border border-[#222] rounded-2xl px-4 mb-8">
+            {LAST_PLACE_PENALTIES.map((rule, index) => (
+              <View
+                key={`last-${rule.minimumOtherTeams}`}
+                className={`flex-row items-center justify-between py-3 ${
+                  index < LAST_PLACE_PENALTIES.length - 1
+                    ? 'border-b border-[#222]'
+                    : ''
+                }`}
+              >
+                <Text className="text-white text-[14px] flex-1 mr-4">
+                  Finish last ·{' '}
+                  {otherTeamsLabel(
+                    rule.minimumOtherTeams,
+                    rule.maximumOtherTeams,
+                  )}
+                </Text>
+                <Text className="text-red-400 text-[14px] font-bold">
+                  {pointsLabel(rule.points)}
+                </Text>
               </View>
             ))}
           </View>
         </ScrollView>
-        {canEdit && (
-          <TouchableOpacity className="bg-[#8B3DFF] rounded-full h-[54px] justify-center items-center mb-8" onPress={save} disabled={isSaving}>
-            {isSaving ? <ActivityIndicator color="#fff" /> : <Text className="text-white text-[15px] font-bold">Save scoring</Text>}
-          </TouchableOpacity>
-        )}
       </View>
     </Modal>
   );
 };
 
-const LegacyScoringSettingsSubModal = ({ isVisible, onClose, leagueId }: any) => {
-  const { data, isLoading, isError, error, refetch } = useGetScoringSettingsQuery(leagueId, {
-    skip: !isVisible || !leagueId,
-  });
+const LegacyScoringSettingsSubModal = ({
+  isVisible,
+  onClose,
+  leagueId,
+}: any) => {
+  const { data, isLoading, isError, error, refetch } =
+    useGetScoringSettingsQuery(leagueId, {
+      skip: !isVisible || !leagueId,
+    });
 
   return (
-    <Modal visible={isVisible} transparent={true} animationType="slide" onRequestClose={onClose}>
+    <Modal
+      visible={isVisible}
+      transparent={true}
+      animationType="slide"
+      onRequestClose={onClose}
+    >
       <View className="flex-1 bg-black pt-12 px-5">
         <View className="flex-row items-center mb-6">
-          <TouchableOpacity onPress={onClose} className="w-10 h-10 border border-[#333] rounded-xl justify-center items-center mr-4">
+          <TouchableOpacity
+            onPress={onClose}
+            className="w-10 h-10 border border-[#333] rounded-xl justify-center items-center mr-4"
+          >
             <ChevronLeft color="#fff" size={24} />
           </TouchableOpacity>
           <View className="flex-1">
-            <Text className="text-white text-[20px] font-medium">Scoring settings</Text>
+            <Text className="text-white text-[20px] font-medium">
+              Scoring settings
+            </Text>
             {!!data && (
               <Text className="text-gray-400 text-[12px]">
                 {`${data.name} · v${data.version} · ${data.ruleCount} rules`}
@@ -1005,22 +1345,32 @@ const LegacyScoringSettingsSubModal = ({ isVisible, onClose, leagueId }: any) =>
         {isLoading ? (
           <View className="flex-1 items-center justify-center">
             <ActivityIndicator size="large" color="#8B3DFF" />
-            <Text className="text-gray-400 text-[13px] mt-3">Loading scoring rules...</Text>
+            <Text className="text-gray-400 text-[13px] mt-3">
+              Loading scoring rules...
+            </Text>
           </View>
         ) : isError || !data ? (
           <View className="flex-1 items-center justify-center px-6">
-            <Text className="text-white text-[15px] font-semibold mb-2">Scoring unavailable</Text>
-            <Text className="text-gray-400 text-[12px] text-center mb-4">
-              {(error as any)?.data?.message || 'Scoring rules could not be loaded.'}
+            <Text className="text-white text-[15px] font-semibold mb-2">
+              Scoring unavailable
             </Text>
-            <TouchableOpacity className="bg-[#8B3DFF] px-5 py-2.5 rounded-full" onPress={() => refetch()}>
+            <Text className="text-gray-400 text-[12px] text-center mb-4">
+              {(error as any)?.data?.message ||
+                'Scoring rules could not be loaded.'}
+            </Text>
+            <TouchableOpacity
+              className="bg-[#8B3DFF] px-5 py-2.5 rounded-full"
+              onPress={() => refetch()}
+            >
               <Text className="text-white text-[13px] font-medium">Retry</Text>
             </TouchableOpacity>
           </View>
         ) : (
           <>
             <View className="bg-[#1a1a1a] border border-[#333] rounded-2xl px-4 py-3 mb-4">
-              <Text className="text-gray-400 text-[12px]">{data.readOnlyReason}.</Text>
+              <Text className="text-gray-400 text-[12px]">
+                {data.readOnlyReason}.
+              </Text>
             </View>
 
             <ScrollView showsVerticalScrollIndicator={false} className="flex-1">
@@ -1035,10 +1385,15 @@ const LegacyScoringSettingsSubModal = ({ isVisible, onClose, leagueId }: any) =>
                       className="flex-row items-center justify-between border-b border-[#222] pb-3 mb-3"
                     >
                       <View className="flex-1 mr-3">
-                        <Text className="text-white text-[14px]" numberOfLines={1}>
+                        <Text
+                          className="text-white text-[14px]"
+                          numberOfLines={1}
+                        >
                           {humanise(rule.metricCode)}
                         </Text>
-                        <Text className="text-gray-600 text-[10px] mt-0.5">{rule.metricCode}</Text>
+                        <Text className="text-gray-600 text-[10px] mt-0.5">
+                          {rule.metricCode}
+                        </Text>
                       </View>
                       <Text className="text-[#8B3DFF] text-[13px] font-semibold">
                         {formatRuleValue(rule)}
@@ -1067,7 +1422,10 @@ const MemberRow = ({
   <View className="flex-row items-center justify-between border-b border-[#222] py-3.5">
     <View className="flex-row items-center flex-1 mr-3">
       {member.avatarUri ? (
-        <Image source={{ uri: member.avatarUri }} className="w-10 h-10 rounded-full mr-3 bg-[#222]" />
+        <Image
+          source={{ uri: member.avatarUri }}
+          className="w-10 h-10 rounded-full mr-3 bg-[#222]"
+        />
       ) : (
         <View className="w-10 h-10 rounded-full mr-3 bg-[#222] border border-[#333] justify-center items-center">
           <User color="#666" size={18} />
@@ -1092,12 +1450,19 @@ const MemberRow = ({
  * The API renames the stored `creator` role to `commissioner` on the way out.
  */
 const useLeagueMembers = (leagueId: string, isVisible: boolean) => {
-  const { data, isLoading, isError, refetch } = useGetLeagueMembersQuery(leagueId, {
-    skip: !isVisible || !leagueId,
-  });
+  const { data, isLoading, isError, refetch } = useGetLeagueMembersQuery(
+    leagueId,
+    {
+      skip: !isVisible || !leagueId,
+    },
+  );
 
   const members = useMemo(() => {
-    const raw = Array.isArray(data) ? data : Array.isArray((data as any)?.data) ? (data as any).data : [];
+    const raw = Array.isArray(data)
+      ? data
+      : Array.isArray((data as any)?.data)
+      ? (data as any).data
+      : [];
     return raw.map((m: any, idx: number) => {
       const user = m.user || (typeof m.userId === 'object' ? m.userId : {});
       const team = m.team || {};
@@ -1115,9 +1480,19 @@ const useLeagueMembers = (leagueId: string, isVisible: boolean) => {
   return { members, isLoading, isError, refetch };
 };
 
-export const MemberSettingsSubModal = ({ isVisible, onClose, leagueId, canManage, currentUserId }: any) => {
-  const { members, isLoading, isError, refetch } = useLeagueMembers(leagueId, isVisible);
-  const [removeMember, { isLoading: isRemoving }] = useRemoveLeagueMemberMutation();
+export const MemberSettingsSubModal = ({
+  isVisible,
+  onClose,
+  leagueId,
+  canManage,
+  currentUserId,
+}: any) => {
+  const { members, isLoading, isError, refetch } = useLeagueMembers(
+    leagueId,
+    isVisible,
+  );
+  const [removeMember, { isLoading: isRemoving }] =
+    useRemoveLeagueMemberMutation();
   const [pendingId, setPendingId] = useState<string | null>(null);
 
   const confirmRemove = (member: any) => {
@@ -1133,9 +1508,15 @@ export const MemberSettingsSubModal = ({ isVisible, onClose, leagueId, canManage
             setPendingId(member.id);
             try {
               await removeMember({ leagueId, userId: member.id }).unwrap();
-              showToast.success('Member removed', `${member.name} is no longer in this league.`);
+              showToast.success(
+                'Member removed',
+                `${member.name} is no longer in this league.`,
+              );
             } catch (err: any) {
-              showToast.error('Could not remove member', err?.data?.message || err?.message);
+              showToast.error(
+                'Could not remove member',
+                err?.data?.message || err?.message,
+              );
             } finally {
               setPendingId(null);
             }
@@ -1146,16 +1527,28 @@ export const MemberSettingsSubModal = ({ isVisible, onClose, leagueId, canManage
   };
 
   return (
-    <Modal visible={isVisible} transparent={true} animationType="slide" onRequestClose={onClose}>
+    <Modal
+      visible={isVisible}
+      transparent={true}
+      animationType="slide"
+      onRequestClose={onClose}
+    >
       <View className="flex-1 bg-black pt-12 px-5">
         <View className="flex-row items-center mb-6">
-          <TouchableOpacity onPress={onClose} className="w-10 h-10 border border-[#333] rounded-xl justify-center items-center mr-4">
+          <TouchableOpacity
+            onPress={onClose}
+            className="w-10 h-10 border border-[#333] rounded-xl justify-center items-center mr-4"
+          >
             <ChevronLeft color="#fff" size={24} />
           </TouchableOpacity>
           <View className="flex-1">
-            <Text className="text-white text-[20px] font-medium">Member settings</Text>
+            <Text className="text-white text-[20px] font-medium">
+              Member settings
+            </Text>
             <Text className="text-gray-400 text-[12px]">
-              {`${members.length} ${members.length === 1 ? 'member' : 'members'}`}
+              {`${members.length} ${
+                members.length === 1 ? 'member' : 'members'
+              }`}
             </Text>
           </View>
         </View>
@@ -1174,8 +1567,13 @@ export const MemberSettingsSubModal = ({ isVisible, onClose, leagueId, canManage
           </View>
         ) : isError ? (
           <View className="flex-1 items-center justify-center px-6">
-            <Text className="text-white text-[15px] font-semibold mb-2">Members unavailable</Text>
-            <TouchableOpacity className="bg-[#8B3DFF] px-5 py-2.5 rounded-full mt-2" onPress={() => refetch()}>
+            <Text className="text-white text-[15px] font-semibold mb-2">
+              Members unavailable
+            </Text>
+            <TouchableOpacity
+              className="bg-[#8B3DFF] px-5 py-2.5 rounded-full mt-2"
+              onPress={() => refetch()}
+            >
               <Text className="text-white text-[13px] font-medium">Retry</Text>
             </TouchableOpacity>
           </View>
@@ -1199,7 +1597,9 @@ export const MemberSettingsSubModal = ({ isVisible, onClose, leagueId, canManage
                         {isRemoving && pendingId === member.id ? (
                           <ActivityIndicator size="small" color="#ff4444" />
                         ) : (
-                          <Text className="text-[#ff4444] text-[12px] font-medium">Remove</Text>
+                          <Text className="text-[#ff4444] text-[12px] font-medium">
+                            Remove
+                          </Text>
                         )}
                       </TouchableOpacity>
                     ) : isSelf ? (
@@ -1217,7 +1617,14 @@ export const MemberSettingsSubModal = ({ isVisible, onClose, leagueId, canManage
   );
 };
 
-export const GiveCommissionerAccessModal = ({ isVisible, onClose, leagueId, canManage, currentUserId, founderId }: any) => {
+export const GiveCommissionerAccessModal = ({
+  isVisible,
+  onClose,
+  leagueId,
+  canManage,
+  currentUserId,
+  founderId,
+}: any) => {
   const { members, isLoading } = useLeagueMembers(leagueId, isVisible);
   const [updateRole, { isLoading: isUpdating }] = useUpdateMemberRoleMutation();
   const [pendingId, setPendingId] = useState<string | null>(null);
@@ -1226,20 +1633,36 @@ export const GiveCommissionerAccessModal = ({ isVisible, onClose, leagueId, canM
     const nextRole = member.isCommissioner ? 'manager' : 'creator';
     setPendingId(member.id);
     try {
-      await updateRole({ leagueId, userId: member.id, role: nextRole }).unwrap();
+      await updateRole({
+        leagueId,
+        userId: member.id,
+        role: nextRole,
+      }).unwrap();
       showToast.success(
-        nextRole === 'creator' ? 'Commissioner access granted' : 'Commissioner access revoked',
-        `${member.name} is now a ${nextRole === 'creator' ? 'commissioner' : 'manager'}.`,
+        nextRole === 'creator'
+          ? 'Commissioner access granted'
+          : 'Commissioner access revoked',
+        `${member.name} is now a ${
+          nextRole === 'creator' ? 'commissioner' : 'manager'
+        }.`,
       );
     } catch (err: any) {
-      showToast.error('Could not change access', err?.data?.message || err?.message);
+      showToast.error(
+        'Could not change access',
+        err?.data?.message || err?.message,
+      );
     } finally {
       setPendingId(null);
     }
   };
 
   return (
-    <Modal visible={isVisible} transparent={true} animationType="fade" onRequestClose={onClose}>
+    <Modal
+      visible={isVisible}
+      transparent={true}
+      animationType="fade"
+      onRequestClose={onClose}
+    >
       <View className="flex-1 bg-black/70 justify-center items-center px-5">
         <View className="w-full bg-[#1e1e1e] rounded-[28px] border border-[#333] p-6 max-h-[75%]">
           <Text className="text-white text-[19px] font-semibold text-center mb-1">
@@ -1251,21 +1674,23 @@ export const GiveCommissionerAccessModal = ({ isVisible, onClose, leagueId, canM
 
           {isLoading ? (
             <ActivityIndicator color="#8B3DFF" style={{ marginVertical: 24 }} />
-          ) : members.filter((m: any) => String(m.id) !== String(currentUserId)).length === 0 ? (
+          ) : members.filter((m: any) => String(m.id) !== String(currentUserId))
+              .length === 0 ? (
             <View className="py-8 items-center">
               <Text className="text-white text-[14px] font-semibold mb-1.5">
                 No one else has joined
               </Text>
               <Text className="text-gray-400 text-[12px] text-center">
-                Commissioner access can only be given to another member. Invite managers to
-                this league first.
+                Commissioner access can only be given to another member. Invite
+                managers to this league first.
               </Text>
             </View>
           ) : (
             <ScrollView showsVerticalScrollIndicator={false}>
               {members.map((member: any) => {
                 const isSelf = String(member.id) === String(currentUserId);
-                const isFounder = !!founderId && String(member.id) === String(founderId);
+                const isFounder =
+                  !!founderId && String(member.id) === String(founderId);
                 return (
                   <MemberRow
                     key={member.membershipId}
@@ -1291,7 +1716,9 @@ export const GiveCommissionerAccessModal = ({ isVisible, onClose, leagueId, canM
                           ) : (
                             <Text
                               className={`text-[12px] font-medium ${
-                                member.isCommissioner ? 'text-gray-300' : 'text-[#8B3DFF]'
+                                member.isCommissioner
+                                  ? 'text-gray-300'
+                                  : 'text-[#8B3DFF]'
                               }`}
                             >
                               {member.isCommissioner ? 'Revoke' : 'Grant'}
@@ -1325,7 +1752,12 @@ export const GiveCommissionerAccessModal = ({ isVisible, onClose, leagueId, canM
   );
 };
 
-export const AddTeamModal = ({ isVisible, onClose, teamMembers, onAddTeam }: any) => {
+export const AddTeamModal = ({
+  isVisible,
+  onClose,
+  teamMembers,
+  onAddTeam,
+}: any) => {
   return (
     <Modal
       visible={isVisible}
@@ -1339,7 +1771,9 @@ export const AddTeamModal = ({ isVisible, onClose, teamMembers, onAddTeam }: any
         onPress={onClose}
       >
         <View className="bg-[#1a1a1a] rounded-t-[32px] p-6 border-t border-[#333] h-[60%] w-full">
-          <Text className="text-white text-[18px] font-medium mb-6 text-center">Add Team to slot</Text>
+          <Text className="text-white text-[18px] font-medium mb-6 text-center">
+            Add Team to slot
+          </Text>
           <ScrollView showsVerticalScrollIndicator={false}>
             {teamMembers.map((team: any, index: number) => (
               <TouchableOpacity
@@ -1348,11 +1782,17 @@ export const AddTeamModal = ({ isVisible, onClose, teamMembers, onAddTeam }: any
                 onPress={() => onAddTeam(team)}
               >
                 <View className="w-12 h-12 rounded-full border border-[#333] justify-center items-center bg-black mr-4">
-                  <Text className="text-[#8B3DFF] text-[10px] font-bold">CHEER</Text>
+                  <Text className="text-[#8B3DFF] text-[10px] font-bold">
+                    CHEER
+                  </Text>
                 </View>
                 <View>
-                  <Text className="text-white text-[15px] mb-1">{team.name}</Text>
-                  <Text className="text-[#E0B566] text-[13px]">{team.handle}</Text>
+                  <Text className="text-white text-[15px] mb-1">
+                    {team.name}
+                  </Text>
+                  <Text className="text-[#E0B566] text-[13px]">
+                    {team.handle}
+                  </Text>
                 </View>
               </TouchableOpacity>
             ))}
@@ -1363,22 +1803,49 @@ export const AddTeamModal = ({ isVisible, onClose, teamMembers, onAddTeam }: any
   );
 };
 
-export const PlayerDetailModal = ({ isVisible, onClose, selectedPlayer, seasonId, leagueId, userTeamId, onAddSuccess }: PlayerDetailModalProps) => {
+export const PlayerDetailModal = ({
+  isVisible,
+  onClose,
+  selectedPlayer,
+  seasonId,
+  leagueId,
+  userTeamId,
+  onAddSuccess,
+}: PlayerDetailModalProps) => {
   void seasonId;
-  const seasonCheerTeamId = selectedPlayer?.seasonCheerTeamId || selectedPlayer?._id || selectedPlayer?.id;
+  const seasonCheerTeamId =
+    selectedPlayer?.seasonCheerTeamId ||
+    selectedPlayer?._id ||
+    selectedPlayer?.id;
   const organization = selectedPlayer?.organizationId || {};
-  const organizationName =
-    selectedPlayer?.organizationName ||
-    (typeof organization === 'object' ? organization.name || organization.shortName : '') ||
-    'Independent program';
-  const teamName = selectedPlayer?.name || selectedPlayer?.teamName || 'Cheer team';
-  const logoUrl = selectedPlayer?.avatarUri || selectedPlayer?.photoUrl ||
+  const country =
+    selectedPlayer?.country ||
+    (typeof organization === 'object'
+      ? organization.country || organization.location
+      : '') ||
+    'Country unavailable';
+  const divisions =
+    selectedPlayer?.divisionLabels ||
+    (selectedPlayer?.eligibleDivisionIds || [])
+      .map((division: any) =>
+        typeof division === 'object' ? division.name || division.code : '',
+      )
+      .filter(Boolean);
+  const teamName =
+    selectedPlayer?.name || selectedPlayer?.teamName || 'Cheer team';
+  const logoUrl =
+    selectedPlayer?.avatarUri ||
+    selectedPlayer?.photoUrl ||
     (typeof organization === 'object' ? organization.logoUrl : undefined);
-  const [addFreeAgent, { isLoading: isAddingTeam }] = useAddFantasyCheerFreeAgentMutation();
+  const [addFreeAgent, { isLoading: isAddingTeam }] =
+    useAddFantasyCheerFreeAgentMutation();
 
   const handleAddTeam = async () => {
     if (!leagueId || !userTeamId) {
-      showToast.error('Team Not Found', 'Your fantasy team was not found in this league.');
+      showToast.error(
+        'Team Not Found',
+        'Your fantasy team was not found in this league.',
+      );
       return;
     }
     if (!seasonCheerTeamId) {
@@ -1391,11 +1858,15 @@ export const PlayerDetailModal = ({ isVisible, onClose, selectedPlayer, seasonId
         fantasyTeamId: userTeamId,
         seasonCheerTeamId: String(seasonCheerTeamId),
       }).unwrap();
-      showToast.success('Cheer Team Added', `${teamName} was added to your fantasy roster.`);
+      showToast.success(
+        'Cheer Team Added',
+        `${teamName} was added to your fantasy roster.`,
+      );
       if (onAddSuccess) onAddSuccess();
       onClose();
     } catch (err: any) {
-      const msg = err?.data?.message || err?.message || 'Failed to add this cheer team.';
+      const msg =
+        err?.data?.message || err?.message || 'Failed to add this cheer team.';
       showToast.error('Add Team Failed', msg);
     }
   };
@@ -1423,7 +1894,9 @@ export const PlayerDetailModal = ({ isVisible, onClose, selectedPlayer, seasonId
                 {isAddingTeam ? (
                   <ActivityIndicator size="small" color="#fff" />
                 ) : (
-                  <Text className="text-white text-[12px] font-bold">+ ADD</Text>
+                  <Text className="text-white text-[12px] font-bold">
+                    + ADD
+                  </Text>
                 )}
               </TouchableOpacity>
             </View>
@@ -1441,7 +1914,10 @@ export const PlayerDetailModal = ({ isVisible, onClose, selectedPlayer, seasonId
                 </View>
               )}
               <View className="flex-1">
-                <Text className="text-white text-[22px] font-bold" numberOfLines={1}>
+                <Text
+                  className="text-white text-[22px] font-bold"
+                  numberOfLines={1}
+                >
                   {teamName}
                 </Text>
                 <View className="flex-row items-center mt-1">
@@ -1450,24 +1926,51 @@ export const PlayerDetailModal = ({ isVisible, onClose, selectedPlayer, seasonId
                       CHEER
                     </Text>
                   </View>
-                  <Text className="text-white text-[12px] font-medium uppercase" numberOfLines={1}>
-                    {organizationName}
+                  <Text
+                    className="text-white text-[12px] font-medium uppercase"
+                    numberOfLines={1}
+                  >
+                    {country}
                   </Text>
                 </View>
               </View>
             </View>
 
             <View className="flex-row justify-between mb-4 px-1">
-              <View><Text className="text-[#88b0ff] text-[9px] mb-1">TYPE</Text><Text className="text-white text-[14px] font-bold">TEAM</Text></View>
-              <View><Text className="text-[#88b0ff] text-[9px] mb-1">VALUE</Text><Text className="text-white text-[14px] font-bold">{selectedPlayer?.openingValue ?? selectedPlayer?.value ?? 0}</Text></View>
-              <View><Text className="text-[#88b0ff] text-[9px] mb-1">DIVISIONS</Text><Text className="text-white text-[14px] font-bold">{selectedPlayer?.eligibleDivisionIds?.length ?? 0}</Text></View>
-              <View><Text className="text-[#88b0ff] text-[9px] mb-1">STATUS</Text><Text className="text-white text-[14px] font-bold">Active</Text></View>
+              <View className="flex-1 mr-3">
+                <Text className="text-[#88b0ff] text-[9px] mb-1">COUNTRY</Text>
+                <Text
+                  className="text-white text-[13px] font-bold"
+                  numberOfLines={1}
+                >
+                  {country}
+                </Text>
+              </View>
+              <View className="flex-[1.4] mr-3">
+                <Text className="text-[#88b0ff] text-[9px] mb-1">DIVISION</Text>
+                <Text
+                  className="text-white text-[13px] font-bold"
+                  numberOfLines={2}
+                >
+                  {divisions.join(' / ') || 'Unavailable'}
+                </Text>
+              </View>
+              <View>
+                <Text className="text-[#88b0ff] text-[9px] mb-1">VALUE</Text>
+                <Text className="text-white text-[13px] font-bold">
+                  {selectedPlayer?.openingValue ?? selectedPlayer?.value ?? 0}
+                </Text>
+              </View>
             </View>
           </View>
           <View className="p-5">
-            <Text className="text-white text-[15px] font-bold mb-2">Fantasy scoring</Text>
+            <Text className="text-white text-[15px] font-bold mb-2">
+              Fantasy scoring
+            </Text>
             <Text className="text-gray-400 text-[12px] leading-5">
-              This real cheer team earns fantasy points from published routine scores, deductions, placement, hit-zero, advancement, and championship bonuses. Lineups lock when its performance starts.
+              This real cheer team earns fantasy points from its official score,
+              division result, hit-zero bonus, and grand champion bonus. Lineups
+              lock when its performance starts.
             </Text>
           </View>
         </View>
@@ -1475,7 +1978,6 @@ export const PlayerDetailModal = ({ isVisible, onClose, selectedPlayer, seasonId
     </Modal>
   );
 };
-
 
 export const LockRosterModal = ({ isVisible, onClose }: any) => {
   const MEMBERS = [
@@ -1486,22 +1988,39 @@ export const LockRosterModal = ({ isVisible, onClose }: any) => {
   ];
 
   return (
-    <Modal visible={isVisible} transparent={true} animationType="fade" onRequestClose={onClose}>
-      <TouchableOpacity 
-        className="flex-1 bg-black/50 justify-center items-center px-6" 
-        activeOpacity={1} 
+    <Modal
+      visible={isVisible}
+      transparent={true}
+      animationType="fade"
+      onRequestClose={onClose}
+    >
+      <TouchableOpacity
+        className="flex-1 bg-black/50 justify-center items-center px-6"
+        activeOpacity={1}
         onPress={onClose}
       >
-        <TouchableOpacity activeOpacity={1} className="w-full bg-[#1e1e1e] rounded-[32px] border-[3px] border-white p-6 pb-6">
-          <Text className="text-white text-[20px] font-medium text-center mb-6">Lock roster</Text>
+        <TouchableOpacity
+          activeOpacity={1}
+          className="w-full bg-[#1e1e1e] rounded-[32px] border-[3px] border-white p-6 pb-6"
+        >
+          <Text className="text-white text-[20px] font-medium text-center mb-6">
+            Lock roster
+          </Text>
           <View>
             {MEMBERS.map((member, index) => (
-              <View 
-                key={`${member.id}-${index}`} 
-                className={`flex-row items-center justify-between py-4 ${index !== MEMBERS.length - 1 ? 'border-b border-[#333]' : 'border-b border-[#333]'}`}
+              <View
+                key={`${member.id}-${index}`}
+                className={`flex-row items-center justify-between py-4 ${
+                  index !== MEMBERS.length - 1
+                    ? 'border-b border-[#333]'
+                    : 'border-b border-[#333]'
+                }`}
               >
                 <View className="flex-row items-center">
-                  <Image source={{ uri: member.avatarUri }} className="w-11 h-11 rounded-full mr-4" />
+                  <Image
+                    source={{ uri: member.avatarUri }}
+                    className="w-11 h-11 rounded-full mr-4"
+                  />
                   <Text className="text-white text-[15px]">{member.name}</Text>
                 </View>
                 <TouchableOpacity>
@@ -1510,11 +2029,13 @@ export const LockRosterModal = ({ isVisible, onClose }: any) => {
               </View>
             ))}
           </View>
-          <TouchableOpacity 
-            className="bg-[#8B3DFF] rounded-full h-[52px] justify-center items-center mt-8 mx-2" 
+          <TouchableOpacity
+            className="bg-[#8B3DFF] rounded-full h-[52px] justify-center items-center mt-8 mx-2"
             onPress={onClose}
           >
-            <Text className="text-white text-[15px] font-medium">Save changes</Text>
+            <Text className="text-white text-[15px] font-medium">
+              Save changes
+            </Text>
           </TouchableOpacity>
         </TouchableOpacity>
       </TouchableOpacity>
@@ -1524,28 +2045,39 @@ export const LockRosterModal = ({ isVisible, onClose }: any) => {
 
 export const DeleteLeagueModal = ({ isVisible, onClose, onDelete }: any) => {
   return (
-    <Modal visible={isVisible} transparent={true} animationType="fade" onRequestClose={onClose}>
-      <TouchableOpacity 
-        className="flex-1 bg-black/60 justify-center items-center px-8" 
-        activeOpacity={1} 
+    <Modal
+      visible={isVisible}
+      transparent={true}
+      animationType="fade"
+      onRequestClose={onClose}
+    >
+      <TouchableOpacity
+        className="flex-1 bg-black/60 justify-center items-center px-8"
+        activeOpacity={1}
         onPress={onClose}
       >
-        <TouchableOpacity activeOpacity={1} className="w-full bg-[#2a2a2a] rounded-[24px] border border-white/20 p-6 py-8 items-center">
-          <Text className="text-white text-[16px] font-medium mb-3">Delete league</Text>
-          <Text className="text-gray-300 text-[12px] text-center mb-6 leading-5 px-2">
-            Are you want to sure delete league now. If you delete now your all league data will be deleted
+        <TouchableOpacity
+          activeOpacity={1}
+          className="w-full bg-[#2a2a2a] rounded-[24px] border border-white/20 p-6 py-8 items-center"
+        >
+          <Text className="text-white text-[16px] font-medium mb-3">
+            Delete league
           </Text>
-          
+          <Text className="text-gray-300 text-[12px] text-center mb-6 leading-5 px-2">
+            Are you want to sure delete league now. If you delete now your all
+            league data will be deleted
+          </Text>
+
           <View className="flex-row justify-center w-full gap-4 px-2">
-            <TouchableOpacity 
-              className="flex-1 h-[40px] rounded-full border border-white/40 justify-center items-center" 
+            <TouchableOpacity
+              className="flex-1 h-[40px] rounded-full border border-white/40 justify-center items-center"
               onPress={onClose}
             >
               <Text className="text-white text-[13px]">Cancel</Text>
             </TouchableOpacity>
-            
-            <TouchableOpacity 
-              className="flex-1 h-[40px] rounded-full bg-[#d33b3b] justify-center items-center" 
+
+            <TouchableOpacity
+              className="flex-1 h-[40px] rounded-full bg-[#d33b3b] justify-center items-center"
               onPress={onDelete}
             >
               <Text className="text-white text-[13px] font-medium">Delete</Text>
@@ -1587,7 +2119,12 @@ export const JoinLeagueModal = ({
   };
 
   return (
-    <Modal visible={isVisible} transparent={true} animationType="slide" onRequestClose={onClose}>
+    <Modal
+      visible={isVisible}
+      transparent={true}
+      animationType="slide"
+      onRequestClose={onClose}
+    >
       <TouchableOpacity
         className="flex-1 bg-black/80 justify-end"
         activeOpacity={1}
@@ -1598,9 +2135,13 @@ export const JoinLeagueModal = ({
           className="bg-[#1a1a1a] rounded-t-[32px] p-6 border-t border-[#333] w-full"
         >
           <View className="w-12 h-1 bg-gray-600 rounded-full self-center mb-6" />
-          <Text className="text-white text-[20px] font-bold mb-1 text-center">Join Public League</Text>
+          <Text className="text-white text-[20px] font-bold mb-1 text-center">
+            Join Public League
+          </Text>
           <Text className="text-[#E0B566] text-[13px] text-center mb-6">
-            {leagueName ? `Joining "${leagueName}"` : 'Enter your team details to join'}
+            {leagueName
+              ? `Joining "${leagueName}"`
+              : 'Enter your team details to join'}
           </Text>
 
           {errorText ? (
@@ -1610,7 +2151,9 @@ export const JoinLeagueModal = ({
             </View>
           ) : null}
 
-          <Text className="text-gray-300 text-[13px] font-medium mb-2">Fantasy Team Name</Text>
+          <Text className="text-gray-300 text-[13px] font-medium mb-2">
+            Fantasy Team Name
+          </Text>
           <View className="border border-[#8B3DFF] rounded-[16px] flex-row items-center px-4 h-[54px] mb-2 bg-[#0d0d0d]">
             <User color="#E0B566" size={20} className="mr-3" />
             <TextInput
@@ -1623,7 +2166,9 @@ export const JoinLeagueModal = ({
               autoCapitalize="words"
             />
           </View>
-          <Text className="text-gray-500 text-[11px] mb-6">Team name must be at least 3 characters long.</Text>
+          <Text className="text-gray-500 text-[11px] mb-6">
+            Team name must be at least 3 characters long.
+          </Text>
 
           <View className="flex-row items-center gap-3">
             <TouchableOpacity
@@ -1631,12 +2176,16 @@ export const JoinLeagueModal = ({
               onPress={onClose}
               disabled={isLoading}
             >
-              <Text className="text-gray-300 text-[15px] font-medium">Cancel</Text>
+              <Text className="text-gray-300 text-[15px] font-medium">
+                Cancel
+              </Text>
             </TouchableOpacity>
 
             <TouchableOpacity
               className={`flex-1 h-[52px] rounded-full justify-center items-center ${
-                teamName.trim().length >= 3 ? 'bg-[#8B3DFF]' : 'bg-gray-700 opacity-60'
+                teamName.trim().length >= 3
+                  ? 'bg-[#8B3DFF]'
+                  : 'bg-gray-700 opacity-60'
               }`}
               onPress={handleJoin}
               disabled={teamName.trim().length < 3 || isLoading}
@@ -1644,7 +2193,9 @@ export const JoinLeagueModal = ({
               {isLoading ? (
                 <ActivityIndicator color="#fff" size="small" />
               ) : (
-                <Text className="text-white text-[15px] font-bold">Join League</Text>
+                <Text className="text-white text-[15px] font-bold">
+                  Join League
+                </Text>
               )}
             </TouchableOpacity>
           </View>
@@ -1669,14 +2220,24 @@ export const RosterPlayerActionModal = ({
   userTeamId: string;
   onSuccess?: () => void;
 }) => {
-  const [updateLineup, { isLoading: isUpdating }] = useUpdateFantasyCheerLineupMutation();
-  const [releaseTeam, { isLoading: isDropping }] = useReleaseFantasyCheerTeamMutation();
+  const [updateLineup, { isLoading: isUpdating }] =
+    useUpdateFantasyCheerLineupMutation();
+  const [releaseTeam, { isLoading: isDropping }] =
+    useReleaseFantasyCheerTeamMutation();
 
-  // selectedRosterItem is a flattened RosterPlayer from the team roster endpoint.
+  // selectedRosterItem is a flattened real-team ownership from the roster endpoint.
   const player = selectedRosterItem || {};
   const playerName = player.name || 'Cheer Team';
-  const posCode = 'CHEER';
-  const teamName = player.nflTeam || 'Cheer Program';
+  const divisionName =
+    player.division ||
+    player.assignedPosition ||
+    player.positionCode ||
+    'Division unavailable';
+  const countryName =
+    player.country ||
+    player.realTeam ||
+    player.nflTeam ||
+    'Country unavailable';
   const avatarUri = player.photoUrl;
 
   const isStarter = player.lineupStatus === 'starter';
@@ -1699,11 +2260,15 @@ export const RosterPlayerActionModal = ({
         lineupStatus: newStatus,
       }).unwrap();
 
-      showToast.success('Lineup Updated!', `${playerName} moved to ${newStatus.toUpperCase()}!`);
+      showToast.success(
+        'Lineup Updated!',
+        `${playerName} moved to ${newStatus.toUpperCase()}!`,
+      );
       if (onSuccess) onSuccess();
       onClose();
     } catch (err: any) {
-      const msg = err?.data?.message || err?.message || 'Failed to update lineup.';
+      const msg =
+        err?.data?.message || err?.message || 'Failed to update lineup.';
       showToast.error('Lineup Error', msg);
     }
   };
@@ -1719,7 +2284,10 @@ export const RosterPlayerActionModal = ({
           style: 'destructive',
           onPress: async () => {
             if (!leagueId || !userTeamId || !ownershipId) {
-              showToast.error('Error', 'Missing required cheer-team ownership data.');
+              showToast.error(
+                'Error',
+                'Missing required cheer-team ownership data.',
+              );
               return;
             }
             try {
@@ -1729,38 +2297,74 @@ export const RosterPlayerActionModal = ({
                 ownershipId: String(ownershipId),
               }).unwrap();
 
-              showToast.success('Team Released', `${playerName} returned to the available pool.`);
+              showToast.success(
+                'Team Released',
+                `${playerName} returned to the available pool.`,
+              );
               if (onSuccess) onSuccess();
               onClose();
             } catch (err: any) {
-              const msg = err?.data?.message || err?.message || 'Failed to release cheer team.';
+              const msg =
+                err?.data?.message ||
+                err?.message ||
+                'Failed to release cheer team.';
               showToast.error('Release Error', msg);
             }
           },
         },
-      ]
+      ],
     );
   };
 
   return (
-    <Modal visible={isVisible} transparent={true} animationType="fade" onRequestClose={onClose}>
-      <TouchableOpacity className="flex-1 bg-black/80 justify-center items-center px-4" activeOpacity={1} onPress={onClose}>
-        <TouchableOpacity activeOpacity={1} className="w-full bg-[#1e1e1e] rounded-[24px] border border-[#333] p-6 shadow-xl">
-          {/* Header Player Info */}
+    <Modal
+      visible={isVisible}
+      transparent={true}
+      animationType="fade"
+      onRequestClose={onClose}
+    >
+      <TouchableOpacity
+        className="flex-1 bg-black/80 justify-center items-center px-4"
+        activeOpacity={1}
+        onPress={onClose}
+      >
+        <TouchableOpacity
+          activeOpacity={1}
+          className="w-full bg-[#1e1e1e] rounded-[24px] border border-[#333] p-6 shadow-xl"
+        >
+          {/* Cheer team information */}
           <View className="flex-row items-center mb-6 pb-4 border-b border-[#333]">
             {avatarUri ? (
-              <Image source={{ uri: avatarUri }} className="w-14 h-14 rounded-full mr-4 bg-[#333] border border-[#444]" />
+              <Image
+                source={{ uri: avatarUri }}
+                className="w-14 h-14 rounded-full mr-4 bg-[#333] border border-[#444]"
+              />
             ) : (
               <View className="w-14 h-14 rounded-full mr-4 bg-[#333] border border-[#444] justify-center items-center">
                 <User color="#888" size={24} />
               </View>
             )}
             <View className="flex-1">
-              <Text className="text-white text-[18px] font-bold" numberOfLines={1}>{playerName}</Text>
-              <Text className="text-gray-400 text-[13px]">{`${posCode} • ${teamName}`}</Text>
+              <Text
+                className="text-white text-[18px] font-bold"
+                numberOfLines={1}
+              >
+                {playerName}
+              </Text>
+              <Text className="text-gray-400 text-[13px]">{`${countryName} • ${divisionName}`}</Text>
               <View className="flex-row items-center mt-1.5">
-                <View className={`px-2.5 py-0.5 rounded-full border ${isStarter ? 'bg-emerald-950/80 border-emerald-500/50' : 'bg-[#2b2b2b] border-[#444]'}`}>
-                  <Text className={`${isStarter ? 'text-emerald-400' : 'text-gray-300'} text-[11px] font-semibold`}>
+                <View
+                  className={`px-2.5 py-0.5 rounded-full border ${
+                    isStarter
+                      ? 'bg-emerald-950/80 border-emerald-500/50'
+                      : 'bg-[#2b2b2b] border-[#444]'
+                  }`}
+                >
+                  <Text
+                    className={`${
+                      isStarter ? 'text-emerald-400' : 'text-gray-300'
+                    } text-[11px] font-semibold`}
+                  >
                     {isStarter ? 'STARTER' : 'BENCH'}
                   </Text>
                 </View>
@@ -1770,7 +2374,9 @@ export const RosterPlayerActionModal = ({
 
           {/* Lineup Action Button */}
           <TouchableOpacity
-            className={`h-[52px] rounded-full justify-center items-center mb-3 ${isStarter ? 'bg-[#333] border border-[#555]' : 'bg-[#8B3DFF]'}`}
+            className={`h-[52px] rounded-full justify-center items-center mb-3 ${
+              isStarter ? 'bg-[#333] border border-[#555]' : 'bg-[#8B3DFF]'
+            }`}
             onPress={handleToggleLineup}
             disabled={isUpdating || isDropping}
             activeOpacity={0.8}
@@ -1794,7 +2400,9 @@ export const RosterPlayerActionModal = ({
             {isDropping ? (
               <ActivityIndicator color="#ff6b6b" size="small" />
             ) : (
-              <Text className="text-red-400 text-[15px] font-bold">Release Cheer Team</Text>
+              <Text className="text-red-400 text-[15px] font-bold">
+                Release Cheer Team
+              </Text>
             )}
           </TouchableOpacity>
 
@@ -1811,4 +2419,3 @@ export const RosterPlayerActionModal = ({
     </Modal>
   );
 };
-

@@ -111,6 +111,8 @@ export const baseApi = createApi({
     'DfsSlate',
     'DfsEntry',
     'AdminCheer',
+    'Wallet',
+    'CoinPackage',
   ],
   endpoints: () => ({}),
 });

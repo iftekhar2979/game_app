@@ -27,6 +27,10 @@ import {
   useScoreAdminCheerPerformanceMutation,
 } from '../../store/api/adminCheerApi';
 import { showToast } from '../../utils/toast';
+import {
+  calculateCheerFantasyPoints,
+  CHEER_DIVISIONS,
+} from '../../utils/cheerScoring';
 
 export type AdminCheerStep =
   | 'season'
@@ -47,23 +51,23 @@ const titles: Record<AdminCheerStep, { title: string; subtitle: string }> = {
   },
   division: {
     title: 'Create division',
-    subtitle: 'Step 3 · eligibility and scoring',
+    subtitle: 'Step 3 · draft roster category',
   },
   competition: {
     title: 'Create competition',
-    subtitle: 'Step 4 · event calendar',
+    subtitle: 'Step 5 · event calendar',
   },
   fantasyTeam: {
-    title: 'Create fantasy asset',
-    subtitle: 'Step 5 · draftable real team',
+    title: 'Add cheer team',
+    subtitle: 'Step 4 · draftable real team',
   },
   entry: {
     title: 'Register event entry',
-    subtitle: 'Step 6 · immutable roster snapshot',
+    subtitle: 'Step 6 · real team and division',
   },
   score: {
-    title: 'Enter judge scores',
-    subtitle: 'Step 7 · review before publishing',
+    title: 'Enter official result',
+    subtitle: 'Step 7 · calculate fantasy points',
   },
 };
 
@@ -84,16 +88,6 @@ const toIso = (value: string, endOfDay = false) => {
   if (Number.isNaN(date.getTime())) throw new Error(`Invalid date: ${value}`);
   return date.toISOString();
 };
-const parseScores = (value: string) => {
-  const scores = value
-    .split(',')
-    .map(part => Number(part.trim()))
-    .filter(score => Number.isFinite(score));
-  if (!scores.length)
-    throw new Error('Enter at least one judge score in every category');
-  return scores;
-};
-
 function Field({
   label,
   value,
@@ -181,7 +175,7 @@ export default function AdminCheerFormScreen({ navigation, route }: Props) {
     registrationEndsAt: addDays(30),
     startsAt: addDays(31),
     endsAt: addDays(180),
-    code: '',
+    code: CHEER_DIVISIONS[0].code,
     level: 'Level 1',
     ageGroup: 'Senior',
     governingBody: 'USASF',
@@ -194,14 +188,13 @@ export default function AdminCheerFormScreen({ navigation, route }: Props) {
     fantasyPeriod: '1',
     teamName: '',
     openingValue: '10',
-    rosterNames: '',
     performanceOrder: '1',
     round: 'preliminary',
-    stunts: '38,39,37',
-    tumbling: '28,29,27',
-    routine: '28,29,30',
-    deductions: '0',
-    deductionReason: '',
+    officialScore: '95',
+    otherTeamsInDivision: '2',
+    placement: '1',
+    hitZero: 'yes',
+    grandChampion: 'no',
   });
   const set = (key: string) => (value: string) =>
     setForm(current => ({ ...current, [key]: value }));
@@ -335,14 +328,23 @@ export default function AdminCheerFormScreen({ navigation, route }: Props) {
           name,
           normalizedName: name.toLowerCase(),
           shortName: form.shortName.trim() || undefined,
-          location: form.location.trim() || undefined,
+          country: requireValue(form.country, 'Country is required'),
           organizationType: form.organizationType.trim() || 'all_star_gym',
         }).unwrap();
       } else if (step === 'division') {
+        const selectedDivision = CHEER_DIVISIONS.find(
+          division => division.code === form.code,
+        );
         result = await createDivision({
           seasonId: requireValue(seasonId, 'Create or select a season first'),
-          code: requireValue(form.code, 'Division code is required'),
-          name: requireValue(form.name, 'Division name is required'),
+          code: requireValue(
+            selectedDivision?.code || form.code,
+            'Division is required',
+          ),
+          name: requireValue(
+            selectedDivision?.name || form.name,
+            'Division is required',
+          ),
           discipline: 'cheer',
           level: requireValue(form.level, 'Level is required'),
           ageGroup: requireValue(form.ageGroup, 'Age group is required'),
@@ -389,13 +391,6 @@ export default function AdminCheerFormScreen({ navigation, route }: Props) {
           isEligible: true,
         }).unwrap();
       } else if (step === 'entry') {
-        const rosterSnapshot = form.rosterNames
-          .split(/\r?\n|,/)
-          .map(name => name.trim())
-          .filter(Boolean)
-          .map(displayName => ({ displayName, alternate: false }));
-        if (!rosterSnapshot.length)
-          throw new Error('Enter at least one roster member');
         result = await registerEntry({
           competitionId: requireValue(
             competitionId,
@@ -405,50 +400,58 @@ export default function AdminCheerFormScreen({ navigation, route }: Props) {
             divisionId: requireValue(divisionId, 'Select a division'),
             organizationId: requireValue(organizationId, 'Select a program'),
             teamName: requireValue(form.teamName, 'Team name is required'),
-            rosterSnapshot,
             performanceOrder: Number(form.performanceOrder),
             status: 'confirmed',
           },
         }).unwrap();
       } else {
-        const deductionPoints = Number(form.deductions || 0);
+        const officialScore = Number(form.officialScore);
+        if (
+          !Number.isFinite(officialScore) ||
+          officialScore < 0 ||
+          officialScore > 100
+        ) {
+          throw new Error('Official score must be between 0 and 100');
+        }
+        const otherTeamsInDivision = Math.max(
+          0,
+          Math.floor(Number(form.otherTeamsInDivision) || 0),
+        );
+        const placement = Math.max(1, Math.floor(Number(form.placement) || 1));
+        if (placement > otherTeamsInDivision + 1) {
+          throw new Error(
+            'Placement cannot exceed the total number of teams in the division',
+          );
+        }
+        const fantasyScoring = calculateCheerFantasyPoints({
+          officialScore,
+          otherTeamsInDivision,
+          wonDivision: placement === 1,
+          finishedLast:
+            otherTeamsInDivision >= 2 &&
+            placement === otherTeamsInDivision + 1,
+          hitZero: form.hitZero === 'yes',
+          grandChampion: form.grandChampion === 'yes',
+        });
         result = await scorePerformance({
           entryId: requireValue(entryId, 'Create or select an event entry'),
           body: {
             round: form.round,
             categoryScores: [
               {
-                code: 'STUNTS',
-                label: 'Stunts',
-                judgeScores: parseScores(form.stunts),
-                maximumPoints: 40,
-              },
-              {
-                code: 'TUMBLING',
-                label: 'Tumbling',
-                judgeScores: parseScores(form.tumbling),
-                maximumPoints: 30,
-              },
-              {
-                code: 'ROUTINE',
-                label: 'Routine',
-                judgeScores: parseScores(form.routine),
-                maximumPoints: 30,
+                code: 'OFFICIAL_SCORE',
+                label: 'Official score',
+                judgeScores: [officialScore],
+                maximumPoints: 100,
               },
             ],
-            deductions:
-              deductionPoints > 0
-                ? [
-                    {
-                      code: 'ADMIN',
-                      reason:
-                        form.deductionReason.trim() || 'Official deduction',
-                      points: deductionPoints,
-                      source: 'admin_console',
-                    },
-                  ]
-                : [],
-            isHitZero: deductionPoints === 0,
+            deductions: [],
+            isHitZero: form.hitZero === 'yes',
+            placement,
+            otherTeamsInDivision,
+            isGrandChampion: form.grandChampion === 'yes',
+            fantasyPoints: fantasyScoring.totalPoints,
+            fantasyPointsBreakdown: fantasyScoring,
           },
         }).unwrap();
       }
@@ -482,6 +485,28 @@ export default function AdminCheerFormScreen({ navigation, route }: Props) {
   const showOrganization = ['fantasyTeam', 'entry'].includes(step);
   const showDivision = ['competition', 'fantasyTeam', 'entry'].includes(step);
   const showCompetition = ['entry', 'score'].includes(step);
+  const scorePreview = (() => {
+    if (step !== 'score') return null;
+    const officialScore = Number(form.officialScore);
+    const otherTeamsInDivision = Math.max(
+      0,
+      Math.floor(Number(form.otherTeamsInDivision) || 0),
+    );
+    const placement = Math.max(1, Math.floor(Number(form.placement) || 1));
+    try {
+      return calculateCheerFantasyPoints({
+        officialScore,
+        otherTeamsInDivision,
+        wonDivision: placement === 1,
+        finishedLast:
+          otherTeamsInDivision >= 2 && placement === otherTeamsInDivision + 1,
+        hitZero: form.hitZero === 'yes',
+        grandChampion: form.grandChampion === 'yes',
+      });
+    } catch {
+      return null;
+    }
+  })();
 
   return (
     <SafeAreaView className="flex-1 bg-black" edges={['top', 'bottom']}>
@@ -600,71 +625,39 @@ export default function AdminCheerFormScreen({ navigation, route }: Props) {
               placeholder="EAS"
             />
             <Field
-              label="Location"
-              value={form.location}
-              onChangeText={set('location')}
-              placeholder="City, State"
-            />
-            <Field
-              label="Organization type"
-              value={form.organizationType}
-              onChangeText={set('organizationType')}
-              placeholder="all_star_gym"
+              label="Country"
+              value={form.country}
+              onChangeText={set('country')}
+              placeholder="United States"
             />
           </>
         )}
         {step === 'division' && (
           <>
-            <Field
-              label="Division code"
-              value={form.code}
-              onChangeText={set('code')}
-              placeholder="SENIOR-L1"
-            />
-            <Field
-              label="Division name"
-              value={form.name}
-              onChangeText={set('name')}
-              placeholder="Senior Level 1"
-            />
-            <Field
-              label="Level"
-              value={form.level}
-              onChangeText={set('level')}
-            />
-            <Field
-              label="Age group"
-              value={form.ageGroup}
-              onChangeText={set('ageGroup')}
+            <ChoiceList
+              label="Division"
+              items={CHEER_DIVISIONS.map(division => ({
+                _id: division.code,
+                name: division.name,
+              }))}
+              selectedId={form.code}
+              onSelect={(code: string) => {
+                const division = CHEER_DIVISIONS.find(
+                  item => item.code === code,
+                );
+                if (division) {
+                  setForm(current => ({
+                    ...current,
+                    code: division.code,
+                    name: division.name,
+                  }));
+                }
+              }}
             />
             <Field
               label="Governing body"
               value={form.governingBody}
               onChangeText={set('governingBody')}
-            />
-            <View className="flex-row -mx-1">
-              <View className="w-1/2 px-1">
-                <Field
-                  label="Minimum team"
-                  value={form.minimumTeamSize}
-                  onChangeText={set('minimumTeamSize')}
-                  keyboardType="number-pad"
-                />
-              </View>
-              <View className="w-1/2 px-1">
-                <Field
-                  label="Maximum team"
-                  value={form.maximumTeamSize}
-                  onChangeText={set('maximumTeamSize')}
-                  keyboardType="number-pad"
-                />
-              </View>
-            </View>
-            <Field
-              label="Maximum score"
-              value={form.maximumScore}
-              onChangeText={set('maximumScore')}
-              keyboardType="decimal-pad"
             />
           </>
         )}
@@ -749,13 +742,6 @@ export default function AdminCheerFormScreen({ navigation, route }: Props) {
               onChangeText={set('performanceOrder')}
               keyboardType="number-pad"
             />
-            <Field
-              label="Roster names (one per line)"
-              value={form.rosterNames}
-              onChangeText={set('rosterNames')}
-              multiline
-              placeholder={'Athlete One\nAthlete Two'}
-            />
           </>
         )}
         {step === 'score' && (
@@ -770,40 +756,58 @@ export default function AdminCheerFormScreen({ navigation, route }: Props) {
               selectedId={form.round}
               onSelect={set('round')}
             />
-            <Text className="text-gray-500 text-xs mb-4">
-              Enter comma-separated scores for each judge. High and low are
-              dropped when 3+ judges submit.
-            </Text>
             <Field
-              label="Stunts judges · max 40"
-              value={form.stunts}
-              onChangeText={set('stunts')}
-              keyboardType="numbers-and-punctuation"
-            />
-            <Field
-              label="Tumbling judges · max 30"
-              value={form.tumbling}
-              onChangeText={set('tumbling')}
-              keyboardType="numbers-and-punctuation"
-            />
-            <Field
-              label="Routine judges · max 30"
-              value={form.routine}
-              onChangeText={set('routine')}
-              keyboardType="numbers-and-punctuation"
-            />
-            <Field
-              label="Total deductions"
-              value={form.deductions}
-              onChangeText={set('deductions')}
+              label="Official score (0–100)"
+              value={form.officialScore}
+              onChangeText={set('officialScore')}
               keyboardType="decimal-pad"
             />
             <Field
-              label="Deduction reason"
-              value={form.deductionReason}
-              onChangeText={set('deductionReason')}
-              placeholder="Required when deductions are applied"
+              label="Other teams in this division"
+              value={form.otherTeamsInDivision}
+              onChangeText={set('otherTeamsInDivision')}
+              keyboardType="number-pad"
             />
+            <Field
+              label="Final placement"
+              value={form.placement}
+              onChangeText={set('placement')}
+              keyboardType="number-pad"
+            />
+            <ChoiceList
+              label="Hit zero deductions"
+              items={[
+                { _id: 'yes', name: 'Yes' },
+                { _id: 'no', name: 'No' },
+              ]}
+              selectedId={form.hitZero}
+              onSelect={set('hitZero')}
+            />
+            <ChoiceList
+              label="Grand champion"
+              items={[
+                { _id: 'no', name: 'No' },
+                { _id: 'yes', name: 'Yes' },
+              ]}
+              selectedId={form.grandChampion}
+              onSelect={set('grandChampion')}
+            />
+            {scorePreview && (
+              <View className="bg-[#171717] border border-[#E0B566]/40 rounded-2xl p-4 mb-4">
+                <Text className="text-gray-400 text-xs">
+                  FANTASY POINT PREVIEW
+                </Text>
+                <Text className="text-[#E0B566] text-3xl font-bold mt-1">
+                  {scorePreview.totalPoints} pts
+                </Text>
+                <Text className="text-gray-500 text-xs mt-2">
+                  Score {scorePreview.scorePoints} · division result{' '}
+                  {scorePreview.divisionResultPoints} · hit zero{' '}
+                  {scorePreview.hitZeroPoints} · grand champion{' '}
+                  {scorePreview.grandChampionPoints}
+                </Text>
+              </View>
+            )}
           </>
         )}
 

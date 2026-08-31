@@ -1,20 +1,89 @@
-import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
-import { View, Text, Image, TouchableOpacity, ScrollView, TextInput, Modal, ActivityIndicator, RefreshControl } from 'react-native';
+import React, {
+  useState,
+  useEffect,
+  useRef,
+  useMemo,
+  useCallback,
+} from 'react';
+import {
+  View,
+  Text,
+  Image,
+  TouchableOpacity,
+  ScrollView,
+  TextInput,
+  Modal,
+  ActivityIndicator,
+  RefreshControl,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { ChevronLeft, MoreVertical, UserCheck, Plus, Users, Globe, Lock, Shield, Calendar, DollarSign, Layers, Info } from 'lucide-react-native';
+import {
+  ChevronLeft,
+  MoreVertical,
+  UserCheck,
+  Plus,
+  Users,
+  Globe,
+  Lock,
+  Shield,
+  Calendar,
+  DollarSign,
+  Layers,
+  Info,
+} from 'lucide-react-native';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../../../App';
 import { useSelector, useDispatch } from 'react-redux';
 import { RootState } from '../../store';
 import { setActiveTeam } from '../../store/slices/leagueSlice';
-import { useGetLeagueDetailsQuery, useGetLeagueMembersQuery, useJoinLeagueMutation, useGetRosterSettingsQuery, useGetLeagueRostersQuery, useGetCurrentMatchupQuery, useGetLeagueStandingsQuery, useGetMatchupHistoryQuery } from '../../store/api/leagueApi';
-import { useGetAvailableCheerTeamsQuery, useGetFantasyCheerRosterQuery } from '../../store/api/cheerApi';
-import { MatchupTab, DraftTab, TeamTab, PlayersTab, LeagueTab } from '../../components/LeagueDetail/LeagueDetailTabs';
-import { AddTeamModal, PlayerDetailModal, LeagueSettingsModal, LeagueSettingsSubModal, DraftSettingsSubModal, RosterSettingsSubModal, ScoringSettingsSubModal, MemberSettingsSubModal, GiveCommissionerAccessModal, LockRosterModal, DeleteLeagueModal, JoinLeagueModal, RosterPlayerActionModal } from '../../components/LeagueDetail/LeagueDetailModals';
-import { getSocket, joinLeagueRoom, leaveLeagueRoom } from '../../services/socketService';
+import {
+  useGetLeagueDetailsQuery,
+  useGetLeagueMembersQuery,
+  useJoinLeagueMutation,
+  useGetRosterSettingsQuery,
+  useGetLeagueRostersQuery,
+  useGetCurrentMatchupQuery,
+  useGetLeagueStandingsQuery,
+  useGetMatchupHistoryQuery,
+} from '../../store/api/leagueApi';
+import {
+  useGetAvailableCheerTeamsQuery,
+  useGetFantasyCheerRosterQuery,
+} from '../../store/api/cheerApi';
+import {
+  MatchupTab,
+  DraftTab,
+  TeamTab,
+  PlayersTab,
+  LeagueTab,
+} from '../../components/LeagueDetail/LeagueDetailTabs';
+import {
+  AddTeamModal,
+  PlayerDetailModal,
+  LeagueSettingsModal,
+  LeagueSettingsSubModal,
+  DraftSettingsSubModal,
+  RosterSettingsSubModal,
+  ScoringSettingsSubModal,
+  MemberSettingsSubModal,
+  GiveCommissionerAccessModal,
+  LockRosterModal,
+  DeleteLeagueModal,
+  JoinLeagueModal,
+  RosterPlayerActionModal,
+} from '../../components/LeagueDetail/LeagueDetailModals';
+import {
+  getSocket,
+  joinLeagueRoom,
+  leaveLeagueRoom,
+} from '../../services/socketService';
+import { CHEER_DIVISIONS } from '../../utils/cheerScoring';
 
-type NavigationProp = NativeStackNavigationProp<RootStackParamList, 'LeagueDetail'>;
+type NavigationProp = NativeStackNavigationProp<
+  RootStackParamList,
+  'LeagueDetail'
+>;
 type RouteProps = RouteProp<RootStackParamList, 'LeagueDetail'>;
 
 const MOCK_LEAGUES: any[] = [
@@ -34,7 +103,6 @@ interface TeamMember {
   joinedAt?: string;
 }
 
-
 const MOCK_TEAM_MEMBERS: TeamMember[] = [
   { id: 't1', name: 'Team Cheerleading', handle: '@cheerleading' },
   { id: 't2', name: 'Team Rubel', handle: '@rubel' },
@@ -45,9 +113,24 @@ const MOCK_TEAM_MEMBERS: TeamMember[] = [
 ];
 
 const MOCK_LEAGUE_STANDINGS = [
-  { id: 'l1', name: 'Team Cheerleading', handle: '@cheerleading', score: '0 - 0' },
-  { id: 'l2', name: 'Team Cheerleading', handle: '@cheerleading', score: '0 - 0' },
-  { id: 'l3', name: 'Team Cheerleading', handle: '@cheerleading', score: '0 - 0' },
+  {
+    id: 'l1',
+    name: 'Team Cheerleading',
+    handle: '@cheerleading',
+    score: '0 - 0',
+  },
+  {
+    id: 'l2',
+    name: 'Team Cheerleading',
+    handle: '@cheerleading',
+    score: '0 - 0',
+  },
+  {
+    id: 'l3',
+    name: 'Team Cheerleading',
+    handle: '@cheerleading',
+    score: '0 - 0',
+  },
 ];
 
 export interface ApiLeaguePayload {
@@ -90,30 +173,40 @@ export default function LeagueDetailScreen() {
   const navigation = useNavigation<NavigationProp>();
   const route = useRoute<RouteProps>();
   const { leagueId } = route.params;
-  const [selectedMatchupWeek, setSelectedMatchupWeek] = useState<string | null>(null);
+  const [selectedMatchupWeek, setSelectedMatchupWeek] = useState<string | null>(
+    null,
+  );
 
   // Fetch real API league data if leagueId is a valid 24-character MongoDB ObjectId
   const isRealApiId = !!leagueId && /^[0-9a-fA-F]{24}$/.test(String(leagueId));
   const isMockId = !isRealApiId;
-  const { data: apiLeagueData, isLoading: isApiLoading, refetch: refetchLeagueDetails } = useGetLeagueDetailsQuery(leagueId, {
+  const {
+    data: apiLeagueData,
+    isLoading: isApiLoading,
+    refetch: refetchLeagueDetails,
+  } = useGetLeagueDetailsQuery(leagueId, {
     skip: isMockId,
     refetchOnMountOrArgChange: true,
   });
-  const { data: apiMembersData, refetch: refetchMembers } = useGetLeagueMembersQuery(leagueId, {
-    skip: isMockId,
-  });
-  // Players tab: search term is debounced so typing does not fire a request per keystroke.
+  const { data: apiMembersData, refetch: refetchMembers } =
+    useGetLeagueMembersQuery(leagueId, {
+      skip: isMockId,
+    });
+  // Team-pool search is debounced to keep filtering responsive as the pool grows.
   const [playerSearch, setPlayerSearch] = useState('');
   const [debouncedPlayerSearch, setDebouncedPlayerSearch] = useState('');
   const [playerPositionId, setPlayerPositionId] = useState<string | null>(null);
   const [playersPage, setPlayersPage] = useState(1);
 
   useEffect(() => {
-    const timer = setTimeout(() => setDebouncedPlayerSearch(playerSearch.trim()), 350);
+    const timer = setTimeout(
+      () => setDebouncedPlayerSearch(playerSearch.trim()),
+      350,
+    );
     return () => clearTimeout(timer);
   }, [playerSearch]);
 
-  // A new search or position filter restarts paging from the first page.
+  // A new search or division filter restarts paging from the first page.
   useEffect(() => {
     setPlayersPage(1);
   }, [debouncedPlayerSearch, playerPositionId]);
@@ -125,14 +218,20 @@ export default function LeagueDetailScreen() {
     refetch: refetchAvailableAthletes,
   } = useGetAvailableCheerTeamsQuery(leagueId, { skip: isMockId });
 
-  const athletePositions: any[] = [];
+  const cheerDivisions = CHEER_DIVISIONS.map(division => ({
+    _id: division.id,
+    code: division.name,
+    name: division.name,
+  }));
 
-  const { data: rosterSettings, refetch: refetchRosterSettings } = useGetRosterSettingsQuery(leagueId, {
-    skip: isMockId,
-  });
-  const { data: apiRostersData, refetch: refetchLeagueRosters } = useGetLeagueRostersQuery(leagueId, {
-    skip: isMockId,
-  });
+  const { data: rosterSettings, refetch: refetchRosterSettings } =
+    useGetRosterSettingsQuery(leagueId, {
+      skip: isMockId,
+    });
+  const { data: apiRostersData, refetch: refetchLeagueRosters } =
+    useGetLeagueRostersQuery(leagueId, {
+      skip: isMockId,
+    });
   const selectedMatchupWeekNumber = selectedMatchupWeek
     ? parseInt(selectedMatchupWeek.replace('Week ', ''), 10)
     : undefined;
@@ -142,64 +241,151 @@ export default function LeagueDetailScreen() {
       1,
   );
   const effectiveMatchupWeek = selectedMatchupWeekNumber || leagueCurrentWeek;
-  const { data: apiMatchupData, refetch: refetchMatchup } = useGetCurrentMatchupQuery(
-    { leagueId, week: effectiveMatchupWeek },
-    { skip: isMockId },
-  );
-  const { data: apiStandingsData, refetch: refetchStandings } = useGetLeagueStandingsQuery(leagueId, {
-    skip: isMockId,
-  });
-  const { data: apiHistoryData, refetch: refetchHistory } = useGetMatchupHistoryQuery(leagueId, {
-    skip: isMockId,
-  });
+  const { data: apiMatchupData, refetch: refetchMatchup } =
+    useGetCurrentMatchupQuery(
+      { leagueId, week: effectiveMatchupWeek },
+      { skip: isMockId },
+    );
+  const { data: apiStandingsData, refetch: refetchStandings } =
+    useGetLeagueStandingsQuery(leagueId, {
+      skip: isMockId,
+    });
+  const { data: apiHistoryData, refetch: refetchHistory } =
+    useGetMatchupHistoryQuery(leagueId, {
+      skip: isMockId,
+    });
 
   // Resolved API league payload
-  const rawLeague: ApiLeaguePayload | undefined = (apiLeagueData as ApiLeagueDetailsResponse)?.league || (apiLeagueData as ApiLeaguePayload);
+  const rawLeague: ApiLeaguePayload | undefined =
+    (apiLeagueData as ApiLeagueDetailsResponse)?.league ||
+    (apiLeagueData as ApiLeaguePayload);
   const targetSeasonId = rawLeague?.seasonId;
 
   // Debug logger for API calls and response tracking
   useEffect(() => {
-    console.log('[LeagueDetailScreen] Params leagueId:', leagueId, '| isRealApiId:', isRealApiId, '| isMockId:', isMockId);
+    console.log(
+      '[LeagueDetailScreen] Params leagueId:',
+      leagueId,
+      '| isRealApiId:',
+      isRealApiId,
+      '| isMockId:',
+      isMockId,
+    );
     if (isRealApiId) {
       console.log('[LeagueDetailScreen] isApiLoading:', isApiLoading);
-      console.log('[LeagueDetailScreen] rawLeague:', JSON.stringify(rawLeague, null, 2));
-      console.log('[LeagueDetailScreen] apiMembersData:', JSON.stringify(apiMembersData, null, 2));
-      console.log('[LeagueDetailScreen] apiRostersData:', JSON.stringify(apiRostersData, null, 2));
-      console.log('[LeagueDetailScreen] apiMatchupData:', JSON.stringify(apiMatchupData, null, 2));
-      console.log('[LeagueDetailScreen] apiStandingsData:', JSON.stringify(apiStandingsData, null, 2));
+      console.log(
+        '[LeagueDetailScreen] rawLeague:',
+        JSON.stringify(rawLeague, null, 2),
+      );
+      console.log(
+        '[LeagueDetailScreen] apiMembersData:',
+        JSON.stringify(apiMembersData, null, 2),
+      );
+      console.log(
+        '[LeagueDetailScreen] apiRostersData:',
+        JSON.stringify(apiRostersData, null, 2),
+      );
+      console.log(
+        '[LeagueDetailScreen] apiMatchupData:',
+        JSON.stringify(apiMatchupData, null, 2),
+      );
+      console.log(
+        '[LeagueDetailScreen] apiStandingsData:',
+        JSON.stringify(apiStandingsData, null, 2),
+      );
     }
-  }, [leagueId, isRealApiId, isMockId, isApiLoading, rawLeague, apiMembersData, apiRostersData, apiMatchupData, apiStandingsData]);
+  }, [
+    leagueId,
+    isRealApiId,
+    isMockId,
+    isApiLoading,
+    rawLeague,
+    apiMembersData,
+    apiRostersData,
+    apiMatchupData,
+    apiStandingsData,
+  ]);
 
-  const [joinLeagueMutation, { isLoading: isJoiningLeague }] = useJoinLeagueMutation();
+  const [joinLeagueMutation, { isLoading: isJoiningLeague }] =
+    useJoinLeagueMutation();
 
   const playersList = useMemo(() => {
     const rawList = availableCheerTeams || [];
 
-    return rawList.map((item: any, idx: number) => {
-      const organization = typeof item.organizationId === 'object' ? item.organizationId : {};
+    const mappedTeams = rawList.map((item: any, idx: number) => {
+      const organization =
+        typeof item.organizationId === 'object' ? item.organizationId : {};
       const name = item.teamName || 'Unknown Cheer Team';
-
-      const positionCode = 'CHEER';
-      const nflTeam = organization.shortName || organization.name;
+      const divisionLabels = (item.eligibleDivisionIds || [])
+        .map((division: any) => {
+          if (typeof division === 'object') {
+            return division.name || division.code || '';
+          }
+          return (
+            CHEER_DIVISIONS.find(
+              option => option.id === division || option.code === division,
+            )?.name || ''
+          );
+        })
+        .filter(Boolean);
+      const country =
+        organization.country ||
+        item.country ||
+        organization.location ||
+        'Country unavailable';
 
       return {
+        ...item,
         id: item._id || item.id || `p-${idx}`,
         seasonCheerTeamId: item._id,
         name,
-        subtitle: [positionCode, nflTeam].filter(Boolean).join(' • ') || 'Free agent',
+        teamName: name,
+        country,
+        divisionLabels,
+        subtitle: [
+          country,
+          divisionLabels.join(' / ') || 'Division unavailable',
+        ]
+          .filter(Boolean)
+          .join(' • '),
         value: item.openingValue ?? null,
         avatarUri: organization.logoUrl || null,
       };
     });
-  }, [availableCheerTeams]);
+
+    const search = debouncedPlayerSearch.toLowerCase();
+    return mappedTeams.filter((team: any) => {
+      const matchesSearch =
+        !search ||
+        [team.teamName, team.country, ...team.divisionLabels]
+          .join(' ')
+          .toLowerCase()
+          .includes(search);
+      const selectedDivision = CHEER_DIVISIONS.find(
+        division => division.id === playerPositionId,
+      );
+      const matchesDivision =
+        !selectedDivision ||
+        team.divisionLabels.some((label: string) =>
+          [selectedDivision.name, selectedDivision.code]
+            .map(value => value.toLowerCase().replace(/[^a-z0-9]/g, ''))
+            .includes(label.toLowerCase().replace(/[^a-z0-9]/g, '')),
+        );
+      return matchesSearch && matchesDivision;
+    });
+  }, [availableCheerTeams, debouncedPlayerSearch, playerPositionId]);
 
   const callerInfo = apiLeagueData?.caller;
 
-  const createdLeagues = useSelector((state: RootState) => state.league.leagues);
+  const createdLeagues = useSelector(
+    (state: RootState) => state.league.leagues,
+  );
   const mockFallback = isMockId
-    ? (createdLeagues.find(l => String(l.id || (l as any)._id) === String(leagueId)) ||
-       MOCK_LEAGUES.find(l => String(l.id) === String(leagueId)) ||
-       MOCK_LEAGUES[0])
+    ? createdLeagues.find(
+        l => String(l.id || (l as any)._id) === String(leagueId),
+      ) ||
+      MOCK_LEAGUES.find(l => String(l.id) === String(leagueId)) ||
+      MOCK_LEAGUES[0]
     : null;
 
   const draftStartsAt =
@@ -210,56 +396,86 @@ export default function LeagueDetailScreen() {
 
   // Memoised: the draft countdown re-renders this screen every second, and a fresh
   // league object each time would churn every child that receives it.
-  const league = useMemo(() => (rawLeague
-    ? {
-        id: rawLeague._id || rawLeague.id || leagueId,
-        name: rawLeague.name || 'Fantasy League',
-        logoUri:
-          rawLeague.logoUrl ||
-          rawLeague.logoUri ||
-          'https://images.unsplash.com/photo-1614680376593-902f74cf0d41?q=80&w=150&auto=format&fit=crop',
-        membersCount: rawLeague.joinedTeamCount ?? rawLeague.membersCount ?? rawLeague.maxTeams ?? 1,
-        maxTeams: rawLeague.maxTeams ?? 12,
-        status:
-          rawLeague.status === 'registration_open' || rawLeague.status === 'drafting' || rawLeague.status === 'Draft'
-            ? 'Draft'
-            : rawLeague.status === 'active' || rawLeague.status === 'auction_active' || rawLeague.status === 'Play'
-            ? 'Play'
-            : rawLeague.status || 'Draft',
-        code: rawLeague.code || '',
-        description: rawLeague.description || '',
-        // `status` above is a display label; settings screens need the real value.
-        rawStatus: rawLeague.status,
-        joinedTeamCount: rawLeague.joinedTeamCount,
-        currentWeek: rawLeague.currentWeek || 1,
-        draftSettings: (rawLeague as any).draftSettings,
-        matchupSettings: (rawLeague as any).matchupSettings,
-        fantasyCheerSettings: (rawLeague as any).fantasyCheerSettings,
-        currentFantasyPeriod: (rawLeague as any).currentFantasyPeriod || 1,
-        championFantasyTeamId: (rawLeague as any).championFantasyTeamId,
-        visibility: rawLeague.visibility || 'public',
-        draftStartsAt,
-      }
-    : mockFallback), [rawLeague, mockFallback, draftStartsAt, leagueId]);
+  const league = useMemo(
+    () =>
+      rawLeague
+        ? {
+            id: rawLeague._id || rawLeague.id || leagueId,
+            name: rawLeague.name || 'Fantasy League',
+            logoUri:
+              rawLeague.logoUrl ||
+              rawLeague.logoUri ||
+              'https://images.unsplash.com/photo-1614680376593-902f74cf0d41?q=80&w=150&auto=format&fit=crop',
+            membersCount:
+              rawLeague.joinedTeamCount ??
+              rawLeague.membersCount ??
+              rawLeague.maxTeams ??
+              1,
+            maxTeams: rawLeague.maxTeams ?? 12,
+            status:
+              rawLeague.status === 'registration_open' ||
+              rawLeague.status === 'drafting' ||
+              rawLeague.status === 'Draft'
+                ? 'Draft'
+                : rawLeague.status === 'active' ||
+                  rawLeague.status === 'auction_active' ||
+                  rawLeague.status === 'Play'
+                ? 'Play'
+                : rawLeague.status || 'Draft',
+            code: rawLeague.code || '',
+            description: rawLeague.description || '',
+            // `status` above is a display label; settings screens need the real value.
+            rawStatus: rawLeague.status,
+            joinedTeamCount: rawLeague.joinedTeamCount,
+            currentWeek: rawLeague.currentWeek || 1,
+            draftSettings: (rawLeague as any).draftSettings,
+            matchupSettings: (rawLeague as any).matchupSettings,
+            fantasyCheerSettings: (rawLeague as any).fantasyCheerSettings,
+            currentFantasyPeriod: (rawLeague as any).currentFantasyPeriod || 1,
+            championFantasyTeamId: (rawLeague as any).championFantasyTeamId,
+            visibility: rawLeague.visibility || 'public',
+            draftStartsAt,
+          }
+        : mockFallback,
+    [rawLeague, mockFallback, draftStartsAt, leagueId],
+  );
 
-
-  const [currentLeagueStatus, setCurrentLeagueStatus] = useState(league?.status);
-  const [timeLeft, setTimeLeft] = useState<{ days: number; hours: number; minutes: number; seconds: number } | null>(null);
+  const [currentLeagueStatus, setCurrentLeagueStatus] = useState(
+    league?.status,
+  );
+  const [timeLeft, setTimeLeft] = useState<{
+    days: number;
+    hours: number;
+    minutes: number;
+    seconds: number;
+  } | null>(null);
   const [isDraftStarted, setIsDraftStarted] = useState(false);
-  const isPlayMode = currentLeagueStatus === 'Play' || currentLeagueStatus === 'active' || league?.status === 'Play' || league?.status === 'active';
-  const [activeTab, setActiveTab] = useState<'Matchup' | 'Draft' | 'Team' | 'Players' | 'League'>(isPlayMode ? 'Matchup' : 'Draft');
+  const isPlayMode =
+    currentLeagueStatus === 'Play' ||
+    currentLeagueStatus === 'active' ||
+    league?.status === 'Play' ||
+    league?.status === 'active';
+  const [activeTab, setActiveTab] = useState<
+    'Matchup' | 'Draft' | 'Team' | 'Players' | 'League'
+  >(isPlayMode ? 'Matchup' : 'Draft');
 
   const [isUserJoined, setIsUserJoined] = useState(false);
   const [isJoinModalVisible, setIsJoinModalVisible] = useState(false);
   const [joinErrorText, setJoinErrorText] = useState<string | null>(null);
 
-  const [selectedRosterItem, setSelectedRosterItem] = useState<any | null>(null);
-  const [isRosterActionModalVisible, setIsRosterActionModalVisible] = useState(false);
+  const [selectedRosterItem, setSelectedRosterItem] = useState<any | null>(
+    null,
+  );
+  const [isRosterActionModalVisible, setIsRosterActionModalVisible] =
+    useState(false);
 
   useEffect(() => {
     if (league?.status) {
       setCurrentLeagueStatus(league.status);
-      const isPlay = league.status === 'Play' || league.status === 'active' || (league as any).rawStatus === 'active';
+      const isPlay =
+        league.status === 'Play' ||
+        league.status === 'active' ||
+        (league as any).rawStatus === 'active';
       if (isPlay) {
         setActiveTab(prev => (prev === 'Draft' ? 'Matchup' : prev));
       }
@@ -267,8 +483,13 @@ export default function LeagueDetailScreen() {
   }, [league?.status, (league as any)?.rawStatus]);
 
   const dispatch = useDispatch();
-  const reduxActiveTeamId = useSelector((state: RootState) => state.league.activeTeams?.[leagueId]?.teamId);
-  const currentUserId = useSelector((state: RootState) => (state.auth?.user as any)?._id || (state.auth?.user as any)?.id);
+  const reduxActiveTeamId = useSelector(
+    (state: RootState) => state.league.activeTeams?.[leagueId]?.teamId,
+  );
+  const currentUserId = useSelector(
+    (state: RootState) =>
+      (state.auth?.user as any)?._id || (state.auth?.user as any)?.id,
+  );
   const callerTeamId =
     reduxActiveTeamId ||
     (apiLeagueData as any)?.caller?.team?._id ||
@@ -280,10 +501,13 @@ export default function LeagueDetailScreen() {
     data: myRoster,
     isLoading: isMyRosterLoading,
     refetch: refetchMyRoster,
-  } = useGetFantasyCheerRosterQuery({ leagueId, fantasyTeamId: callerTeamId || '' }, {
-    skip: isMockId || !isUserJoined || !callerTeamId,
-    refetchOnMountOrArgChange: true,
-  });
+  } = useGetFantasyCheerRosterQuery(
+    { leagueId, fantasyTeamId: callerTeamId || '' },
+    {
+      skip: isMockId || !isUserJoined || !callerTeamId,
+      refetchOnMountOrArgChange: true,
+    },
+  );
 
   const rosterTeam = useMemo(() => {
     const rawRosters = Array.isArray(apiRostersData)
@@ -293,7 +517,8 @@ export default function LeagueDetailScreen() {
       : [];
     if (!currentUserId || rawRosters.length === 0) return null;
     return rawRosters.find((r: any) => {
-      const ownerId = r.ownerId || r.ownerUserId || r.userId?._id || r.userId?.id || r.userId;
+      const ownerId =
+        r.ownerId || r.ownerUserId || r.userId?._id || r.userId?.id || r.userId;
       return String(ownerId) === String(currentUserId);
     });
   }, [apiRostersData, currentUserId]);
@@ -335,8 +560,6 @@ export default function LeagueDetailScreen() {
     }
   }, [leagueId, userTeamId, reduxActiveTeamId, dispatch]);
 
-
-
   // Pull down to re-read everything this screen shows. Runs the refetches in
   // parallel and settles even if one of them rejects, so a single failing query
   // cannot leave the spinner stuck.
@@ -359,7 +582,7 @@ export default function LeagueDetailScreen() {
           refetchRosterSettings,
         ]
           .filter(Boolean)
-          .map((fn) => Promise.resolve(fn())),
+          .map(fn => Promise.resolve(fn())),
       );
     } finally {
       setIsRefreshing(false);
@@ -391,7 +614,9 @@ export default function LeagueDetailScreen() {
     return new Array(league?.maxTeams || 12).fill(null);
   });
 
-  const [realtimeNotification, setRealtimeNotification] = useState<string | null>(null);
+  const [realtimeNotification, setRealtimeNotification] = useState<
+    string | null
+  >(null);
   const lastHandledEventRef = useRef<string | null>(null);
 
   // Sync real backend members list into teamSlots
@@ -425,11 +650,22 @@ export default function LeagueDetailScreen() {
         memberList.forEach((m: any, idx: number) => {
           if (idx < maxCapacity) {
             const teamObj = m.team || {};
-            const userObj = m.user || (typeof m.userId === 'object' ? m.userId : {});
+            const userObj =
+              m.user || (typeof m.userId === 'object' ? m.userId : {});
 
-            const teamName = teamObj.name || m.fantasyTeamName || userObj.fullName || userObj.username || m.name || `Fantasy Team ${idx + 1}`;
-            const rawUsername = userObj.username || userObj.fullName || teamName;
-            const handle = teamObj.handle || m.handle || `@${rawUsername.toLowerCase().replace(/[^a-z0-9]/g, '')}`;
+            const teamName =
+              teamObj.name ||
+              m.fantasyTeamName ||
+              userObj.fullName ||
+              userObj.username ||
+              m.name ||
+              `Fantasy Team ${idx + 1}`;
+            const rawUsername =
+              userObj.username || userObj.fullName || teamName;
+            const handle =
+              teamObj.handle ||
+              m.handle ||
+              `@${rawUsername.toLowerCase().replace(/[^a-z0-9]/g, '')}`;
 
             const avatarUri =
               teamObj.avatarUri ||
@@ -453,7 +689,10 @@ export default function LeagueDetailScreen() {
               name: teamName,
               handle,
               avatarUri,
-              role: m.role === 'creator' || m.role === 'commissioner' || idx === 0 ? 'Commissioner' : 'Joined',
+              role:
+                m.role === 'creator' || m.role === 'commissioner' || idx === 0
+                  ? 'Commissioner'
+                  : 'Joined',
               budgetRemaining: teamObj.budgetRemaining ?? 100,
             };
           }
@@ -462,7 +701,6 @@ export default function LeagueDetailScreen() {
       }
     }
   }, [apiMembersData, apiRostersData, league?.maxTeams]);
-
 
   // Real-Time WebSocket Connection & Single Deduplicated Event Listener
   useEffect(() => {
@@ -473,7 +711,11 @@ export default function LeagueDetailScreen() {
       joinLeagueRoom(leagueId);
 
       const handleTeamJoined = (eventData: any) => {
-        if (!eventData || (eventData.leagueId && String(eventData.leagueId) !== String(leagueId))) {
+        if (
+          !eventData ||
+          (eventData.leagueId &&
+            String(eventData.leagueId) !== String(leagueId))
+        ) {
           return;
         }
 
@@ -498,7 +740,9 @@ export default function LeagueDetailScreen() {
 
         // Dynamically add team to slots if not already added
         setTeamSlots(prevSlots => {
-          const exists = prevSlots.some(s => s && (s.id === teamId || s.name === teamName));
+          const exists = prevSlots.some(
+            s => s && (s.id === teamId || s.name === teamName),
+          );
           if (exists) return prevSlots;
 
           const slots = [...prevSlots];
@@ -507,8 +751,12 @@ export default function LeagueDetailScreen() {
             slots[emptyIdx] = {
               id: teamId || `rt-${Date.now()}`,
               name: teamName,
-              handle: joinedTeam.handle || `@${teamName.toLowerCase().replace(/[^a-z0-9]/g, '')}`,
-              avatarUri: joinedTeam.avatarUri || `https://i.pravatar.cc/150?img=${(emptyIdx % 12) + 1}`,
+              handle:
+                joinedTeam.handle ||
+                `@${teamName.toLowerCase().replace(/[^a-z0-9]/g, '')}`,
+              avatarUri:
+                joinedTeam.avatarUri ||
+                `https://i.pravatar.cc/150?img=${(emptyIdx % 12) + 1}`,
               role: joinedTeam.role || 'Joined',
             };
           }
@@ -526,7 +774,11 @@ export default function LeagueDetailScreen() {
       socket.on('teamJoined', handleTeamJoined);
 
       const handlePlayerAcquired = (eventData: any) => {
-        if (!eventData || (eventData.leagueId && String(eventData.leagueId) !== String(leagueId))) {
+        if (
+          !eventData ||
+          (eventData.leagueId &&
+            String(eventData.leagueId) !== String(leagueId))
+        ) {
           return;
         }
         if (refetchAvailableAthletes) refetchAvailableAthletes();
@@ -536,7 +788,11 @@ export default function LeagueDetailScreen() {
       socket.on('playerAcquired', handlePlayerAcquired);
 
       const handlePlayerDropped = (eventData: any) => {
-        if (!eventData || (eventData.leagueId && String(eventData.leagueId) !== String(leagueId))) {
+        if (
+          !eventData ||
+          (eventData.leagueId &&
+            String(eventData.leagueId) !== String(leagueId))
+        ) {
           return;
         }
         if (refetchAvailableAthletes) refetchAvailableAthletes();
@@ -546,7 +802,11 @@ export default function LeagueDetailScreen() {
       socket.on('playerDropped', handlePlayerDropped);
 
       const handleMatchupUpdated = (eventData: any) => {
-        if (!eventData || (eventData.leagueId && String(eventData.leagueId) !== String(leagueId))) {
+        if (
+          !eventData ||
+          (eventData.leagueId &&
+            String(eventData.leagueId) !== String(leagueId))
+        ) {
           return;
         }
         if (refetchAvailableAthletes) refetchAvailableAthletes();
@@ -570,23 +830,32 @@ export default function LeagueDetailScreen() {
     }
   }, [leagueId, refetchMembers]);
 
-
-
-
   const [isAddTeamModalVisible, setIsAddTeamModalVisible] = useState(false);
-  const [selectedSlotIndex, setSelectedSlotIndex] = useState<number | null>(null);
+  const [selectedSlotIndex, setSelectedSlotIndex] = useState<number | null>(
+    null,
+  );
 
   const [isPlayerModalVisible, setIsPlayerModalVisible] = useState(false);
   const [selectedPlayer, setSelectedPlayer] = useState<any>(null);
   const [isSettingsModalVisible, setIsSettingsModalVisible] = useState(false);
-  const [isLeagueSettingsSubModalVisible, setIsLeagueSettingsSubModalVisible] = useState(false);
-  const [isRosterSettingsSubModalVisible, setIsRosterSettingsSubModalVisible] = useState(false);
-  const [isDraftSettingsSubModalVisible, setIsDraftSettingsSubModalVisible] = useState(false);
-  const [isScoringSettingsSubModalVisible, setIsScoringSettingsSubModalVisible] = useState(false);
-  const [isMemberSettingsSubModalVisible, setIsMemberSettingsSubModalVisible] = useState(false);
-  const [isCommissionerModalVisible, setIsCommissionerModalVisible] = useState(false);
-  const [isLockRosterModalVisible, setIsLockRosterModalVisible] = useState(false);
-  const [isDeleteLeagueModalVisible, setIsDeleteLeagueModalVisible] = useState(false);
+  const [isLeagueSettingsSubModalVisible, setIsLeagueSettingsSubModalVisible] =
+    useState(false);
+  const [isRosterSettingsSubModalVisible, setIsRosterSettingsSubModalVisible] =
+    useState(false);
+  const [isDraftSettingsSubModalVisible, setIsDraftSettingsSubModalVisible] =
+    useState(false);
+  const [
+    isScoringSettingsSubModalVisible,
+    setIsScoringSettingsSubModalVisible,
+  ] = useState(false);
+  const [isMemberSettingsSubModalVisible, setIsMemberSettingsSubModalVisible] =
+    useState(false);
+  const [isCommissionerModalVisible, setIsCommissionerModalVisible] =
+    useState(false);
+  const [isLockRosterModalVisible, setIsLockRosterModalVisible] =
+    useState(false);
+  const [isDeleteLeagueModalVisible, setIsDeleteLeagueModalVisible] =
+    useState(false);
 
   const handleSettingsOptionSelect = (optionTitle: string) => {
     if (optionTitle === 'League settings') {
@@ -627,7 +896,12 @@ export default function LeagueDetailScreen() {
       }
       const newSlots = [...teamSlots];
       const emptyIndex = newSlots.findIndex(s => s === null);
-      const targetIndex = selectedSlotIndex !== null && newSlots[selectedSlotIndex] === null ? selectedSlotIndex : (emptyIndex !== -1 ? emptyIndex : 0);
+      const targetIndex =
+        selectedSlotIndex !== null && newSlots[selectedSlotIndex] === null
+          ? selectedSlotIndex
+          : emptyIndex !== -1
+          ? emptyIndex
+          : 0;
       const joinedTeamObj = {
         id: `my-team-${Date.now()}`,
         name: fantasyTeamName,
@@ -650,12 +924,13 @@ export default function LeagueDetailScreen() {
         console.warn('Socket emit error on join:', e);
       }
     } catch (err: any) {
-      const msg = err?.data?.message || err?.message || 'Failed to join league. Please try again.';
+      const msg =
+        err?.data?.message ||
+        err?.message ||
+        'Failed to join league. Please try again.';
       setJoinErrorText(msg);
     }
   };
-
-
 
   useEffect(() => {
     const rawTarget =
@@ -696,7 +971,12 @@ export default function LeagueDetailScreen() {
     const intervalId = setInterval(calculateTime, 1000);
 
     return () => clearInterval(intervalId);
-  }, [league?.draftStartsAt, league?.settings?.draftSettings?.draftStartsAt, league?.draftDate, currentLeagueStatus]);
+  }, [
+    league?.draftStartsAt,
+    league?.settings?.draftSettings?.draftStartsAt,
+    league?.draftDate,
+    currentLeagueStatus,
+  ]);
 
   return (
     <SafeAreaView className="flex-1 bg-black" edges={['top', 'bottom']}>
@@ -714,10 +994,12 @@ export default function LeagueDetailScreen() {
         </View>
       </View>
 
-      {(!isMockId && (isApiLoading || !rawLeague)) ? (
+      {!isMockId && (isApiLoading || !rawLeague) ? (
         <View className="flex-1 justify-center items-center">
           <ActivityIndicator size="large" color="#E0B566" />
-          <Text className="text-gray-400 text-xs mt-3">Loading League Details...</Text>
+          <Text className="text-gray-400 text-xs mt-3">
+            Loading League Details...
+          </Text>
         </View>
       ) : (
         <ScrollView
@@ -740,12 +1022,20 @@ export default function LeagueDetailScreen() {
                 <View className="w-9 h-9 rounded-full bg-white/20 items-center justify-center mr-3">
                   <Users color="#fff" size={18} />
                 </View>
-                <Text className="text-white text-[14px] font-bold flex-1" numberOfLines={2}>
+                <Text
+                  className="text-white text-[14px] font-bold flex-1"
+                  numberOfLines={2}
+                >
                   {realtimeNotification}
                 </Text>
               </View>
-              <TouchableOpacity onPress={() => setRealtimeNotification(null)} className="bg-white/20 px-3 py-1 rounded-full border border-white/30">
-                <Text className="text-white text-[11px] font-bold">Dismiss</Text>
+              <TouchableOpacity
+                onPress={() => setRealtimeNotification(null)}
+                className="bg-white/20 px-3 py-1 rounded-full border border-white/30"
+              >
+                <Text className="text-white text-[11px] font-bold">
+                  Dismiss
+                </Text>
               </TouchableOpacity>
             </View>
           ) : null}
@@ -756,12 +1046,21 @@ export default function LeagueDetailScreen() {
             <View className="flex-row items-start justify-between mb-4">
               <View className="flex-row items-center flex-1 mr-2">
                 <Image
-                  source={{ uri: league.logoUri || 'https://images.unsplash.com/photo-1614680376593-902f74cf0d41?q=80&w=150&auto=format&fit=crop' }}
+                  source={{
+                    uri:
+                      league.logoUri ||
+                      'https://images.unsplash.com/photo-1614680376593-902f74cf0d41?q=80&w=150&auto=format&fit=crop',
+                  }}
                   className="w-[56px] h-[56px] rounded-2xl bg-white border border-[#333] mr-3.5"
                 />
                 <View className="flex-1">
-                  <Text className="text-white text-[20px] font-bold mb-1" numberOfLines={1}>{league.name}</Text>
-                  
+                  <Text
+                    className="text-white text-[20px] font-bold mb-1"
+                    numberOfLines={1}
+                  >
+                    {league.name}
+                  </Text>
+
                   <View className="flex-row items-center flex-wrap gap-2">
                     {/* Visibility Badge */}
                     <View className="flex-row items-center bg-[#1e1a2b] border border-[#8B3DFF]/50 px-2.5 py-0.5 rounded-full">
@@ -770,20 +1069,28 @@ export default function LeagueDetailScreen() {
                       ) : (
                         <Lock color="#E0B566" size={12} className="mr-1" />
                       )}
-                      <Text className="text-[#E0B566] text-[11px] font-semibold uppercase">{league.visibility || 'Public'}</Text>
+                      <Text className="text-[#E0B566] text-[11px] font-semibold uppercase">
+                        {league.visibility || 'Public'}
+                      </Text>
                     </View>
 
                     {/* Status Badge */}
                     <View className="bg-[#2a1a00] border border-[#FFB84D]/50 px-2.5 py-0.5 rounded-full">
                       <Text className="text-[#FFB84D] text-[11px] font-semibold">
-                        {league.status === 'Draft' || league.status === 'registration_open' ? 'Pre-Draft' : league.status}
+                        {league.status === 'Draft' ||
+                        league.status === 'registration_open'
+                          ? 'Pre-Draft'
+                          : league.status}
                       </Text>
                     </View>
                   </View>
                 </View>
               </View>
 
-              <TouchableOpacity className="p-2 border border-[#333] rounded-xl bg-[#1a1a1a]" onPress={() => setIsSettingsModalVisible(true)}>
+              <TouchableOpacity
+                className="p-2 border border-[#333] rounded-xl bg-[#1a1a1a]"
+                onPress={() => setIsSettingsModalVisible(true)}
+              >
                 <MoreVertical color="#fff" size={18} />
               </TouchableOpacity>
             </View>
@@ -792,16 +1099,22 @@ export default function LeagueDetailScreen() {
             <View className="flex-row items-center justify-between border-t border-[#222] pt-3.5 mt-1">
               <View className="flex-row items-center">
                 <Users color="#888" size={14} className="mr-1.5" />
-                <Text className="text-gray-400 text-[12px] font-medium">Joined Teams:</Text>
+                <Text className="text-gray-400 text-[12px] font-medium">
+                  Joined Teams:
+                </Text>
                 <Text className="text-[#E0B566] text-[12px] font-bold ml-1">
-                  {`${teamSlots.filter(t => !!t).length} / ${league.maxTeams || 12}`}
+                  {`${teamSlots.filter(t => !!t).length} / ${
+                    league.maxTeams || 12
+                  }`}
                 </Text>
               </View>
 
               {league.code ? (
                 <View className="flex-row items-center">
                   <Text className="text-gray-400 text-[12px]">Code: </Text>
-                  <Text className="text-[#8B3DFF] text-[12px] font-bold">{league.code}</Text>
+                  <Text className="text-[#8B3DFF] text-[12px] font-bold">
+                    {league.code}
+                  </Text>
                 </View>
               ) : (
                 <View className="flex-row items-center">
@@ -812,17 +1125,22 @@ export default function LeagueDetailScreen() {
             </View>
           </View>
 
-
           {/* Join Public League Banner */}
           {!isUserJoined ? (
             <View className="bg-[#1a132b] border border-[#8B3DFF] rounded-2xl p-4 mb-6 flex-row items-center justify-between shadow-lg">
               <View className="flex-1 mr-3">
                 <View className="flex-row items-center mb-1">
                   <Users color="#E0B566" size={15} className="mr-1.5" />
-                  <Text className="text-[#E0B566] text-[11px] font-bold tracking-wider">PUBLIC LEAGUE</Text>
+                  <Text className="text-[#E0B566] text-[11px] font-bold tracking-wider">
+                    PUBLIC LEAGUE
+                  </Text>
                 </View>
-                <Text className="text-white text-[15px] font-bold">Open Registration!</Text>
-                <Text className="text-gray-300 text-[12px] mt-0.5">Join this public league with your team.</Text>
+                <Text className="text-white text-[15px] font-bold">
+                  Open Registration!
+                </Text>
+                <Text className="text-gray-300 text-[12px] mt-0.5">
+                  Join this public league with your team.
+                </Text>
               </View>
               <TouchableOpacity
                 className="bg-[#8B3DFF] px-4 py-2.5 rounded-full flex-row items-center"
@@ -833,20 +1151,26 @@ export default function LeagueDetailScreen() {
                 }}
               >
                 <Plus color="#fff" size={16} className="mr-1" />
-                <Text className="text-white text-[13px] font-bold">Join League</Text>
+                <Text className="text-white text-[13px] font-bold">
+                  Join League
+                </Text>
               </TouchableOpacity>
             </View>
           ) : (
             <View className="bg-emerald-950/70 border border-emerald-500/40 rounded-xl px-4 py-2.5 mb-6 flex-row items-center justify-between">
               <View className="flex-row items-center">
                 <UserCheck color="#34d399" size={16} className="mr-2" />
-                <Text className="text-emerald-300 text-[13px] font-semibold">Your team has joined this league</Text>
+                <Text className="text-emerald-300 text-[13px] font-semibold">
+                  Your team has joined this league
+                </Text>
               </View>
               <TouchableOpacity
                 className="bg-emerald-900/60 px-3 py-1 rounded-full border border-emerald-500/30"
                 onPress={() => setActiveTab('Team')}
               >
-                <Text className="text-emerald-200 text-[11px] font-bold">View Team</Text>
+                <Text className="text-emerald-200 text-[11px] font-bold">
+                  View Team
+                </Text>
               </TouchableOpacity>
             </View>
           )}
@@ -855,36 +1179,76 @@ export default function LeagueDetailScreen() {
           <View className="flex-row justify-between items-center mb-6 px-1">
             {isPlayMode ? (
               <TouchableOpacity
-                className={`${activeTab === 'Matchup' ? 'bg-[#FFB84D]' : 'bg-transparent'} px-5 py-2 rounded-xl`}
+                className={`${
+                  activeTab === 'Matchup' ? 'bg-[#FFB84D]' : 'bg-transparent'
+                } px-5 py-2 rounded-xl`}
                 onPress={() => setActiveTab('Matchup')}
               >
-                <Text className={`${activeTab === 'Matchup' ? 'text-white' : 'text-gray-400'} text-[15px] font-semibold`}>Matchup</Text>
+                <Text
+                  className={`${
+                    activeTab === 'Matchup' ? 'text-white' : 'text-gray-400'
+                  } text-[15px] font-semibold`}
+                >
+                  Matchup
+                </Text>
               </TouchableOpacity>
             ) : (
               <TouchableOpacity
-                className={`${activeTab === 'Draft' ? 'bg-[#FFB84D]' : 'bg-transparent'} px-5 py-2 rounded-xl`}
+                className={`${
+                  activeTab === 'Draft' ? 'bg-[#FFB84D]' : 'bg-transparent'
+                } px-5 py-2 rounded-xl`}
                 onPress={() => setActiveTab('Draft')}
               >
-                <Text className={`${activeTab === 'Draft' ? 'text-white' : 'text-gray-400'} text-[15px] font-semibold`}>Draft</Text>
+                <Text
+                  className={`${
+                    activeTab === 'Draft' ? 'text-white' : 'text-gray-400'
+                  } text-[15px] font-semibold`}
+                >
+                  Draft
+                </Text>
               </TouchableOpacity>
             )}
             <TouchableOpacity
-              className={`${activeTab === 'Team' ? 'bg-[#FFB84D]' : 'bg-transparent'} px-5 py-2 rounded-xl`}
+              className={`${
+                activeTab === 'Team' ? 'bg-[#FFB84D]' : 'bg-transparent'
+              } px-5 py-2 rounded-xl`}
               onPress={() => setActiveTab('Team')}
             >
-              <Text className={`${activeTab === 'Team' ? 'text-white' : 'text-gray-400'} text-[15px] font-semibold`}>Team</Text>
+              <Text
+                className={`${
+                  activeTab === 'Team' ? 'text-white' : 'text-gray-400'
+                } text-[15px] font-semibold`}
+              >
+                My Roster
+              </Text>
             </TouchableOpacity>
             <TouchableOpacity
-              className={`${activeTab === 'Players' ? 'bg-[#FFB84D]' : 'bg-transparent'} px-3 py-2 rounded-xl`}
+              className={`${
+                activeTab === 'Players' ? 'bg-[#FFB84D]' : 'bg-transparent'
+              } px-3 py-2 rounded-xl`}
               onPress={() => setActiveTab('Players')}
             >
-              <Text className={`${activeTab === 'Players' ? 'text-white' : 'text-gray-400'} text-[15px] font-semibold`}>Cheer Teams</Text>
+              <Text
+                className={`${
+                  activeTab === 'Players' ? 'text-white' : 'text-gray-400'
+                } text-[15px] font-semibold`}
+              >
+                Cheer Teams
+              </Text>
             </TouchableOpacity>
             <TouchableOpacity
-              className={`${activeTab === 'League' ? 'bg-[#FFB84D]' : 'bg-transparent'} px-3 py-2 rounded-xl`}
+              className={`${
+                activeTab === 'League' ? 'bg-[#FFB84D]' : 'bg-transparent'
+              } px-3 py-2 rounded-xl`}
               onPress={() => setActiveTab('League')}
             >
-              <Text className={`${activeTab === 'League' ? 'text-white' : 'text-gray-400'} text-[15px] font-semibold`}>League</Text>
+              <Text
+                className={`${
+                  activeTab === 'League' ? 'text-white' : 'text-gray-400'
+                } text-[15px] font-semibold`}
+              >
+                League
+              </Text>
             </TouchableOpacity>
           </View>
 
@@ -930,16 +1294,20 @@ export default function LeagueDetailScreen() {
                 setIsRosterActionModalVisible(true);
               }}
               onSelectTeam={(teamId: string, teamName: string) => {
-                navigation.navigate('TeamRoster', { leagueId, teamId, teamName });
+                navigation.navigate('TeamRoster', {
+                  leagueId,
+                  teamId,
+                  teamName,
+                });
               }}
             />
           </View>
 
-          {/* Players Tab Content */}
+          {/* Draftable real-world teams */}
           <View style={{ display: activeTab === 'Players' ? 'flex' : 'none' }}>
             <PlayersTab
               players={playersList}
-              positions={athletePositions}
+              positions={cheerDivisions}
               searchTerm={playerSearch}
               onChangeSearchTerm={setPlayerSearch}
               selectedPositionId={playerPositionId}
@@ -947,8 +1315,8 @@ export default function LeagueDetailScreen() {
               isLoading={isPlayersLoading}
               isFetching={isPlayersFetching}
               hasMore={false}
-              totalItems={availableCheerTeams.length}
-              onLoadMore={() => setPlayersPage((p) => p + 1)}
+              totalItems={playersList.length}
+              onLoadMore={() => setPlayersPage(p => p + 1)}
               onSelectPlayer={(player: any) => {
                 setSelectedPlayer(player);
                 setIsPlayerModalVisible(true);
@@ -956,12 +1324,14 @@ export default function LeagueDetailScreen() {
             />
           </View>
 
-
           {/* League Tab Content */}
           <View style={{ display: activeTab === 'League' ? 'flex' : 'none' }}>
-            <LeagueTab leagueId={leagueId} userTeamId={userTeamId} league={league} />
+            <LeagueTab
+              leagueId={leagueId}
+              userTeamId={userTeamId}
+              league={league}
+            />
           </View>
-
         </ScrollView>
       )}
 
@@ -1011,7 +1381,6 @@ export default function LeagueDetailScreen() {
           if (refetchMyRoster) refetchMyRoster();
         }}
       />
-
 
       {/* Settings Modal */}
       <LeagueSettingsModal
@@ -1082,7 +1451,6 @@ export default function LeagueDetailScreen() {
           navigation.goBack();
         }}
       />
-
     </SafeAreaView>
   );
 }

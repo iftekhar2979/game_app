@@ -25,10 +25,10 @@ export const DraftBoard = ({
   // pickNumber -> completed pick, and (round, team) -> slot, both O(1) at render.
   const { pickByNumber, slotAt } = useMemo(() => {
     const byNumber = new Map<number, DraftPickRecord>();
-    picks.forEach((p) => byNumber.set(p.pickNumber, p));
+    picks.forEach(p => byNumber.set(p.pickNumber, p));
 
     const bySlot = new Map<string, number>();
-    (draft.board || []).forEach((slot) => {
+    (draft.board || []).forEach(slot => {
       if (slot.fantasyTeamId) {
         bySlot.set(`${slot.round}:${slot.fantasyTeamId}`, slot.pickNumber);
       }
@@ -50,17 +50,28 @@ export const DraftBoard = ({
         </Text>
       </View>
 
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 20 }}>
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={{ paddingHorizontal: 20 }}
+      >
         <View>
           {/* Team columns, in round-one order */}
           <View className="flex-row mb-1.5">
             <View className="w-9" />
-            {teams.map((team) => {
-              const isMine = !!myTeamId && String(team.fantasyTeamId) === String(myTeamId);
+            {teams.map(team => {
+              const isMine =
+                !!myTeamId && String(team.fantasyTeamId) === String(myTeamId);
               return (
-                <View key={team.fantasyTeamId} style={{ width: COL_WIDTH }} className="px-1">
+                <View
+                  key={team.fantasyTeamId}
+                  style={{ width: COL_WIDTH }}
+                  className="px-1"
+                >
                   <Text
-                    className={`text-[11px] font-bold uppercase ${isMine ? 'text-[#8B3DFF]' : 'text-gray-400'}`}
+                    className={`text-[11px] font-bold uppercase ${
+                      isMine ? 'text-[#8B3DFF]' : 'text-gray-400'
+                    }`}
                     numberOfLines={1}
                   >
                     {team.name || 'Team'}
@@ -70,40 +81,65 @@ export const DraftBoard = ({
             })}
           </View>
 
-          {rounds.map((round) => (
+          {rounds.map(round => (
             <View key={round} className="flex-row mb-1.5">
               <View className="w-9 justify-center">
                 <Text className="text-gray-600 text-[11px] font-bold">{`R${round}`}</Text>
               </View>
 
-              {teams.map((team) => {
+              {teams.map(team => {
                 const pickNumber = slotAt.get(`${round}:${team.fantasyTeamId}`);
-                const pick = pickNumber ? pickByNumber.get(pickNumber) : undefined;
-                const isOnClock = !!pickNumber && pickNumber === draft.currentPick;
-                const isMine = !!myTeamId && String(team.fantasyTeamId) === String(myTeamId);
+                const pick = pickNumber
+                  ? pickByNumber.get(pickNumber)
+                  : undefined;
+                const isOnClock =
+                  !!pickNumber && pickNumber === draft.currentPick;
+                const isMine =
+                  !!myTeamId && String(team.fantasyTeamId) === String(myTeamId);
 
                 return (
-                  <View key={`${round}-${team.fantasyTeamId}`} style={{ width: COL_WIDTH }} className="px-1">
+                  <View
+                    key={`${round}-${team.fantasyTeamId}`}
+                    style={{ width: COL_WIDTH }}
+                    className="px-1"
+                  >
                     <View
                       className={`rounded-xl px-2.5 py-2 h-[54px] justify-center border ${
                         isOnClock
                           ? 'bg-[#8B3DFF]/15 border-[#8B3DFF]'
                           : pick
-                          ? `bg-[#161616] ${isMine ? 'border-[#8B3DFF]/40' : 'border-[#262626]'}`
+                          ? `bg-[#161616] ${
+                              isMine
+                                ? 'border-[#8B3DFF]/40'
+                                : 'border-[#262626]'
+                            }`
                           : 'bg-[#0d0d0d] border-[#1c1c1c]'
                       }`}
                     >
                       {pick ? (
                         <>
-                          <Text className="text-white text-[12px] font-semibold" numberOfLines={1}>
+                          <Text
+                            className="text-white text-[12px] font-semibold"
+                            numberOfLines={1}
+                          >
                             {pick.playerName}
                           </Text>
-                          <Text className="text-gray-500 text-[10px]" numberOfLines={1}>
-                            {[pick.positionCode, pick.nflTeam].filter(Boolean).join(' • ') || '—'}
+                          <Text
+                            className="text-gray-500 text-[10px]"
+                            numberOfLines={1}
+                          >
+                            {[
+                              pick.country || pick.nflTeam,
+                              pick.division || pick.positionCode,
+                            ]
+                              .filter(Boolean)
+                              .join(' • ') || '—'}
                           </Text>
                         </>
                       ) : isOnClock ? (
-                        <Text className="text-[#8B3DFF] text-[10px] font-bold uppercase">On the clock</Text>
+                        <Text className="text-[#8B3DFF] text-[10px] font-bold uppercase">
+                          On the clock
+                        </Text>
                       ) : (
                         <Text className="text-gray-700 text-[11px]">
                           {pickNumber ? `Pick ${pickNumber}` : '—'}
@@ -122,14 +158,20 @@ export const DraftBoard = ({
 };
 
 /** Reverse-chronological feed of completed picks. */
-export const DraftPickFeed = ({ picks = [] }: { picks?: DraftPickRecord[] }) => {
+export const DraftPickFeed = ({
+  picks = [],
+}: {
+  picks?: DraftPickRecord[];
+}) => {
   if (!picks.length) return null;
   const recent = [...picks].reverse();
 
   return (
     <View className="px-5 mb-6">
-      <Text className="text-white text-[16px] font-bold mb-3">Recent Picks</Text>
-      {recent.slice(0, 12).map((pick) => (
+      <Text className="text-white text-[16px] font-bold mb-3">
+        Recent Picks
+      </Text>
+      {recent.slice(0, 12).map(pick => (
         <View
           key={pick.pickNumber}
           className="flex-row items-center border-b border-[#1c1c1c] py-2.5"
@@ -139,14 +181,25 @@ export const DraftPickFeed = ({ picks = [] }: { picks?: DraftPickRecord[] }) => 
             <Text className="text-gray-700 text-[10px]">{`#${pick.pickNumber}`}</Text>
           </View>
           <View className="flex-1">
-            <Text className="text-white text-[13px] font-medium" numberOfLines={1}>
+            <Text
+              className="text-white text-[13px] font-medium"
+              numberOfLines={1}
+            >
               {pick.playerName}
             </Text>
             <Text className="text-gray-500 text-[11px]" numberOfLines={1}>
-              {[pick.positionCode, pick.nflTeam].filter(Boolean).join(' • ')}
+              {[
+                pick.country || pick.nflTeam,
+                pick.division || pick.positionCode,
+              ]
+                .filter(Boolean)
+                .join(' • ')}
             </Text>
           </View>
-          <Text className="text-[#E0B566] text-[11px] max-w-[110px]" numberOfLines={1}>
+          <Text
+            className="text-[#E0B566] text-[11px] max-w-[110px]"
+            numberOfLines={1}
+          >
             {pick.teamName || 'Team'}
           </Text>
         </View>
@@ -164,7 +217,10 @@ export const MyDraftedStrip = ({
   myTeamId?: string;
 }) => {
   const mine = useMemo(
-    () => (myTeamId ? picks.filter((p) => String(p.fantasyTeamId) === String(myTeamId)) : []),
+    () =>
+      myTeamId
+        ? picks.filter(p => String(p.fantasyTeamId) === String(myTeamId))
+        : [],
     [picks, myTeamId],
   );
 
@@ -179,20 +235,35 @@ export const MyDraftedStrip = ({
 
       {mine.length === 0 ? (
         <Text className="text-gray-500 text-[12px] italic px-5">
-          You have not drafted anyone yet.
+          You have not drafted a cheer team yet.
         </Text>
       ) : (
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 20 }}>
-          {mine.map((pick) => (
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={{ paddingHorizontal: 20 }}
+        >
+          {mine.map(pick => (
             <View
               key={pick.pickNumber}
               className="bg-[#141414] border border-[#262626] rounded-2xl px-3.5 py-2.5 mr-2.5 min-w-[128px]"
             >
-              <Text className="text-white text-[12px] font-semibold" numberOfLines={1}>
+              <Text
+                className="text-white text-[12px] font-semibold"
+                numberOfLines={1}
+              >
                 {pick.playerName}
               </Text>
-              <Text className="text-gray-500 text-[10px] mt-0.5" numberOfLines={1}>
-                {[pick.positionCode, pick.nflTeam].filter(Boolean).join(' • ') || '—'}
+              <Text
+                className="text-gray-500 text-[10px] mt-0.5"
+                numberOfLines={1}
+              >
+                {[
+                  pick.country || pick.nflTeam,
+                  pick.division || pick.positionCode,
+                ]
+                  .filter(Boolean)
+                  .join(' • ') || '—'}
               </Text>
               <Text className="text-gray-700 text-[9px] mt-1">{`R${pick.round} · #${pick.pickNumber}`}</Text>
             </View>
