@@ -59,7 +59,6 @@ import {
   LeagueTab,
 } from '../../components/LeagueDetail/LeagueDetailTabs';
 import {
-  AddTeamModal,
   PlayerDetailModal,
   LeagueSettingsModal,
   LeagueSettingsSubModal,
@@ -830,11 +829,6 @@ export default function LeagueDetailScreen() {
     }
   }, [leagueId, refetchMembers]);
 
-  const [isAddTeamModalVisible, setIsAddTeamModalVisible] = useState(false);
-  const [selectedSlotIndex, setSelectedSlotIndex] = useState<number | null>(
-    null,
-  );
-
   const [isPlayerModalVisible, setIsPlayerModalVisible] = useState(false);
   const [selectedPlayer, setSelectedPlayer] = useState<any>(null);
   const [isSettingsModalVisible, setIsSettingsModalVisible] = useState(false);
@@ -877,15 +871,6 @@ export default function LeagueDetailScreen() {
     }
   };
 
-  const handleAddTeam = (team: TeamMember) => {
-    if (selectedSlotIndex !== null) {
-      const newSlots = [...teamSlots];
-      newSlots[selectedSlotIndex] = team;
-      setTeamSlots(newSlots);
-      setIsAddTeamModalVisible(false);
-    }
-  };
-
   const handleJoinLeague = async (fantasyTeamName: string) => {
     try {
       setJoinErrorText(null);
@@ -896,12 +881,7 @@ export default function LeagueDetailScreen() {
       }
       const newSlots = [...teamSlots];
       const emptyIndex = newSlots.findIndex(s => s === null);
-      const targetIndex =
-        selectedSlotIndex !== null && newSlots[selectedSlotIndex] === null
-          ? selectedSlotIndex
-          : emptyIndex !== -1
-          ? emptyIndex
-          : 0;
+      const targetIndex = emptyIndex !== -1 ? emptyIndex : newSlots.length;
       const joinedTeamObj = {
         id: `my-team-${Date.now()}`,
         name: fantasyTeamName,
@@ -1278,8 +1258,6 @@ export default function LeagueDetailScreen() {
           <View style={{ display: activeTab === 'Team' ? 'flex' : 'none' }}>
             <TeamTab
               teamSlots={teamSlots}
-              setSelectedSlotIndex={setSelectedSlotIndex}
-              setIsAddTeamModalVisible={setIsAddTeamModalVisible}
               isMember={isUserJoined}
               onOpenJoinModal={() => {
                 setJoinErrorText(null);
@@ -1343,14 +1321,6 @@ export default function LeagueDetailScreen() {
         isLoading={isJoiningLeague}
         leagueName={league?.name}
         errorText={joinErrorText}
-      />
-
-      {/* Add Team Modal */}
-      <AddTeamModal
-        isVisible={isAddTeamModalVisible}
-        onClose={() => setIsAddTeamModalVisible(false)}
-        teamMembers={MOCK_TEAM_MEMBERS}
-        onAddTeam={handleAddTeam}
       />
 
       {/* Player Detail Modal */}
@@ -1441,6 +1411,7 @@ export default function LeagueDetailScreen() {
       <LockRosterModal
         isVisible={isLockRosterModalVisible}
         onClose={() => setIsLockRosterModalVisible(false)}
+        teams={teamSlots}
       />
 
       <DeleteLeagueModal

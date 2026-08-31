@@ -423,9 +423,18 @@ export const DraftTab = ({
   league,
   navigation,
 }: any) => {
-  const joinCode = league?.code || league?.joinCode || league?.id || '';
-  const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(
-    `FOOTBALL-LEAGUE:${joinCode}`,
+  const effectiveJoinCode =
+    league?.code ||
+    league?.joinCode ||
+    league?.invitationCode ||
+    league?.invitations?.[0]?.prefix ||
+    (league?.id || league?._id
+      ? String(league?.id || league?._id).substring(0, 6).toUpperCase()
+      : 'CHEER1');
+
+  const joinCode = effectiveJoinCode;
+  const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(
+    effectiveJoinCode,
   )}`;
 
   const draftTimeFormatted = (() => {
@@ -556,7 +565,7 @@ export const DraftTab = ({
 
           <View className="flex-row items-center justify-center mb-3">
             <Text className="text-[#FFB84D] text-[28px] font-black tracking-[6px] text-center">
-              {league?.code || league?.joinCode || '------'}
+              {effectiveJoinCode}
             </Text>
           </View>
           <View className="flex-row justify-center">
@@ -564,11 +573,10 @@ export const DraftTab = ({
               className="bg-[#FFB84D] px-6 py-2.5 rounded-xl flex-row items-center justify-center"
               activeOpacity={0.8}
               onPress={async () => {
-                const codeToShare =
-                  league?.code || league?.joinCode || league?.id || '';
+                const codeToShare = joinCode || league?.id || '';
                 try {
                   await Share.share({
-                    message: `Join my private American Football Fantasy League. Use join code: ${codeToShare}`,
+                    message: `Join my CheerBattle Fantasy League! Use private join code: ${codeToShare}`,
                   });
                 } catch (e) {}
               }}
@@ -580,9 +588,11 @@ export const DraftTab = ({
           </View>
         </View>
 
-        <View className="flex-row items-center justify-center mb-4 bg-white p-3 rounded-2xl self-center">
-          <Image source={{ uri: qrCodeUrl }} className="w-36 h-36" />
-        </View>
+        {qrCodeUrl ? (
+          <View className="flex-row items-center justify-center mb-4 bg-white p-3 rounded-2xl self-center shadow-lg">
+            <Image source={{ uri: qrCodeUrl }} className="w-36 h-36" />
+          </View>
+        ) : null}
 
         <View className="bg-[#1a1a1a] border border-[#333] rounded-xl p-3 flex-row items-center justify-between">
           <Text
@@ -599,8 +609,6 @@ export const DraftTab = ({
 
 export const TeamTab = ({
   teamSlots: propTeamSlots = [],
-  setSelectedSlotIndex: parentSetSelectedSlotIndex,
-  setIsAddTeamModalVisible: parentSetIsAddTeamModalVisible,
   isMember = false,
   onOpenJoinModal,
   maxTeams: propMaxTeams = 12,
@@ -610,20 +618,10 @@ export const TeamTab = ({
   onSelectRosterPlayer,
   onSelectTeam,
 }: any) => {
-  const [selectedSlotIndex, setSelectedSlotIndex] = useState<number | null>(
-    null,
-  );
-  const [isAddTeamModalVisible, setIsAddTeamModalVisible] = useState(false);
-
-  const handleSetSelectedSlot =
-    parentSetSelectedSlotIndex || setSelectedSlotIndex;
-  const handleSetAddModal =
-    parentSetIsAddTeamModalVisible || setIsAddTeamModalVisible;
-
-  const slots = Array.isArray(propTeamSlots) ? propTeamSlots : [];
-  const filledCount = slots.filter(
-    (t: any) => t !== null && t !== undefined,
-  ).length;
+  const allTeams = Array.isArray(propTeamSlots)
+    ? propTeamSlots.filter((t: any) => t !== null && t !== undefined)
+    : [];
+  const filledCount = allTeams.length;
   const maxTeams = propMaxTeams || 12;
 
   const starters = myRoster?.starters || [];
@@ -712,13 +710,23 @@ export const TeamTab = ({
         )}
       </View>
 
-      {/* Slots */}
-      {slots.map((team: any, index: number) => {
-        if (team) {
+      {/* Team List */}
+      {allTeams.length === 0 ? (
+        <View className="py-12 items-center justify-center bg-[#111] border border-[#222] rounded-2xl">
+          <Users color="#555" size={32} />
+          <Text className="text-gray-400 text-[14px] font-medium mt-3">
+            No teams joined yet
+          </Text>
+          <Text className="text-gray-600 text-[12px] mt-1">
+            Teams will appear here when managers join the league.
+          </Text>
+        </View>
+      ) : (
+        allTeams.map((team: any, index: number) => {
           const canOpenRoster = !!(team.teamId && onSelectTeam);
           return (
             <TouchableOpacity
-              key={`slot-${index}`}
+              key={`team-${team.id || team.teamId || index}`}
               className="flex-row items-center justify-between border-b border-[#222] pb-4 mb-4"
               activeOpacity={canOpenRoster ? 0.7 : 1}
               disabled={!canOpenRoster}
@@ -765,44 +773,8 @@ export const TeamTab = ({
               </View>
             </TouchableOpacity>
           );
-        } else {
-          return (
-            <TouchableOpacity
-              key={`slot-${index}`}
-              className="flex-row items-center border-b border-[#222] pb-4 mb-4"
-              activeOpacity={0.7}
-              onPress={() => {
-                if (!isMember && onOpenJoinModal) {
-                  onOpenJoinModal();
-                } else {
-                  handleSetSelectedSlot(index);
-                  handleSetAddModal(true);
-                }
-              }}
-            >
-              <View className="w-12 h-12 rounded-full border border-dashed border-gray-600 justify-center items-center bg-[#0a0a0a] mr-4">
-                <Text className="text-gray-500 text-[15px] font-medium">
-                  {index + 1}
-                </Text>
-              </View>
-              <View className="flex-1">
-                <Text className="text-gray-400 text-[15px] font-medium">
-                  Empty Team Slot
-                </Text>
-                <Text className="text-gray-600 text-[12px]">
-                  {!isMember ? 'Tap to join with your team' : 'Tap to add team'}
-                </Text>
-              </View>
-              <View className="border border-[#8B3DFF]/60 bg-[#8B3DFF]/10 px-3 py-1.5 rounded-full flex-row items-center">
-                <Plus color="#8B3DFF" size={14} className="mr-1" />
-                <Text className="text-[#8B3DFF] text-[12px] font-bold">
-                  {!isMember ? 'Join' : 'Add'}
-                </Text>
-              </View>
-            </TouchableOpacity>
-          );
-        }
-      })}
+        })
+      )}
     </View>
   );
 };

@@ -19,6 +19,13 @@ export interface DraftSettingsPayload {
   draftStartsAt?: string;
 }
 
+export type MatchupTiebreaker = 'bench_points' | 'none';
+
+export interface MatchupSettingsPayload {
+  format: 'head_to_head' | 'total_points';
+  tiebreaker: MatchupTiebreaker;
+}
+
 export interface CreateLeaguePayload {
   seasonId: string;
   name: string;
@@ -28,7 +35,7 @@ export interface CreateLeaguePayload {
   maxTeams: number;
   fantasyTeamName: string;
   draftSettings: DraftSettingsPayload;
-  matchupSettings?: { format: 'head_to_head' | 'total_points' };
+  matchupSettings?: MatchupSettingsPayload;
 }
 
 export interface LeagueResponse {

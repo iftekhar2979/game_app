@@ -1,6 +1,7 @@
 import { authStorage, UserProfileData } from './authStorage';
 import {
   completeEmailVerification,
+  finishAvatarSetup,
   logout,
   setCredentials,
   setInitializing,
@@ -58,6 +59,26 @@ export class AuthService {
         token: accessToken,
       })
     );
+  }
+
+  /**
+   * Completes first-run avatar setup and lets the root navigator select the
+   * correct destination. A valid registration/login session enters Home; a
+   * missing session is cleared and returns to Sign In instead of leaving the
+   * user stranded in the authenticated avatar stack.
+   */
+  async handleAvatarSetupCompleted(
+    dispatch: AppDispatch,
+  ): Promise<'home' | 'signIn'> {
+    const accessToken = await authStorage.getAccessToken();
+    if (!accessToken) {
+      await authStorage.clearSession();
+      dispatch(logout());
+      return 'signIn';
+    }
+
+    dispatch(finishAvatarSetup());
+    return 'home';
   }
 
   /**

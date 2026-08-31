@@ -15,8 +15,10 @@ import {
   ChevronLeft,
   ChevronDown,
   User,
+  Users,
   Plus,
   Minus,
+  Lock,
   Unlock,
   ShieldAlert,
   Calendar,
@@ -1979,13 +1981,19 @@ export const PlayerDetailModal = ({
   );
 };
 
-export const LockRosterModal = ({ isVisible, onClose }: any) => {
-  const MEMBERS = [
-    { id: '1', name: 'Diana', avatarUri: 'https://i.pravatar.cc/150?img=5' },
-    { id: '2', name: 'Isabella', avatarUri: 'https://i.pravatar.cc/150?img=9' },
-    { id: '3', name: 'Loris', avatarUri: 'https://i.pravatar.cc/150?img=12' },
-    { id: '4', name: 'Savis', avatarUri: 'https://i.pravatar.cc/150?img=16' },
-  ];
+export const LockRosterModal = ({ isVisible, onClose, teams = [] }: any) => {
+  const [lockedTeams, setLockedTeams] = useState<Record<string, boolean>>({});
+
+  const toggleLock = (teamId: string) => {
+    setLockedTeams(prev => ({
+      ...prev,
+      [teamId]: !prev[teamId],
+    }));
+  };
+
+  const validTeams = Array.isArray(teams)
+    ? teams.filter((t: any) => t !== null && t !== undefined)
+    : [];
 
   return (
     <Modal
@@ -1995,46 +2003,116 @@ export const LockRosterModal = ({ isVisible, onClose }: any) => {
       onRequestClose={onClose}
     >
       <TouchableOpacity
-        className="flex-1 bg-black/50 justify-center items-center px-6"
+        className="flex-1 bg-black/60 justify-center items-center px-6"
         activeOpacity={1}
         onPress={onClose}
       >
         <TouchableOpacity
           activeOpacity={1}
-          className="w-full bg-[#1e1e1e] rounded-[32px] border-[3px] border-white p-6 pb-6"
+          className="w-full bg-[#1a1a1a] rounded-[28px] border border-[#333] p-6 pb-6"
         >
-          <Text className="text-white text-[20px] font-medium text-center mb-6">
-            Lock roster
+          <Text className="text-white text-[19px] font-bold text-center mb-1">
+            Team Settings & Roster Locks
           </Text>
-          <View>
-            {MEMBERS.map((member, index) => (
-              <View
-                key={`${member.id}-${index}`}
-                className={`flex-row items-center justify-between py-4 ${
-                  index !== MEMBERS.length - 1
-                    ? 'border-b border-[#333]'
-                    : 'border-b border-[#333]'
-                }`}
-              >
-                <View className="flex-row items-center">
-                  <Image
-                    source={{ uri: member.avatarUri }}
-                    className="w-11 h-11 rounded-full mr-4"
-                  />
-                  <Text className="text-white text-[15px]">{member.name}</Text>
-                </View>
-                <TouchableOpacity>
-                  <Unlock color="#fff" size={20} strokeWidth={1.5} />
-                </TouchableOpacity>
-              </View>
-            ))}
-          </View>
+          <Text className="text-gray-400 text-[12px] text-center mb-5">
+            Lock individual team rosters to prevent changes during matchups
+          </Text>
+
+          {validTeams.length === 0 ? (
+            <View className="py-8 items-center justify-center">
+              <Users color="#555" size={32} />
+              <Text className="text-gray-400 text-[14px] font-medium mt-2.5 text-center">
+                No teams in this league yet
+              </Text>
+              <Text className="text-gray-600 text-[11px] text-center mt-1">
+                Teams will appear here once managers join the league.
+              </Text>
+            </View>
+          ) : (
+            <ScrollView className="max-h-[300px]">
+              {validTeams.map((team: any, index: number) => {
+                const teamId = String(team.id || team.teamId || index);
+                const isLocked = !!lockedTeams[teamId];
+                return (
+                  <View
+                    key={`lock-team-${teamId}`}
+                    className={`flex-row items-center justify-between py-3.5 ${
+                      index !== validTeams.length - 1
+                        ? 'border-b border-[#292929]'
+                        : ''
+                    }`}
+                  >
+                    <View className="flex-row items-center flex-1 mr-3">
+                      <View className="w-10 h-10 rounded-full border border-[#333] justify-center items-center bg-black mr-3 overflow-hidden">
+                        {team.avatarUri ? (
+                          <Image
+                            source={{ uri: team.avatarUri }}
+                            className="w-full h-full"
+                          />
+                        ) : (
+                          <Text className="text-[#8B3DFF] text-[10px] font-bold">
+                            TEAM
+                          </Text>
+                        )}
+                      </View>
+                      <View className="flex-1">
+                        <Text
+                          className="text-white text-[14px] font-semibold"
+                          numberOfLines={1}
+                        >
+                          {team.name}
+                        </Text>
+                        <Text className="text-gray-400 text-[11px]">
+                          {team.role || 'Member'} •{' '}
+                          <Text
+                            className={
+                              isLocked ? 'text-red-400 font-medium' : 'text-emerald-400 font-medium'
+                            }
+                          >
+                            {isLocked ? 'Locked' : 'Unlocked'}
+                          </Text>
+                        </Text>
+                      </View>
+                    </View>
+
+                    <TouchableOpacity
+                      onPress={() => toggleLock(teamId)}
+                      className={`px-3 py-1.5 rounded-full flex-row items-center border ${
+                        isLocked
+                          ? 'border-red-500/40 bg-red-950/40'
+                          : 'border-emerald-500/40 bg-emerald-950/40'
+                      }`}
+                      activeOpacity={0.8}
+                    >
+                      {isLocked ? (
+                        <>
+                          <Lock color="#ef4444" size={13} strokeWidth={2} className="mr-1" />
+                          <Text className="text-red-400 text-[11px] font-semibold">
+                            Locked
+                          </Text>
+                        </>
+                      ) : (
+                        <>
+                          <Unlock color="#34d399" size={13} strokeWidth={2} className="mr-1" />
+                          <Text className="text-emerald-400 text-[11px] font-semibold">
+                            Unlocked
+                          </Text>
+                        </>
+                      )}
+                    </TouchableOpacity>
+                  </View>
+                );
+              })}
+            </ScrollView>
+          )}
+
           <TouchableOpacity
-            className="bg-[#8B3DFF] rounded-full h-[52px] justify-center items-center mt-8 mx-2"
+            className="bg-[#8B3DFF] rounded-full h-[50px] justify-center items-center mt-6"
             onPress={onClose}
+            activeOpacity={0.85}
           >
-            <Text className="text-white text-[15px] font-medium">
-              Save changes
+            <Text className="text-white text-[15px] font-bold">
+              Done
             </Text>
           </TouchableOpacity>
         </TouchableOpacity>

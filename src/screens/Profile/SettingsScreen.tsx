@@ -18,6 +18,7 @@ import {
   LogOut,
   Trash2,
   Trophy,
+  Bell,
 } from 'lucide-react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useDispatch, useSelector } from 'react-redux';
@@ -53,6 +54,17 @@ export default function SettingsScreen() {
           showsVerticalScrollIndicator={false}
         >
           {/* Menu Items */}
+          <TouchableOpacity
+            className="flex-row items-center justify-between bg-[#1A1A1A] rounded-[16px] px-5 py-4 mb-3"
+            onPress={() => navigation.navigate('Notification' as never)}
+          >
+            <View className="flex-row items-center">
+              <Bell color="#8B3DFF" size={20} className="mr-4" />
+              <Text className="text-white text-[14px]">Notifications</Text>
+            </View>
+            <ChevronRight color="#fff" size={20} />
+          </TouchableOpacity>
+
           <TouchableOpacity
             className="flex-row items-center justify-between bg-[#1A1A1A] rounded-[16px] px-5 py-4 mb-3"
             onPress={() => navigation.navigate('AboutUs' as never)}
