@@ -39,8 +39,81 @@ import {
   buildDraftSettings,
 } from '../../constants/draftTypes';
 import type { DraftTypeValue } from '../../constants/draftTypes';
+import {
+  buildMatchupSettings,
+  DEFAULT_MATCHUP_TIEBREAKER,
+  MATCHUP_TIEBREAKER_OPTIONS,
+} from '../../constants/matchupSettings';
+import type { MatchupTiebreaker } from '../../store/api/leagueApi';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
+
+interface DraftPickerModalProps {
+  open: boolean;
+  title: string;
+  mode: 'date' | 'time';
+  value: Date;
+  onChange: (value: Date) => void;
+  onCancel: () => void;
+  onConfirm: () => void;
+}
+
+function DraftPickerModal({
+  open,
+  title,
+  mode,
+  value,
+  onChange,
+  onCancel,
+  onConfirm,
+}: DraftPickerModalProps) {
+  return (
+    <Modal
+      visible={open}
+      transparent
+      animationType="fade"
+      statusBarTranslucent
+      onRequestClose={onCancel}
+    >
+      <TouchableOpacity
+        className="flex-1 items-center justify-center bg-black/80 px-5"
+        activeOpacity={1}
+        onPress={onCancel}
+      >
+        <TouchableOpacity
+          className="w-full max-w-[380px] items-center rounded-3xl border border-[#333] bg-[#0a0a0a] px-4 pb-4 pt-5"
+          activeOpacity={1}
+          onPress={() => undefined}
+        >
+          <Text className="mb-3 text-lg font-bold text-white">{title}</Text>
+          <DatePicker
+            date={value}
+            mode={mode}
+            theme="dark"
+            dividerColor="#B366FF"
+            onDateChange={onChange}
+          />
+          <View className="mt-3 w-full flex-row border-t border-[#242424] pt-4">
+            <TouchableOpacity
+              className="mr-2 flex-1 items-center rounded-xl border border-[#444] py-3"
+              activeOpacity={0.8}
+              onPress={onCancel}
+            >
+              <Text className="font-semibold text-[#bbb]">Cancel</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              className="ml-2 flex-1 items-center rounded-xl bg-[#8B3DFF] py-3"
+              activeOpacity={0.8}
+              onPress={onConfirm}
+            >
+              <Text className="font-semibold text-white">Confirm</Text>
+            </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
+      </TouchableOpacity>
+    </Modal>
+  );
+}
 
 export default function CreateLeagueScreen() {
   const navigation = useNavigation<NavigationProp>();
@@ -123,6 +196,10 @@ export default function CreateLeagueScreen() {
   const [maxTeams, setMaxTeams] = useState('10');
   const [visibility, setVisibility] = useState<'public' | 'private'>('public');
 
+  // Matchup Settings
+  const [matchupTiebreaker, setMatchupTiebreaker] =
+    useState<MatchupTiebreaker>(DEFAULT_MATCHUP_TIEBREAKER);
+
   // Draft Settings
   const [draftType, setDraftType] = useState<DraftTypeValue>('snake');
   const [startingBudget, setStartingBudget] = useState('200');
@@ -135,6 +212,8 @@ export default function CreateLeagueScreen() {
   // Timing
   const [draftDate, setDraftDate] = useState<Date | null>(null);
   const [draftTime, setDraftTime] = useState<Date | null>(null);
+  const [pendingDraftDate, setPendingDraftDate] = useState(new Date());
+  const [pendingDraftTime, setPendingDraftTime] = useState(new Date());
   const [openDatePicker, setOpenDatePicker] = useState(false);
   const [openTimePicker, setOpenTimePicker] = useState(false);
 
@@ -262,7 +341,7 @@ export default function CreateLeagueScreen() {
         visibility,
         maxTeams: parseInt(maxTeams, 10),
         fantasyTeamName,
-        matchupSettings: { format: 'head_to_head' },
+        matchupSettings: buildMatchupSettings(matchupTiebreaker),
         draftSettings: buildDraftSettings({
           type: draftType,
           startingBudget: parseInt(startingBudget, 10),
@@ -522,6 +601,60 @@ export default function CreateLeagueScreen() {
               <ChevronDown color="#999" size={20} style={{ marginLeft: 12 }} />
             </TouchableOpacity>
 
+            <Text className="text-white font-bold text-lg mb-1">
+              Matchup Settings
+            </Text>
+            <Text className="text-[#999] text-xs mb-4">
+              Choose how tied head-to-head matchups are handled.
+            </Text>
+
+            <Text className="text-[#ccc] text-sm mb-2 ml-1">Tiebreaker</Text>
+            <View className="flex-row mb-8">
+              {MATCHUP_TIEBREAKER_OPTIONS.map((option, index) => {
+                const isSelected = matchupTiebreaker === option.value;
+                return (
+                  <TouchableOpacity
+                    key={option.value}
+                    testID={`matchup-tiebreaker-${option.value}`}
+                    accessibilityRole="radio"
+                    accessibilityLabel={`${option.label}. ${option.description}`}
+                    accessibilityState={{ checked: isSelected }}
+                    className={`flex-1 min-h-[104px] rounded-2xl border p-3.5 ${
+                      index === 0 ? 'mr-2' : 'ml-2'
+                    } ${
+                      isSelected
+                        ? 'border-[#B366FF] bg-[#8B3DFF]/20'
+                        : 'border-[#333] bg-[#0a0a0a]'
+                    }`}
+                    activeOpacity={0.8}
+                    onPress={() => setMatchupTiebreaker(option.value)}
+                  >
+                    <View className="flex-row items-center mb-2">
+                      <View
+                        className={`w-4 h-4 rounded-full border items-center justify-center mr-2 ${
+                          isSelected ? 'border-[#B366FF]' : 'border-[#666]'
+                        }`}
+                      >
+                        {isSelected && (
+                          <View className="w-2 h-2 rounded-full bg-[#B366FF]" />
+                        )}
+                      </View>
+                      <Text
+                        className={`text-sm font-semibold ${
+                          isSelected ? 'text-[#B366FF]' : 'text-white'
+                        }`}
+                      >
+                        {option.label}
+                      </Text>
+                    </View>
+                    <Text className="text-[#999] text-[11px] leading-4">
+                      {option.description}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+
             <Text className="text-white font-bold text-lg mb-4">
               Draft Settings
             </Text>
@@ -617,9 +750,12 @@ export default function CreateLeagueScreen() {
               <TouchableOpacity
                 className="flex-1 flex-row items-center border border-[#B366FF] rounded-2xl bg-[#0a0a0a] h-[60px] px-4 mr-2"
                 activeOpacity={0.8}
-                onPress={() => setOpenDatePicker(true)}
+                onPress={() => {
+                  setPendingDraftDate(draftDate || new Date());
+                  setOpenDatePicker(true);
+                }}
               >
-                <Calendar color="#999" size={18} style={{ marginRight: 8 }} />
+                <Calendar color="#B366FF" size={18} style={{ marginRight: 8 }} />
                 <Text
                   className={`flex-1 text-sm ${
                     draftDate ? 'text-white' : 'text-[#555]'
@@ -632,9 +768,12 @@ export default function CreateLeagueScreen() {
               <TouchableOpacity
                 className="flex-1 flex-row items-center border border-[#B366FF] rounded-2xl bg-[#0a0a0a] h-[60px] px-4 ml-2"
                 activeOpacity={0.8}
-                onPress={() => setOpenTimePicker(true)}
+                onPress={() => {
+                  setPendingDraftTime(draftTime || new Date());
+                  setOpenTimePicker(true);
+                }}
               >
-                <Clock color="#999" size={18} style={{ marginRight: 8 }} />
+                <Clock color="#B366FF" size={18} style={{ marginRight: 8 }} />
                 <Text
                   className={`flex-1 text-sm ${
                     draftTime ? 'text-white' : 'text-[#555]'
@@ -811,30 +950,30 @@ export default function CreateLeagueScreen() {
           </TouchableOpacity>
         </Modal>
 
-        {/* Date Pickers */}
-        <DatePicker
-          modal
+        {/* App-controlled dark pickers avoid device AlertDialog theme overrides. */}
+        <DraftPickerModal
           open={openDatePicker}
-          date={draftDate || new Date()}
+          title="Select Draft Date"
           mode="date"
-          theme="dark"
-          onConfirm={date => {
+          value={pendingDraftDate}
+          onChange={setPendingDraftDate}
+          onConfirm={() => {
             setOpenDatePicker(false);
-            setDraftDate(date);
+            setDraftDate(pendingDraftDate);
           }}
           onCancel={() => {
             setOpenDatePicker(false);
           }}
         />
-        <DatePicker
-          modal
+        <DraftPickerModal
           open={openTimePicker}
-          date={draftTime || new Date()}
+          title="Select Draft Time"
           mode="time"
-          theme="dark"
-          onConfirm={date => {
+          value={pendingDraftTime}
+          onChange={setPendingDraftTime}
+          onConfirm={() => {
             setOpenTimePicker(false);
-            setDraftTime(date);
+            setDraftTime(pendingDraftTime);
           }}
           onCancel={() => {
             setOpenTimePicker(false);
