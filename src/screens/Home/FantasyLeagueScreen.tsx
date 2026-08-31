@@ -266,7 +266,12 @@ export default function FantasyLeagueScreen() {
           <Text className="text-white text-base font-semibold mb-1" numberOfLines={1}>
             {item.name}
           </Text>
-          <Text className="text-[#E0B566] text-xs font-medium">{`${item.membersCount} Members`}</Text>
+          <Text className="text-[#E0B566] text-xs font-medium">
+            {`${item.membersCount} fantasy rosters`}
+          </Text>
+          <Text className="text-gray-500 text-[10px] mt-0.5">
+            Head-to-head cheer team draft
+          </Text>
         </View>
       </View>
 
@@ -294,7 +299,7 @@ export default function FantasyLeagueScreen() {
           >
             <ChevronLeft color="#fff" size={24} />
           </TouchableOpacity>
-          <Text className="text-white text-[22px] font-bold">Fantasy Leagues</Text>
+          <Text className="text-white text-[22px] font-bold">Cheer Battle Leagues</Text>
         </View>
       </View>
 

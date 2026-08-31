@@ -6,6 +6,15 @@ export interface CheerOrganization {
   name?: string;
   shortName?: string;
   logoUrl?: string;
+  country?: string;
+  location?: string;
+}
+
+export interface CheerDivisionReference {
+  _id?: string;
+  id?: string;
+  code?: string;
+  name?: string;
 }
 
 export interface SeasonCheerTeam {
@@ -14,7 +23,7 @@ export interface SeasonCheerTeam {
   seasonId: string;
   teamName: string;
   organizationId: CheerOrganization | string;
-  eligibleDivisionIds: unknown[];
+  eligibleDivisionIds: Array<CheerDivisionReference | string>;
   openingValue: number;
   isEligible: boolean;
 }

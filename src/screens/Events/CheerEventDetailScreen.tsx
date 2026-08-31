@@ -201,8 +201,13 @@ export default function CheerEventDetailScreen({ navigation, route }: Props) {
             <View className="ml-3 flex-1">
               <Text className="text-white font-semibold">{entry.teamName}</Text>
               <Text className="text-gray-500 text-xs mt-1">
-                {entry.organizationId?.name || 'Cheer program'} ·{' '}
-                {entry.rosterSnapshot?.length ?? 0} athletes
+                {entry.organizationId?.country ||
+                  entry.country ||
+                  'Country unavailable'}{' '}
+                ·{' '}
+                {entry.divisionId?.name ||
+                  entry.divisionId?.code ||
+                  'Division unavailable'}
               </Text>
             </View>
             {entry.status === 'confirmed' && (
@@ -266,7 +271,7 @@ export default function CheerEventDetailScreen({ navigation, route }: Props) {
             <Medal color="#555" size={28} />
             <Text className="text-white mt-3">No official results yet</Text>
             <Text className="text-gray-500 text-xs text-center mt-1">
-              Published judge scores will appear here.
+              Published official team results will appear here.
             </Text>
           </View>
         )}

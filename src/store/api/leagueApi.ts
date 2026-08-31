@@ -28,8 +28,8 @@ export interface CreateLeaguePayload {
   maxTeams: number;
   fantasyTeamName: string;
   draftSettings: DraftSettingsPayload;
+  matchupSettings?: { format: 'head_to_head' | 'total_points' };
 }
-
 
 export interface LeagueResponse {
   _id: string;
@@ -66,9 +66,16 @@ export interface RosterPlayer {
   positionCode: string;
   assignedPositionId: string | null;
   assignedPosition: string | null;
-  eligiblePositions: { _id: string; code: string | null; name: string | null }[];
+  eligiblePositions: {
+    _id: string;
+    code: string | null;
+    name: string | null;
+  }[];
   nflTeam: string | null;
   nflTeamLogoUrl: string | null;
+  country?: string | null;
+  division?: string | null;
+  realTeam?: string | null;
   openingValue: number | null;
   lineupStatus: 'starter' | 'bench' | 'injured_reserve' | 'taxi_squad';
   acquisitionMethod: string;
@@ -127,7 +134,12 @@ export interface AvailableAthlete {
     lastName?: string;
     photoUrl?: string;
   };
-  organizationId?: { _id: string; name?: string; shortName?: string; logoUrl?: string };
+  organizationId?: {
+    _id: string;
+    name?: string;
+    shortName?: string;
+    logoUrl?: string;
+  };
   eligiblePositionIds?: { _id: string; code?: string; name?: string }[];
 }
 
@@ -176,7 +188,12 @@ export interface RosterSettings {
 
 export interface UpdateRosterSettingsPayload {
   leagueId: string;
-  slots: { positionId: string; minimum: number; maximum: number; starterCount: number }[];
+  slots: {
+    positionId: string;
+    minimum: number;
+    maximum: number;
+    starterCount: number;
+  }[];
   benchSize: number;
 }
 
@@ -221,6 +238,18 @@ export interface UpdateLeaguePayload {
     advancementBonus: number;
     championshipBonus: number;
     placementPoints: Record<string, number>;
+    scoreBands: Array<{ minimum: number; maximum: number; points: number }>;
+    divisionWinBonuses: Array<{
+      minimumOtherTeams: number;
+      maximumOtherTeams: number | null;
+      points: number;
+    }>;
+    lastPlacePenalties: Array<{
+      minimumOtherTeams: number;
+      maximumOtherTeams: number | null;
+      points: number;
+    }>;
+    grandChampionBonus: number;
   }>;
 }
 
@@ -264,6 +293,8 @@ export interface DraftPickRecord {
   playerName: string;
   positionCode: string | null;
   nflTeam: string | null;
+  division?: string | null;
+  country?: string | null;
   pickedAt: string;
 }
 
@@ -315,14 +346,16 @@ export interface LeaguesPageResponse {
 }
 
 export const leagueApi = baseApi.injectEndpoints({
-  endpoints: (builder) => ({
+  endpoints: builder => ({
     createLeague: builder.mutation<LeagueResponse, CreateLeaguePayload>({
-      query: (body) => ({
+      query: body => ({
         url: 'leagues',
         method: 'POST',
         body,
       }),
-      transformResponse: (response: ApiResponse<LeagueResponse> | LeagueResponse) => {
+      transformResponse: (
+        response: ApiResponse<LeagueResponse> | LeagueResponse,
+      ) => {
         if ('data' in response && response.data) {
           return response.data;
         }
@@ -337,24 +370,33 @@ export const leagueApi = baseApi.injectEndpoints({
         body,
       }),
       transformResponse: (response: any) => response?.data || response,
-      invalidatesTags: (result, error, { id }) => [{ type: 'League', id }, 'League'],
+      invalidatesTags: (result, error, { id }) => [
+        { type: 'League', id },
+        'League',
+      ],
     }),
     getLeagues: builder.query<LeaguesPageResponse, LeaguesQueryParams | void>({
-      query: (params) => ({
+      query: params => ({
         url: 'leagues',
-        params: params ? {
-          mine: params.mine,
-          term: params.term,
-          status: params.status,
-          sortBy: params.sortBy,
-          sortOrder: params.sortOrder,
-          page: params.page,
-          limit: params.limit,
-        } : {},
+        params: params
+          ? {
+              mine: params.mine,
+              term: params.term,
+              status: params.status,
+              sortBy: params.sortBy,
+              sortOrder: params.sortOrder,
+              page: params.page,
+              limit: params.limit,
+            }
+          : {},
       }),
       transformResponse: (response: any): LeaguesPageResponse => {
         const raw = response?.data !== undefined ? response.data : response;
-        const items = Array.isArray(raw) ? raw : Array.isArray(raw?.data) ? raw.data : [];
+        const items = Array.isArray(raw)
+          ? raw
+          : Array.isArray(raw?.data)
+          ? raw.data
+          : [];
         const pagination = raw?.pagination || response?.pagination || null;
         return {
           data: items,
@@ -364,7 +406,7 @@ export const leagueApi = baseApi.injectEndpoints({
       providesTags: ['League'],
     }),
     joinByCode: builder.mutation<any, JoinByCodePayload>({
-      query: (body) => ({
+      query: body => ({
         url: 'leagues/join-by-code',
         method: 'POST',
         body,
@@ -375,7 +417,7 @@ export const leagueApi = baseApi.injectEndpoints({
       invalidatesTags: ['League'],
     }),
     getLeagueDetails: builder.query<any, string>({
-      query: (id) => ({
+      query: id => ({
         url: `leagues/${id}`,
       }),
       transformResponse: (response: any) => {
@@ -392,10 +434,13 @@ export const leagueApi = baseApi.injectEndpoints({
       transformResponse: (response: any) => {
         return response?.data || response;
       },
-      invalidatesTags: (result, error, { id }) => [{ type: 'League', id }, 'League'],
+      invalidatesTags: (result, error, { id }) => [
+        { type: 'League', id },
+        'League',
+      ],
     }),
     getLeagueMembers: builder.query<any, string>({
-      query: (id) => ({
+      query: id => ({
         url: `leagues/${id}/members`,
       }),
       transformResponse: (response: any) => {
@@ -406,7 +451,10 @@ export const leagueApi = baseApi.injectEndpoints({
     // Paginated free-agent pool. Pages accumulate into a single cache entry so the
     // Players tab can append with "Load more"; changing the search term or position
     // filter starts a fresh entry.
-    getAvailableAthletes: builder.query<AvailableAthletesPage, AvailableAthletesArgs>({
+    getAvailableAthletes: builder.query<
+      AvailableAthletesPage,
+      AvailableAthletesArgs
+    >({
       query: ({ leagueId, term, positionId, page = 1, limit = 20 }) => ({
         url: `leagues/${leagueId}/available-athletes`,
         params: {
@@ -418,26 +466,45 @@ export const leagueApi = baseApi.injectEndpoints({
       }),
       transformResponse: (response: any): AvailableAthletesPage => {
         const raw = response?.data !== undefined ? response.data : response;
-        const items = Array.isArray(raw) ? raw : Array.isArray(raw?.data) ? raw.data : [];
-        return { items, pagination: raw?.pagination ?? response?.pagination ?? null };
+        const items = Array.isArray(raw)
+          ? raw
+          : Array.isArray(raw?.data)
+          ? raw.data
+          : [];
+        return {
+          items,
+          pagination: raw?.pagination ?? response?.pagination ?? null,
+        };
       },
       serializeQueryArgs: ({ endpointName, queryArgs }) =>
-        `${endpointName}-${queryArgs.leagueId}-${queryArgs.term || ''}-${queryArgs.positionId || ''}`,
+        `${endpointName}-${queryArgs.leagueId}-${queryArgs.term || ''}-${
+          queryArgs.positionId || ''
+        }`,
       merge: (currentCache, newItems) => {
         const page = newItems.pagination?.currentPage ?? 1;
         if (page <= 1) {
           currentCache.items = newItems.items;
         } else {
-          const existingIds = new Set(currentCache.items.map((i: any) => i._id || i.id));
-          const uniqueNewItems = (newItems.items || []).filter((i: any) => !existingIds.has(i._id || i.id));
+          const existingIds = new Set(
+            currentCache.items.map((i: any) => i._id || i.id),
+          );
+          const uniqueNewItems = (newItems.items || []).filter(
+            (i: any) => !existingIds.has(i._id || i.id),
+          );
           currentCache.items = [...currentCache.items, ...uniqueNewItems];
         }
         currentCache.pagination = newItems.pagination;
       },
-      forceRefetch: ({ currentArg, previousArg }) => currentArg?.page !== previousArg?.page,
-      providesTags: (result, error, { leagueId }) => [{ type: 'League', id: leagueId }],
+      forceRefetch: ({ currentArg, previousArg }) =>
+        currentArg?.page !== previousArg?.page,
+      providesTags: (result, error, { leagueId }) => [
+        { type: 'League', id: leagueId },
+      ],
     }),
-    getAthletePositions: builder.query<{ _id: string; code: string; name: string }[], void>({
+    getAthletePositions: builder.query<
+      { _id: string; code: string; name: string }[],
+      void
+    >({
       query: () => ({
         url: 'athlete-positions',
         params: { limit: 100 },
@@ -449,7 +516,10 @@ export const leagueApi = baseApi.injectEndpoints({
         return [];
       },
     }),
-    getSeasonAthleteDetails: builder.query<any, { seasonId: string; athleteId: string }>({
+    getSeasonAthleteDetails: builder.query<
+      any,
+      { seasonId: string; athleteId: string }
+    >({
       query: ({ seasonId, athleteId }) => ({
         url: `seasons/${seasonId}/athletes/${athleteId}`,
       }),
@@ -458,7 +528,7 @@ export const leagueApi = baseApi.injectEndpoints({
       },
     }),
     getLeagueRosters: builder.query<any, string>({
-      query: (id) => ({
+      query: id => ({
         url: `leagues/${id}/rosters`,
       }),
       transformResponse: (response: any) => {
@@ -467,36 +537,55 @@ export const leagueApi = baseApi.injectEndpoints({
       providesTags: (result, error, id) => [{ type: 'League', id }],
     }),
     getScoringSettings: builder.query<ScoringSettings, string>({
-      query: (leagueId) => ({ url: `leagues/${leagueId}/scoring-settings` }),
+      query: leagueId => ({ url: `leagues/${leagueId}/scoring-settings` }),
       transformResponse: (response: any) => response?.data || response,
-      providesTags: (result, error, leagueId) => [{ type: 'League', id: leagueId }],
+      providesTags: (result, error, leagueId) => [
+        { type: 'League', id: leagueId },
+      ],
     }),
-    removeLeagueMember: builder.mutation<void, { leagueId: string; userId: string }>({
+    removeLeagueMember: builder.mutation<
+      void,
+      { leagueId: string; userId: string }
+    >({
       query: ({ leagueId, userId }) => ({
         url: `leagues/${leagueId}/members/${userId}`,
         method: 'DELETE',
       }),
-      invalidatesTags: (result, error, { leagueId }) => [{ type: 'League', id: leagueId }, 'League'],
+      invalidatesTags: (result, error, { leagueId }) => [
+        { type: 'League', id: leagueId },
+        'League',
+      ],
     }),
-    updateMemberRole: builder.mutation<any, { leagueId: string; userId: string; role: 'creator' | 'manager' }>({
+    updateMemberRole: builder.mutation<
+      any,
+      { leagueId: string; userId: string; role: 'creator' | 'manager' }
+    >({
       query: ({ leagueId, userId, role }) => ({
         url: `leagues/${leagueId}/members/${userId}/role`,
         method: 'PATCH',
         body: { role },
       }),
       transformResponse: (response: any) => response?.data || response,
-      invalidatesTags: (result, error, { leagueId }) => [{ type: 'League', id: leagueId }, 'League'],
+      invalidatesTags: (result, error, { leagueId }) => [
+        { type: 'League', id: leagueId },
+        'League',
+      ],
     }),
     getRosterSettings: builder.query<RosterSettings, string>({
-      query: (leagueId) => ({
+      query: leagueId => ({
         url: `leagues/${leagueId}/roster-settings`,
       }),
       transformResponse: (response: any) => {
         return response?.data || response;
       },
-      providesTags: (result, error, leagueId) => [{ type: 'League', id: leagueId }],
+      providesTags: (result, error, leagueId) => [
+        { type: 'League', id: leagueId },
+      ],
     }),
-    updateRosterSettings: builder.mutation<RosterSettings, UpdateRosterSettingsPayload>({
+    updateRosterSettings: builder.mutation<
+      RosterSettings,
+      UpdateRosterSettingsPayload
+    >({
       query: ({ leagueId, ...body }) => ({
         url: `leagues/${leagueId}/roster-settings`,
         method: 'PATCH',
@@ -505,47 +594,69 @@ export const leagueApi = baseApi.injectEndpoints({
       transformResponse: (response: any) => {
         return response?.data || response;
       },
-      invalidatesTags: (result, error, { leagueId }) => [{ type: 'League', id: leagueId }, 'League'],
+      invalidatesTags: (result, error, { leagueId }) => [
+        { type: 'League', id: leagueId },
+        'League',
+      ],
     }),
     getDraftState: builder.query<DraftState, string>({
-      query: (leagueId) => ({ url: `leagues/${leagueId}/draft` }),
+      query: leagueId => ({ url: `leagues/${leagueId}/draft` }),
       transformResponse: (response: any) => response?.data || response,
-      providesTags: (result, error, leagueId) => [{ type: 'League', id: leagueId }],
+      providesTags: (result, error, leagueId) => [
+        { type: 'League', id: leagueId },
+      ],
     }),
     startDraft: builder.mutation<DraftState, string>({
-      query: (leagueId) => ({ url: `leagues/${leagueId}/draft/start`, method: 'POST' }),
+      query: leagueId => ({
+        url: `leagues/${leagueId}/draft/start`,
+        method: 'POST',
+      }),
       transformResponse: (response: any) => response?.data || response,
-      invalidatesTags: (result, error, leagueId) => [{ type: 'League', id: leagueId }],
+      invalidatesTags: (result, error, leagueId) => [
+        { type: 'League', id: leagueId },
+      ],
     }),
     getDraftPicks: builder.query<DraftPickRecord[], string>({
-      query: (leagueId) => ({ url: `leagues/${leagueId}/draft/picks` }),
+      query: leagueId => ({ url: `leagues/${leagueId}/draft/picks` }),
       transformResponse: (response: any) => {
         const raw = response?.data !== undefined ? response.data : response;
         if (Array.isArray(raw)) return raw;
         if (Array.isArray(raw?.data)) return raw.data;
         return [];
       },
-      providesTags: (result, error, leagueId) => [{ type: 'League', id: leagueId }],
+      providesTags: (result, error, leagueId) => [
+        { type: 'League', id: leagueId },
+      ],
     }),
     getMyTeamRoster: builder.query<TeamRosterResponse, string>({
-      query: (leagueId) => ({
+      query: leagueId => ({
         url: `leagues/${leagueId}/my-team/roster`,
       }),
       transformResponse: (response: any) => {
         return response?.data || response;
       },
-      providesTags: (result, error, leagueId) => [{ type: 'League', id: leagueId }],
+      providesTags: (result, error, leagueId) => [
+        { type: 'League', id: leagueId },
+      ],
     }),
-    getTeamRoster: builder.query<TeamRosterResponse, { leagueId: string; teamId: string }>({
+    getTeamRoster: builder.query<
+      TeamRosterResponse,
+      { leagueId: string; teamId: string }
+    >({
       query: ({ leagueId, teamId }) => ({
         url: `leagues/${leagueId}/teams/${teamId}/roster`,
       }),
       transformResponse: (response: any) => {
         return response?.data || response;
       },
-      providesTags: (result, error, { leagueId }) => [{ type: 'League', id: leagueId }],
+      providesTags: (result, error, { leagueId }) => [
+        { type: 'League', id: leagueId },
+      ],
     }),
-    addFreeAgent: builder.mutation<any, { leagueId: string; teamId: string; seasonAthleteId: string }>({
+    addFreeAgent: builder.mutation<
+      any,
+      { leagueId: string; teamId: string; seasonAthleteId: string }
+    >({
       query: ({ leagueId, teamId, seasonAthleteId }) => ({
         url: `leagues/${leagueId}/teams/${teamId}/add-player`,
         method: 'POST',
@@ -554,9 +665,20 @@ export const leagueApi = baseApi.injectEndpoints({
       transformResponse: (response: any) => {
         return response?.data || response;
       },
-      invalidatesTags: (result, error, { leagueId }) => [{ type: 'League', id: leagueId }, 'League'],
+      invalidatesTags: (result, error, { leagueId }) => [
+        { type: 'League', id: leagueId },
+        'League',
+      ],
     }),
-    draftPick: builder.mutation<any, { leagueId: string; teamId: string; seasonAthleteId: string; acquisitionCost?: number }>({
+    draftPick: builder.mutation<
+      any,
+      {
+        leagueId: string;
+        teamId: string;
+        seasonAthleteId: string;
+        acquisitionCost?: number;
+      }
+    >({
       query: ({ leagueId, teamId, seasonAthleteId, acquisitionCost = 0 }) => ({
         url: `leagues/${leagueId}/teams/${teamId}/draft-pick`,
         method: 'POST',
@@ -565,10 +687,28 @@ export const leagueApi = baseApi.injectEndpoints({
       transformResponse: (response: any) => {
         return response?.data || response;
       },
-      invalidatesTags: (result, error, { leagueId }) => [{ type: 'League', id: leagueId }, 'League'],
+      invalidatesTags: (result, error, { leagueId }) => [
+        { type: 'League', id: leagueId },
+        'League',
+      ],
     }),
-    updateLineup: builder.mutation<any, { leagueId: string; teamId: string; ownershipId: string; lineupStatus: 'starter' | 'bench'; assignedPositionId?: string }>({
-      query: ({ leagueId, teamId, ownershipId, lineupStatus, assignedPositionId }) => ({
+    updateLineup: builder.mutation<
+      any,
+      {
+        leagueId: string;
+        teamId: string;
+        ownershipId: string;
+        lineupStatus: 'starter' | 'bench';
+        assignedPositionId?: string;
+      }
+    >({
+      query: ({
+        leagueId,
+        teamId,
+        ownershipId,
+        lineupStatus,
+        assignedPositionId,
+      }) => ({
         url: `leagues/${leagueId}/teams/${teamId}/lineup`,
         method: 'PATCH',
         body: { ownershipId, lineupStatus, assignedPositionId },
@@ -576,9 +716,15 @@ export const leagueApi = baseApi.injectEndpoints({
       transformResponse: (response: any) => {
         return response?.data || response;
       },
-      invalidatesTags: (result, error, { leagueId }) => [{ type: 'League', id: leagueId }, 'League'],
+      invalidatesTags: (result, error, { leagueId }) => [
+        { type: 'League', id: leagueId },
+        'League',
+      ],
     }),
-    dropPlayer: builder.mutation<any, { leagueId: string; teamId: string; seasonAthleteId: string }>({
+    dropPlayer: builder.mutation<
+      any,
+      { leagueId: string; teamId: string; seasonAthleteId: string }
+    >({
       query: ({ leagueId, teamId, seasonAthleteId }) => ({
         url: `leagues/${leagueId}/teams/${teamId}/drop-player`,
         method: 'POST',
@@ -587,7 +733,10 @@ export const leagueApi = baseApi.injectEndpoints({
       transformResponse: (response: any) => {
         return response?.data || response;
       },
-      invalidatesTags: (result, error, { leagueId }) => [{ type: 'League', id: leagueId }, 'League'],
+      invalidatesTags: (result, error, { leagueId }) => [
+        { type: 'League', id: leagueId },
+        'League',
+      ],
     }),
     getCurrentMatchup: builder.query<any, CurrentMatchupQueryArg>({
       query: buildCurrentMatchupRequest,
@@ -601,22 +750,26 @@ export const leagueApi = baseApi.injectEndpoints({
       },
     }),
     getLeagueStandings: builder.query<any, string>({
-      query: (leagueId) => ({
+      query: leagueId => ({
         url: `leagues/${leagueId}/standings`,
       }),
       transformResponse: (response: any) => {
         return response?.data || response;
       },
-      providesTags: (result, error, leagueId) => [{ type: 'League', id: leagueId }],
+      providesTags: (result, error, leagueId) => [
+        { type: 'League', id: leagueId },
+      ],
     }),
     getMatchupHistory: builder.query<any, string>({
-      query: (leagueId) => ({
+      query: leagueId => ({
         url: `leagues/${leagueId}/matchups/history`,
       }),
       transformResponse: (response: any) => {
         return response?.data || response;
       },
-      providesTags: (result, error, leagueId) => [{ type: 'League', id: leagueId }],
+      providesTags: (result, error, leagueId) => [
+        { type: 'League', id: leagueId },
+      ],
     }),
   }),
   overrideExisting: true,
@@ -652,6 +805,3 @@ export const {
   useGetLeagueStandingsQuery,
   useGetMatchupHistoryQuery,
 } = leagueApi;
-
-
-

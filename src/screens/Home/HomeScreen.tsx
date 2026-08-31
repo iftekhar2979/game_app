@@ -37,8 +37,13 @@ import {
   formatMatchupScore,
 } from '../../components/LeagueDetail/matchupDisplay';
 import { useGetCheerCompetitionsQuery } from '../../store/api/cheerApi';
+import {
+  GRAND_CHAMPION_BONUS,
+  HIT_ZERO_BONUS,
+  SCORE_BANDS,
+} from '../../utils/cheerScoring';
 
-const DashboardMatchupCard = ({ leagueId, navigation }: any) => {
+const DashboardMatchupCard = ({ leagueId, leagueName, navigation }: any) => {
   const { data: matchup } = useGetCurrentMatchupQuery(leagueId, {
     skip: !leagueId || leagueId.startsWith('mock-'),
   });
@@ -53,10 +58,10 @@ const DashboardMatchupCard = ({ leagueId, navigation }: any) => {
     >
       <View className="flex-row justify-between items-center mb-2">
         <Text className="text-[#E0B566] text-[11px] font-bold tracking-wider uppercase">
-          MY MATCHUP &bull;{' '}
+          {leagueName || 'MY CHEER BATTLE'} &bull;{' '}
           {Number.isInteger(matchup.weekNumber)
-            ? `WEEK ${matchup.weekNumber}`
-            : 'WEEK UNAVAILABLE'}
+            ? `PERIOD ${matchup.weekNumber}`
+            : 'PERIOD UNAVAILABLE'}
         </Text>
         <View className="px-2 py-0.5 rounded-full bg-[#8B3DFF]/20 border border-[#8B3DFF]/50">
           <Text className="text-[#8B3DFF] text-[9px] font-bold uppercase">
@@ -113,7 +118,9 @@ const DashboardStandingsCard = ({ leagueId, navigation }: any) => {
 
   const myStanding =
     standings.find(
-      (s: any) => String(s.userId || s.ownerId) === String(currentUserId),
+      (s: any) =>
+        s.isMyTeam ||
+        String(s.userId || s.ownerId) === String(currentUserId),
     ) || standings[0];
 
   return (
@@ -124,14 +131,15 @@ const DashboardStandingsCard = ({ leagueId, navigation }: any) => {
     >
       <View className="flex-1 mr-3">
         <Text className="text-[#E0B566] text-[11px] font-bold tracking-wider uppercase mb-1">
-          CURRENT STANDING
+          FANTASY ROSTER STANDING
         </Text>
         <Text className="text-white text-[15px] font-bold" numberOfLines={1}>
           {myStanding.teamName}
         </Text>
         <Text className="text-gray-400 text-[12px] mt-0.5">
-          {myStanding.wins}W - {myStanding.losses}L - {myStanding.ties}T • PF:{' '}
-          {myStanding.pointsFor}
+          {myStanding.wins ?? 0}W - {myStanding.losses ?? 0}L -{' '}
+          {myStanding.ties ?? 0}T · PF:{' '}
+          {myStanding.pointsFor ?? myStanding.totalPoints ?? 0}
         </Text>
       </View>
       <View className="w-11 h-11 rounded-full bg-[#8B3DFF]/20 border border-[#8B3DFF]/50 items-center justify-center">
@@ -167,7 +175,7 @@ const DashboardRecentMatchupCard = ({ leagueId, navigation }: any) => {
     >
       <View className="flex-1 mr-3">
         <Text className="text-[#E0B566] text-[11px] font-bold tracking-wider uppercase mb-1">
-          RECENT RESULT • WEEK {recent.weekNumber}
+          RECENT RESULT • PERIOD {recent.weekNumber}
         </Text>
         <Text className="text-white text-[14px] font-bold" numberOfLines={1}>
           vs {recent.opponentTeamName}
@@ -182,6 +190,41 @@ const DashboardRecentMatchupCard = ({ leagueId, navigation }: any) => {
     </TouchableOpacity>
   );
 };
+
+const DashboardScoringCard = ({ leagueId, navigation }: any) => (
+  <TouchableOpacity
+    className="bg-[#21190f] border border-[#E0B566]/30 p-4 rounded-[20px] mb-4 mx-5"
+    activeOpacity={0.85}
+    onPress={() => navigation.navigate('LeagueDetail', { leagueId })}
+  >
+    <View className="flex-row items-center justify-between mb-3">
+      <View className="flex-1 mr-3">
+        <Text className="text-[#E0B566] text-[11px] font-bold tracking-wider uppercase">
+          TEAM SCORING
+        </Text>
+        <Text className="text-white text-[14px] font-semibold mt-1">
+          Official results become fantasy points
+        </Text>
+      </View>
+      <Trophy color="#E0B566" size={21} />
+    </View>
+    <View className="flex-row border-t border-white/10 pt-3">
+      {[
+        [`${SCORE_BANDS[0].points}`, 'Top score'],
+        [`+${HIT_ZERO_BONUS}`, 'Hit zero'],
+        [`+${GRAND_CHAMPION_BONUS}`, 'Champion'],
+      ].map(([value, label], index) => (
+        <View
+          key={label}
+          className={`flex-1 items-center ${index < 2 ? 'border-r border-white/10' : ''}`}
+        >
+          <Text className="text-white text-base font-bold">{value}</Text>
+          <Text className="text-gray-500 text-[10px] mt-0.5">{label}</Text>
+        </View>
+      ))}
+    </View>
+  </TouchableOpacity>
+);
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
@@ -212,6 +255,7 @@ export default function HomeScreen() {
       league.logoUrl ||
       'https://images.unsplash.com/photo-1614680376593-902f74cf0d41?q=80&w=150&auto=format&fit=crop',
     visibility: league.visibility || 'public',
+    currentFantasyPeriod: league.currentFantasyPeriod || league.currentWeek || 1,
   }));
 
   const allLeagues =
@@ -346,7 +390,7 @@ export default function HomeScreen() {
                 )}
                 <View>
                   <Text style={styles.cardTitle}>{league.name}</Text>
-                  <Text style={styles.cardSubtext}>Fantasy Cheerleading</Text>
+                  <Text style={styles.cardSubtext}>Head-to-head cheer team rosters</Text>
                 </View>
               </TouchableOpacity>
             ))}
@@ -402,9 +446,12 @@ export default function HomeScreen() {
               </View>
               <View className="flex-row items-center mt-4 pt-3 border-t border-white/10">
                 <CalendarDays color="#888" size={16} />
-                <Text className="text-gray-300 text-xs ml-2">
-                  {new Date(featuredEvent.startsAt).toLocaleDateString()}
-                </Text>
+                  <Text className="text-gray-300 text-xs ml-2">
+                    {new Date(featuredEvent.startsAt).toLocaleDateString()}
+                  </Text>
+                  <Text className="text-gray-500 text-xs ml-3">
+                    {featuredEvent.divisionIds?.length ?? 0} divisions
+                  </Text>
                 <Text className="text-gray-500 text-xs ml-auto">
                   View event →
                 </Text>
@@ -429,8 +476,15 @@ export default function HomeScreen() {
         {/* Dashboard Cards */}
         {allLeagues.length > 0 && (
           <>
+            <View className="mx-5 mt-7 mb-3">
+              <Text style={styles.sectionTitle}>My Cheer Battle</Text>
+              <Text className="text-gray-500 text-xs mt-1">
+                Your drafted teams against another manager's roster
+              </Text>
+            </View>
             <DashboardMatchupCard
               leagueId={allLeagues[0].id || (allLeagues[0] as any)._id}
+              leagueName={allLeagues[0].name}
               navigation={navigation}
             />
             <DashboardStandingsCard
@@ -438,6 +492,10 @@ export default function HomeScreen() {
               navigation={navigation}
             />
             <DashboardRecentMatchupCard
+              leagueId={allLeagues[0].id || (allLeagues[0] as any)._id}
+              navigation={navigation}
+            />
+            <DashboardScoringCard
               leagueId={allLeagues[0].id || (allLeagues[0] as any)._id}
               navigation={navigation}
             />

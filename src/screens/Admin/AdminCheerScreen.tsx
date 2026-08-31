@@ -32,6 +32,15 @@ import {
   useUpdateAdminCheerSeasonStatusMutation,
 } from '../../store/api/adminCheerApi';
 import { showToast } from '../../utils/toast';
+import {
+  CHEER_DIVISIONS,
+  DIVISION_WIN_BONUSES,
+  GRAND_CHAMPION_BONUS,
+  HIT_ZERO_BONUS,
+  LAST_PLACE_PENALTIES,
+  SCORE_BANDS,
+  getCheerPerformanceFantasyPreview,
+} from '../../utils/cheerScoring';
 import type { AdminCheerStep } from './AdminCheerFormScreen';
 
 type Navigation = NativeStackNavigationProp<RootStackParamList, 'AdminCheer'>;
@@ -51,38 +60,38 @@ const workflow: Array<{
   {
     step: 'organization',
     number: 2,
-    title: 'Program',
-    detail: 'Real gym, school, or club',
+    title: 'Country / program',
+    detail: 'Country and real gym, school, or club',
   },
   {
     step: 'division',
     number: 3,
     title: 'Division',
-    detail: 'Eligibility and scoring policy',
-  },
-  {
-    step: 'competition',
-    number: 4,
-    title: 'Competition',
-    detail: 'Event and fantasy period',
+    detail: 'Draft roster category',
   },
   {
     step: 'fantasyTeam',
+    number: 4,
+    title: 'Cheer team',
+    detail: 'Draftable real-world team',
+  },
+  {
+    step: 'competition',
     number: 5,
-    title: 'Fantasy asset',
-    detail: 'Draftable real cheer team',
+    title: 'Competition',
+    detail: 'Event and head-to-head fantasy period',
   },
   {
     step: 'entry',
     number: 6,
     title: 'Event entry',
-    detail: 'Team and roster snapshot',
+    detail: 'Team and division',
   },
   {
     step: 'score',
     number: 7,
-    title: 'Judge score',
-    detail: 'Score, review, then publish',
+    title: 'Official result',
+    detail: 'Score, placement, and bonuses',
   },
 ];
 
@@ -115,6 +124,11 @@ const humanize = (value?: string) =>
 
 const getId = (value: any) => String(value?._id ?? value?.id ?? value ?? '');
 
+const sumStatuses = (
+  statuses: Record<string, number> | undefined,
+  keys: string[],
+) => keys.reduce((total, key) => total + Number(statuses?.[key] || 0), 0);
+
 export default function AdminCheerScreen() {
   const navigation = useNavigation<Navigation>();
   const role = useSelector((state: RootState) => state.auth.user?.role);
@@ -137,6 +151,50 @@ export default function AdminCheerScreen() {
     () => seasons.find(season => getId(season) === seasonId),
     [seasonId, seasons],
   );
+  const scoringQueue = useMemo(
+    () =>
+      (data?.scoringQueue ?? []).map(performance => ({
+        ...performance,
+        fantasyPreview: getCheerPerformanceFantasyPreview(performance),
+      })),
+    [data?.scoringQueue],
+  );
+  const draftableTeamCount =
+    data?.counts?.seasonTeams ?? data?.counts?.teams ?? 0;
+  const configuredDivisionCount = data?.counts?.divisions ?? 0;
+  const liveCompetitionCount = sumStatuses(data?.statusCounts?.competitions, [
+    'live',
+  ]);
+  const registrationCompetitionCount = sumStatuses(
+    data?.statusCounts?.competitions,
+    ['registration_open'],
+  );
+  const confirmedEntryCount = sumStatuses(data?.statusCounts?.entries, [
+    'confirmed',
+  ]);
+  const publishedResultCount = sumStatuses(data?.statusCounts?.performances, [
+    'published',
+    'official',
+  ]);
+  const readinessChecks = [
+    {
+      label: 'Standard divisions',
+      detail: `${configuredDivisionCount} of ${CHEER_DIVISIONS.length} configured`,
+      ready: configuredDivisionCount >= CHEER_DIVISIONS.length,
+    },
+    {
+      label: 'Draftable team pool',
+      detail: `${draftableTeamCount} real-world teams available`,
+      ready: draftableTeamCount > 0,
+    },
+    {
+      label: 'Result publishing',
+      detail: scoringQueue.length
+        ? `${scoringQueue.length} official results awaiting publication`
+        : 'Publishing queue is clear',
+      ready: scoringQueue.length === 0,
+    },
+  ];
 
   if (role !== 'admin') {
     return (
@@ -224,9 +282,9 @@ export default function AdminCheerScreen() {
         </TouchableOpacity>
         <View className="ml-4 flex-1">
           <Text className="text-white text-xl font-semibold">
-            Cheer Operations
+            Cheer Battle Admin
           </Text>
-          <Text className="text-[#E0B566] text-xs mt-0.5">ADMIN CONSOLE</Text>
+          <Text className="text-[#E0B566] text-xs mt-0.5">TEAM OPERATIONS</Text>
         </View>
         {isFetching && <ActivityIndicator color="#E0B566" />}
       </View>
@@ -320,12 +378,29 @@ export default function AdminCheerScreen() {
             </TouchableOpacity>
           )}
 
+          <View className="bg-[#2B2112] border border-[#E0B566]/30 rounded-2xl p-4 mb-5">
+            <Text className="text-[#E0B566] text-xs font-semibold">
+              TEAM-BASED FANTASY
+            </Text>
+            <Text className="text-white font-semibold mt-1">
+              Managers draft real-world cheer teams
+            </Text>
+            <Text className="text-gray-400 text-xs leading-5 mt-1">
+              Each fantasy roster competes head-to-head based on its teams'
+              official results. Individual athletes are not fantasy assets.
+            </Text>
+          </View>
+
           <View className="flex-row flex-wrap -mx-1 mb-6">
             {[
               ['Competitions', data?.counts?.competitions ?? 0, Trophy],
-              ['Real teams', data?.counts?.seasonTeams ?? 0, Users],
-              ['Divisions', data?.counts?.divisions ?? 0, Layers3],
-              ['To publish', data?.counts?.unpublishedScores ?? 0, Upload],
+              ['Draftable teams', draftableTeamCount, Users],
+              ['Standard divisions', configuredDivisionCount, Layers3],
+              [
+                'Results to publish',
+                data?.counts?.unpublishedScores ?? 0,
+                Upload,
+              ],
             ].map(([label, value, Icon]: any) => (
               <View key={label} className="w-1/2 px-1 mb-2">
                 <View className="bg-[#171717] border border-white/10 rounded-2xl p-4">
@@ -339,11 +414,71 @@ export default function AdminCheerScreen() {
             ))}
           </View>
 
+          <Text className="text-white text-lg font-semibold mb-3">
+            System readiness
+          </Text>
+          <View className="bg-[#111] border border-white/10 rounded-2xl overflow-hidden mb-5">
+            {readinessChecks.map((check, index) => (
+              <View
+                key={check.label}
+                className={`flex-row items-center px-4 py-4 ${
+                  index < readinessChecks.length - 1
+                    ? 'border-b border-white/10'
+                    : ''
+                }`}
+              >
+                {check.ready ? (
+                  <CheckCircle2 color="#22c55e" size={20} />
+                ) : (
+                  <ShieldAlert color="#f59e0b" size={20} />
+                )}
+                <View className="ml-3 flex-1">
+                  <Text className="text-white font-medium">{check.label}</Text>
+                  <Text className="text-gray-500 text-xs mt-0.5">
+                    {check.detail}
+                  </Text>
+                </View>
+                <Text
+                  className={
+                    check.ready
+                      ? 'text-green-500 text-xs'
+                      : 'text-amber-500 text-xs'
+                  }
+                >
+                  {check.ready ? 'Ready' : 'Action needed'}
+                </Text>
+              </View>
+            ))}
+          </View>
+
+          <View className="bg-[#171717] border border-white/10 rounded-2xl p-4 mb-7">
+            <Text className="text-white font-semibold">Current activity</Text>
+            <View className="flex-row flex-wrap -mx-1 mt-3">
+              {[
+                ['Live events', liveCompetitionCount],
+                ['Registration open', registrationCompetitionCount],
+                ['Confirmed entries', confirmedEntryCount],
+                ['Published results', publishedResultCount],
+              ].map(([label, value]) => (
+                <View key={label} className="w-1/2 px-1 mb-2">
+                  <View className="bg-black/30 rounded-xl px-3 py-3">
+                    <Text className="text-[#E0B566] text-lg font-bold">
+                      {value}
+                    </Text>
+                    <Text className="text-gray-500 text-xs mt-0.5">
+                      {label}
+                    </Text>
+                  </View>
+                </View>
+              ))}
+            </View>
+          </View>
+
           <Text className="text-white text-lg font-semibold mb-1">
-            Setup workflow
+            Admin operations
           </Text>
           <Text className="text-gray-500 text-sm mb-3">
-            Complete these in order for each operating season.
+            Manage the team catalog and event results in operating order.
           </Text>
           <View className="bg-[#111] border border-white/10 rounded-2xl overflow-hidden mb-7">
             {workflow.map((item, index) => (
@@ -372,6 +507,34 @@ export default function AdminCheerScreen() {
             ))}
           </View>
 
+          <View className="bg-[#111] border border-white/10 rounded-2xl p-4 mb-7">
+            <View className="flex-row items-center justify-between">
+              <View className="flex-1 pr-4">
+                <Text className="text-white font-semibold">
+                  Standard fantasy scoring
+                </Text>
+                <Text className="text-gray-500 text-xs mt-1">
+                  One fixed scoring system applies to every league.
+                </Text>
+              </View>
+              <Trophy color="#E0B566" size={22} />
+            </View>
+            <View className="mt-4 pt-4 border-t border-white/10">
+              <Text className="text-gray-300 text-xs leading-5">
+                {SCORE_BANDS.length} official score bands · Division win +
+                {DIVISION_WIN_BONUSES[0].points} / +
+                {DIVISION_WIN_BONUSES[1].points} / +
+                {DIVISION_WIN_BONUSES[2].points}
+              </Text>
+              <Text className="text-gray-300 text-xs leading-5">
+                Hit zero +{HIT_ZERO_BONUS} · Grand champion +
+                {GRAND_CHAMPION_BONUS} · Last place -
+                {Math.abs(LAST_PLACE_PENALTIES[0].points)} / -
+                {Math.abs(LAST_PLACE_PENALTIES[1].points)}
+              </Text>
+            </View>
+          </View>
+
           <View className="flex-row items-center justify-between mb-3">
             <View>
               <Text className="text-white text-lg font-semibold">
@@ -398,7 +561,8 @@ export default function AdminCheerScreen() {
                     </Text>
                     <Text className="text-gray-500 text-xs mt-1">
                       Period {competition.fantasyPeriod} ·{' '}
-                      {humanize(competition.status)}
+                      {humanize(competition.status)} ·{' '}
+                      {competition.divisionIds?.length ?? 0} divisions
                     </Text>
                   </View>
                 </View>
@@ -431,9 +595,9 @@ export default function AdminCheerScreen() {
           )}
 
           <Text className="text-white text-lg font-semibold mb-3">
-            Official score queue
+            Team result queue
           </Text>
-          {(data?.scoringQueue ?? []).map(performance => (
+          {scoringQueue.map(performance => (
             <View
               key={getId(performance)}
               className="bg-[#171717] border border-white/10 rounded-2xl p-4 mb-3"
@@ -443,8 +607,35 @@ export default function AdminCheerScreen() {
               </Text>
               <Text className="text-gray-500 text-xs mt-1">
                 {performance.competitionId?.name || 'Competition'} ·{' '}
-                {humanize(performance.round)} · {performance.finalScore} pts
+                {performance.entryId?.organizationId?.country ||
+                  performance.entryId?.country ||
+                  'Country unavailable'}
               </Text>
+              <Text className="text-gray-400 text-xs mt-1">
+                {performance.entryId?.divisionId?.name ||
+                  performance.entryId?.divisionId?.code ||
+                  'Division unavailable'}{' '}
+                · Official {performance.finalScore ?? '—'}
+              </Text>
+              <View className="flex-row items-center justify-between mt-3 pt-3 border-t border-white/10">
+                <Text className="text-gray-400 text-xs">
+                  Fantasy point preview
+                </Text>
+                <Text className="text-[#E0B566] text-lg font-bold">
+                  {performance.fantasyPoints ??
+                    performance.fantasyPreview?.totalPoints ??
+                    '—'}{' '}
+                  pts
+                </Text>
+              </View>
+              {performance.fantasyPreview && (
+                <Text className="text-gray-600 text-[10px] mt-1 text-right">
+                  Score {performance.fantasyPreview.scorePoints} · division{' '}
+                  {performance.fantasyPreview.divisionResultPoints} · hit zero{' '}
+                  {performance.fantasyPreview.hitZeroPoints} · champion{' '}
+                  {performance.fantasyPreview.grandChampionPoints}
+                </Text>
+              )}
               <TouchableOpacity
                 disabled={isPublishing}
                 className="bg-[#E0B566] rounded-xl py-3 items-center mt-4"
@@ -456,7 +647,7 @@ export default function AdminCheerScreen() {
               </TouchableOpacity>
             </View>
           ))}
-          {!data?.scoringQueue?.length && (
+          {!scoringQueue.length && (
             <View className="bg-[#111] border border-white/10 rounded-2xl p-5 items-center">
               <CheckCircle2 color="#22c55e" size={25} />
               <Text className="text-white mt-3">Publishing queue is clear</Text>
