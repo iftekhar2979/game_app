@@ -16,6 +16,41 @@ export interface RegisterResponse {
   };
 }
 
+/**
+ * `POST /auth/social/:provider`. The provider is a path segment, not part of
+ * the body, so it is carried alongside the credential and stripped by `query`.
+ */
+export interface SocialLoginRequest {
+  provider: 'google' | 'apple' | 'facebook';
+  /** Google and Apple. */
+  idToken?: string;
+  /** Facebook. */
+  accessToken?: string;
+  /** Apple only shares the display name on the first authorization. */
+  fullName?: string;
+  isTcPpAccepted?: boolean;
+  deviceId?: string;
+  fcmToken?: string;
+}
+
+export interface SocialLoginResponse {
+  message: string;
+  data: {
+    accessToken: string;
+    /** Absent when the account still has to verify its email by OTP. */
+    refreshToken?: string;
+    isEmailVerified?: boolean;
+    isNewAccount?: boolean;
+    provider?: string;
+    user?: {
+      id: string;
+      email: string;
+      fullName: string;
+      role: string;
+    };
+  };
+}
+
 export interface ForgotPasswordResponse {
   message: string;
   data?: { accessToken?: string };
@@ -66,6 +101,13 @@ export const authApi = baseApi.injectEndpoints({
         body,
       }),
     }),
+    socialLogin: builder.mutation<SocialLoginResponse, SocialLoginRequest>({
+      query: ({ provider, ...credential }) => ({
+        url: `/auth/social/${provider}`,
+        method: 'POST',
+        body: credential,
+      }),
+    }),
     login: builder.mutation<any, any>({
       query: (credentials) => ({
         url: '/auth/login',
@@ -78,6 +120,7 @@ export const authApi = baseApi.injectEndpoints({
 
 export const {
   useRegisterMutation,
+  useSocialLoginMutation,
   useVerifyEmailMutation,
   useForgotPasswordMutation,
   useResetPasswordMutation,

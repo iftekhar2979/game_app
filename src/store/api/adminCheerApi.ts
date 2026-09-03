@@ -2,6 +2,19 @@ import { baseApi } from './baseApi';
 
 const unwrap = (response: any) => response?.data ?? response;
 
+/**
+ * List endpoints must always resolve to an array. A null body or a
+ * `{ items: [...] }` envelope would otherwise reach the screens as-is and
+ * blow up the first `.map`/`.some` that touches it.
+ */
+const unwrapList = (response: any): any[] => {
+  const raw = unwrap(response);
+  if (Array.isArray(raw)) return raw;
+  if (Array.isArray(raw?.items)) return raw.items;
+  if (Array.isArray(raw?.data)) return raw.data;
+  return [];
+};
+
 export interface AdminCheerDashboard {
   scope: { seasonId: string | null };
   counts: {
@@ -37,7 +50,7 @@ export const adminCheerApi = baseApi.injectEndpoints({
     }),
     getAdminCheerDivisions: builder.query<any[], string>({
       query: seasonId => ({ url: 'cheer/divisions', params: { seasonId } }),
-      transformResponse: (response: any) => unwrap(response) ?? [],
+      transformResponse: unwrapList,
       providesTags: ['AdminCheer'],
     }),
     getAdminCheerCompetitions: builder.query<any[], string>({
@@ -45,12 +58,12 @@ export const adminCheerApi = baseApi.injectEndpoints({
         url: 'admin/cheer/competitions',
         params: { seasonId },
       }),
-      transformResponse: (response: any) => unwrap(response) ?? [],
+      transformResponse: unwrapList,
       providesTags: ['AdminCheer'],
     }),
     getAdminCompetitionEntries: builder.query<any[], string>({
       query: competitionId => `events/${competitionId}/entries`,
-      transformResponse: (response: any) => unwrap(response) ?? [],
+      transformResponse: unwrapList,
       providesTags: ['AdminCheer'],
     }),
     createAdminSeason: builder.mutation<any, any>({

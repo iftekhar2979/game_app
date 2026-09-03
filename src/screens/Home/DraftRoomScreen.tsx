@@ -26,6 +26,7 @@ import {
   useGetDraftStateQuery,
   useStartDraftMutation,
   useGetDraftPicksQuery,
+  useGetRosterSettingsQuery,
 } from '../../store/api/leagueApi';
 import {
   useDraftCheerTeamMutation,
@@ -98,6 +99,9 @@ export default function DraftRoomScreen() {
   const [joinLeagueMutation] = useJoinLeagueMutation();
 
   const { data: apiLeagueData } = useGetLeagueDetailsQuery(leagueId, {
+    skip: isMockId,
+  });
+  const { data: rosterSettings } = useGetRosterSettingsQuery(leagueId, {
     skip: isMockId,
   });
   const draftType =
@@ -279,7 +283,7 @@ export default function DraftRoomScreen() {
     }
   };
 
-  const handleAuctionNomination = async (player: any) => {
+  const handleAuctionNomination = async (player: any, assignedDivisionId: string) => {
     if (!auctionIsActive) {
       showToast.error(
         'Auction not open',
@@ -298,6 +302,7 @@ export default function DraftRoomScreen() {
       await nominateCheerTeam({
         leagueId,
         seasonCheerTeamId: String(player.seasonCheerTeamId || player.id),
+        assignedDivisionId,
         openingBid: minimumAuctionBid,
       }).unwrap();
       setSetPlayerModalVisible(false);
@@ -389,6 +394,24 @@ export default function DraftRoomScreen() {
           );
         })
         .filter(Boolean);
+      const eligibleDivisions = (item.eligibleDivisionIds || []).map((division: any) => {
+        const fallback = CHEER_DIVISIONS.find(
+          option => option.id === division || option.code === division,
+        );
+        return {
+          id: String(
+            typeof division === 'object'
+              ? division._id || division.id
+              : division,
+          ),
+          code:
+            (typeof division === 'object' ? division.code : fallback?.code) || '',
+          name:
+            (typeof division === 'object'
+              ? division.name || division.code
+              : fallback?.name) || 'Cheer division',
+        };
+      });
       const country =
         organization.country ||
         item.country ||
@@ -401,6 +424,7 @@ export default function DraftRoomScreen() {
         name,
         country,
         divisionLabels,
+        eligibleDivisions,
         subtitle: [
           country,
           divisionLabels.join(' / ') || 'Division unavailable',
@@ -414,7 +438,59 @@ export default function DraftRoomScreen() {
   }, [availableCheerTeams]);
 
   const [setPlayerModalVisible, setSetPlayerModalVisible] = useState(false);
+  const [pendingAssignment, setPendingAssignment] = useState<{
+    player: any;
+    mode: 'snake' | 'auction';
+    divisions: Array<{ id: string; code: string; name: string }>;
+  } | null>(null);
   const [isDraftStarted, setIsDraftStarted] = useState(false);
+
+  const openDivisionPicker = (player: any, mode: 'snake' | 'auction') => {
+    const allowedCodes = new Set(
+      (rosterSettings?.divisionRules || []).map(rule => rule.divisionCode.toUpperCase()),
+    );
+    const divisions = (player.eligibleDivisions || []).filter(
+      (division: any) => division.id && allowedCodes.has(String(division.code).toUpperCase()),
+    );
+    if (!divisions.length) {
+      showToast.error(
+        'No valid roster division',
+        'This Cheer Team is not eligible for an available slot division in the League roster template.',
+      );
+      return;
+    }
+    setPendingAssignment({ player, mode, divisions });
+  };
+
+  const confirmDivisionAssignment = async (assignedDivisionId: string) => {
+    const pending = pendingAssignment;
+    if (!pending) return;
+    setPendingAssignment(null);
+    if (pending.mode === 'auction') {
+      await handleAuctionNomination(pending.player, assignedDivisionId);
+      return;
+    }
+    try {
+      await draftCheerTeam({
+        leagueId,
+        seasonCheerTeamId: String(
+          pending.player.seasonCheerTeamId || pending.player.id,
+        ),
+        assignedDivisionId,
+      }).unwrap();
+      setSetPlayerModalVisible(false);
+      showToast.success(
+        'Draft Pick Success!',
+        `${pending.player.name} was drafted to your team.`,
+      );
+      if (refetchAvailableAthletes) refetchAvailableAthletes();
+    } catch (err: any) {
+      showToast.error(
+        'Draft Error',
+        err?.data?.message || err?.message || 'Failed to draft cheer team.',
+      );
+    }
+  };
 
   useEffect(() => {
     if (!league?.draftDate || !league?.draftTime) return;
@@ -791,11 +867,8 @@ export default function DraftRoomScreen() {
                 activeOpacity={0.8}
                 disabled={isDrafting}
                 onPress={async () => {
-                  const seasonCheerTeamId =
-                    player.seasonCheerTeamId || player.id;
-
                   if (isAuctionDraft) {
-                    await handleAuctionNomination(player);
+                    openDivisionPicker(player, 'auction');
                     return;
                   }
 
@@ -860,23 +933,7 @@ export default function DraftRoomScreen() {
                     );
                     return;
                   }
-                  try {
-                    await draftCheerTeam({
-                      leagueId,
-                      seasonCheerTeamId: String(seasonCheerTeamId),
-                    }).unwrap();
-                    showToast.success(
-                      'Draft Pick Success!',
-                      `${player.name} was drafted to your team.`,
-                    );
-                    if (refetchAvailableAthletes) refetchAvailableAthletes();
-                  } catch (err: any) {
-                    const msg =
-                      err?.data?.message ||
-                      err?.message ||
-                      'Failed to draft cheer team.';
-                    showToast.error('Draft Error', msg);
-                  }
+                  openDivisionPicker(player, 'snake');
                 }}
               >
                 <View className="flex-row items-center flex-1 mr-3">
@@ -947,11 +1004,8 @@ export default function DraftRoomScreen() {
                   activeOpacity={0.7}
                   disabled={isDrafting || (isSnakeDraft && !isMyTurn)}
                   onPress={async () => {
-                    const seasonCheerTeamId =
-                      player.seasonCheerTeamId || player.id;
-
                     if (isAuctionDraft) {
-                      await handleAuctionNomination(player);
+                      openDivisionPicker(player, 'auction');
                       return;
                     }
 
@@ -1016,24 +1070,7 @@ export default function DraftRoomScreen() {
                       );
                       return;
                     }
-                    try {
-                      await draftCheerTeam({
-                        leagueId,
-                        seasonCheerTeamId: String(seasonCheerTeamId),
-                      }).unwrap();
-                      setSetPlayerModalVisible(false);
-                      showToast.success(
-                        'Draft Pick Success!',
-                        `${player.name} was drafted to your team.`,
-                      );
-                      if (refetchAvailableAthletes) refetchAvailableAthletes();
-                    } catch (err: any) {
-                      const msg =
-                        err?.data?.message ||
-                        err?.message ||
-                        'Failed to draft cheer team.';
-                      showToast.error('Draft Error', msg);
-                    }
+                    openDivisionPicker(player, 'snake');
                   }}
                 >
                   <View className="flex-row items-center flex-1 mr-2">
@@ -1061,6 +1098,43 @@ export default function DraftRoomScreen() {
                 </TouchableOpacity>
               ))}
             </ScrollView>
+          </View>
+        </View>
+      </Modal>
+      <Modal
+        visible={!!pendingAssignment}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setPendingAssignment(null)}
+      >
+        <View className="flex-1 bg-black/80 justify-center px-6">
+          <View className="bg-[#1a1a1a] border border-[#333] rounded-3xl p-5">
+            <Text className="text-white text-[18px] font-bold mb-2">
+              Assign roster division
+            </Text>
+            <Text className="text-gray-400 text-[13px] mb-5">
+              Choose the valid roster-template division for {pendingAssignment?.player?.name}.
+            </Text>
+            {pendingAssignment?.divisions.map(division => (
+              <TouchableOpacity
+                key={division.id}
+                className="border border-[#8B3DFF]/50 bg-[#8B3DFF]/10 rounded-2xl p-4 mb-3"
+                onPress={() => confirmDivisionAssignment(division.id)}
+              >
+                <Text className="text-white text-[15px] font-semibold">
+                  {division.name}
+                </Text>
+                <Text className="text-[#B98AFF] text-[12px] mt-1">
+                  {division.code}
+                </Text>
+              </TouchableOpacity>
+            ))}
+            <TouchableOpacity
+              className="rounded-2xl p-3 mt-1 items-center"
+              onPress={() => setPendingAssignment(null)}
+            >
+              <Text className="text-gray-400">Cancel</Text>
+            </TouchableOpacity>
           </View>
         </View>
       </Modal>

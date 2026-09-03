@@ -8,6 +8,7 @@ import DatePicker from 'react-native-date-picker';
 import AuthLayout from '../../components/Layout/AuthLayout';
 import { useDispatch } from 'react-redux';
 import AuthInput from '../../components/Input/AuthInput';
+import SocialAuthButtons from '../../components/Auth/SocialAuthButtons';
 import PrimaryButton from '../../components/Button/PrimaryButton';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -238,32 +239,12 @@ const CreateAccountScreen = () => {
         </View>
 
         {/* SignUp with Others */}
-        <View className="px-6 my-6">
-          <View className="flex-row items-center">
-            <View className="flex-1 h-[1px] bg-[#3A144E]" />
-            <Text className="text-[#FFB444] text-xs px-3 font-medium">SignUp with Others</Text>
-            <View className="flex-1 h-[1px] bg-[#3A144E]" />
-          </View>
-
-          <View className="flex-row justify-center mt-6 gap-x-4">
-            {/* Google Icon Placeholder using Text since Lucide doesn't have it natively */}
-            <TouchableOpacity className="w-12 h-12 rounded-full border border-[#3A144E] items-center justify-center">
-              <Text className="text-white font-bold text-xl">G</Text>
-            </TouchableOpacity>
-            <TouchableOpacity className="w-12 h-12 rounded-full border border-[#3A144E] items-center justify-center">
-              <Text className="text-white font-bold text-xl"></Text>
-            </TouchableOpacity>
-            <TouchableOpacity className="w-12 h-12 rounded-full border border-[#3A144E] items-center justify-center">
-              <Text className="text-white font-bold text-xl">f</Text>
-            </TouchableOpacity>
-            <TouchableOpacity className="w-12 h-12 rounded-full border border-[#3A144E] items-center justify-center">
-              <Text className="text-white font-bold text-xl">X</Text>
-            </TouchableOpacity>
-            <TouchableOpacity className="w-12 h-12 rounded-full border border-[#3A144E] items-center justify-center">
-              <Text className="text-white font-bold text-xl">In</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
+        <SocialAuthButtons
+          label="SignUp with Others"
+          isTcPpAccepted={agreed}
+          disabled={isLoading}
+          onError={(title, message) => showToast(title, message, 'error')}
+        />
 
         {/* Checkbox */}
         <View className="px-6 mb-6">

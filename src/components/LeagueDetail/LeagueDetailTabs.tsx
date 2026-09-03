@@ -12,6 +12,7 @@ import {
 import {
   Repeat,
   Plus,
+  CalendarClock,
   Users,
   UserCheck,
   Shield,
@@ -417,6 +418,49 @@ export const MatchupTab = ({
   );
 };
 
+/**
+ * One unit of the pre-draft countdown. Each tile flexes to an equal share of
+ * the row so the four of them always span the full card width.
+ */
+const CountdownUnit = ({ value, label }: { value: number; label: string }) => (
+  <View className="flex-1  rounded-2xl py-2 items-center">
+    <Text className="text-black text-[24px] font-bold leading-tight">
+      {String(Math.max(0, value)).padStart(2, '0')}
+    </Text>
+    <Text className="text-black/60 text-[10px] font-bold uppercase tracking-wider mt-0.5">
+      {label}
+    </Text>
+  </View>
+);
+
+/**
+ * One draft setting as a full-width row. Rows rather than side-by-side chips:
+ * three columns on a phone leaves each one too narrow for values like
+ * "Auction" or "200 pts" to render without truncating.
+ */
+const DraftFactRow = ({
+  label,
+  value,
+  isLast = false,
+}: {
+  label: string;
+  value: string;
+  isLast?: boolean;
+}) => (
+  <View
+    className={`flex-row items-center justify-between px-4 py-3 ${
+      isLast ? '' : 'border-b border-black/10'
+    }`}
+  >
+    <Text className="text-black/60 text-[12px] font-semibold">{label}</Text>
+    <Text
+      className="text-black text-[13px] font-bold flex-1 text-right ml-3"
+      numberOfLines={1}
+    >
+      {value}
+    </Text>
+  </View>
+);
 export const DraftTab = ({
   isDraftStarted,
   timeLeft,
@@ -436,6 +480,48 @@ export const DraftTab = ({
   const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(
     effectiveJoinCode,
   )}`;
+
+  // Draft settings live at two different depths depending on the endpoint.
+  const draftSettings =
+    league?.draftSettings || league?.settings?.draftSettings || {};
+
+  const draftTypeLabel = (() => {
+    const type = String(draftSettings.type || '').toLowerCase();
+    if (!type) return 'Not set';
+    return type.charAt(0).toUpperCase() + type.slice(1);
+  })();
+
+  const pickClockLabel = (() => {
+    const seconds = Number(
+      draftSettings.pickDurationSeconds ?? draftSettings.biddingDurationSeconds,
+    );
+    if (!Number.isFinite(seconds) || seconds <= 0) return 'Not set';
+    if (seconds % 60 === 0) return `${seconds / 60} min`;
+    return `${seconds}s`;
+  })();
+
+  const budgetLabel = (() => {
+    const budget = Number(draftSettings.startingBudget);
+    return Number.isFinite(budget) && budget > 0 ? `${budget} pts` : 'Not set';
+  })();
+
+  const joinedTeams = Number(
+    league?.joinedTeamCount ?? league?.membersCount ?? 0,
+  );
+  const maxTeams = Number(league?.maxTeams ?? 0);
+  const fillRatio =
+    maxTeams > 0 ? Math.min(1, Math.max(0, joinedTeams / maxTeams)) : 0;
+  const isLeagueFull = maxTeams > 0 && joinedTeams >= maxTeams;
+
+  // The countdown hitting zero does not by itself mean the server started the
+  // draft, so this is a distinct waiting state rather than a live one.
+  const hasCountdown =
+    !!timeLeft &&
+    (timeLeft.days > 0 ||
+      timeLeft.hours > 0 ||
+      timeLeft.minutes > 0 ||
+      timeLeft.seconds > 0);
+  const isAwaitingStart = !!timeLeft && !hasCountdown;
 
   const draftTimeFormatted = (() => {
     const rawDate =
@@ -460,82 +546,103 @@ export const DraftTab = ({
       {/* Draftboard Card */}
       {!isDraftStarted ? (
         <View className="bg-[#FFB84D] rounded-[24px] p-5 mb-8">
-          <Text className="text-black text-center text-[16px] font-medium mb-1">
-            Draftboard
-          </Text>
-          <Text className="text-black text-center text-[12px] opacity-80 mb-6">
-            {draftTimeFormatted}
-          </Text>
-
-          {/* Countdown */}
-          {timeLeft ? (
-            <View className="flex-row justify-center items-center mb-6">
-              <View className="items-center mx-1 flex-row">
-                <Text className="text-black text-[20px] font-bold mr-1">
-                  {String(timeLeft.days).padStart(2, '0')}
-                </Text>
-                <Text className="text-black text-[10px] mt-1 mr-2 opacity-80">
-                  Day
-                </Text>
-                <Text className="text-black text-[18px] font-bold mr-2">:</Text>
-              </View>
-              <View className="items-center mx-1 flex-row">
-                <Text className="text-black text-[20px] font-bold mr-1">
-                  {String(timeLeft.hours).padStart(2, '0')}
-                </Text>
-                <Text className="text-black text-[10px] mt-1 mr-2 opacity-80">
-                  Hours
-                </Text>
-                <Text className="text-black text-[18px] font-bold mr-2">:</Text>
-              </View>
-              <View className="items-center mx-1 flex-row">
-                <Text className="text-black text-[20px] font-bold mr-1">
-                  {String(timeLeft.minutes).padStart(2, '0')}
-                </Text>
-                <Text className="text-black text-[10px] mt-1 mr-2 opacity-80">
-                  Min
-                </Text>
-                <Text className="text-black text-[18px] font-bold mr-2">:</Text>
-              </View>
-              <View className="items-center mx-1 flex-row">
-                <Text className="text-black text-[20px] font-bold mr-1">
-                  {String(timeLeft.seconds).padStart(2, '0')}
-                </Text>
-                <Text className="text-black text-[10px] mt-1 opacity-80">
-                  sec
+          <View className="flex-row items-start justify-between mb-4">
+            <View className="flex-1 pr-3">
+              <Text className="text-black text-[17px] font-bold mb-1">
+                Draftboard
+              </Text>
+              <View className="flex-row items-center">
+                <CalendarClock color="rgba(0,0,0,0.55)" size={13} />
+                <Text
+                  className="text-black/70 text-[12px] ml-1.5 flex-1"
+                  numberOfLines={2}
+                >
+                  {draftTimeFormatted}
                 </Text>
               </View>
             </View>
-          ) : (
-            <View className="flex-row justify-center items-center mb-6 h-[40px]">
-              <Text className="text-black text-[16px] font-bold opacity-70">
-                00 : 00 : 00 : 00
+            <View className="bg-black/10 border border-black/20 px-3 py-1.5 rounded-full">
+              <Text className="text-black text-[11px] font-bold">
+                {isAwaitingStart ? 'Starting' : 'Scheduled'}
               </Text>
             </View>
-          )}
+          </View>
+
+          {/* Countdown */}
+          <Text className="text-black/60 text-[10px] font-bold uppercase tracking-wider mb-2">
+            {isAwaitingStart ? 'Waiting for the server' : 'Draft starts in'}
+          </Text>
+          <View className="flex-row gap-1 mb-5">
+            <CountdownUnit value={timeLeft?.days ?? 0} label="Days" />
+            <CountdownUnit value={timeLeft?.hours ?? 0} label="Hours" />
+            <CountdownUnit value={timeLeft?.minutes ?? 0} label="Min" />
+            <CountdownUnit value={timeLeft?.seconds ?? 0} label="Sec" />
+          </View>
+
+          {/* Draft settings at a glance */}
+          <View className="bg-black/10 border border-black/10 rounded-2xl mb-5">
+            <DraftFactRow label="Format" value={draftTypeLabel} />
+            <DraftFactRow label="Pick clock" value={pickClockLabel} />
+            <DraftFactRow label="Budget" value={budgetLabel} isLast />
+          </View>
+
+          {/* League fill */}
+          {maxTeams > 0 ? (
+            <View className="mb-5">
+              <View className="flex-row items-center justify-between mb-2">
+                <View className="flex-row items-center">
+                  <Users color="rgba(0,0,0,0.55)" size={13} />
+                  <Text className="text-black/60 text-[12px] font-semibold ml-1.5">
+                    Teams joined
+                  </Text>
+                </View>
+                <Text className="text-black text-[13px] font-bold">
+                  {`${joinedTeams} / ${maxTeams}`}
+                </Text>
+              </View>
+              <View className="h-2 rounded-full bg-black/15 overflow-hidden">
+                <View
+                  className="h-full rounded-full bg-[#8B3DFF]"
+                  style={{ width: `${Math.round(fillRatio * 100)}%` }}
+                />
+              </View>
+              <Text className="text-black/60 text-[11px] mt-1.5">
+                {isLeagueFull
+                  ? 'League is full — everyone is in.'
+                  : `${maxTeams - joinedTeams} spot${
+                      maxTeams - joinedTeams === 1 ? '' : 's'
+                    } left — share the join code below.`}
+              </Text>
+            </View>
+          ) : null}
 
           <TouchableOpacity
-            className="bg-[#8B3DFF] rounded-full h-[50px] justify-center items-center mx-8"
+            className="bg-[#8B3DFF]  rounded-full h-[52px] justify-center items-center"
             activeOpacity={0.9}
             onPress={() =>
               navigation.navigate('DraftRoom', { leagueId: league?.id })
             }
           >
-            <Text className="text-white text-[16px] font-medium">
+            <Text className="text-white text-[16px] font-bold ">
               Draftroom
             </Text>
           </TouchableOpacity>
         </View>
       ) : (
-        <View className="bg-[#8B3DFF] rounded-[24px] p-6 mb-8 justify-center items-center border border-[#B366FF]">
-          <Text className="text-white text-center text-[22px] font-bold mb-2">
-            Game Started!
-          </Text>
+        <View className="bg-[#8B3DFF] rounded-[24px] p-6 mb-8 border border-[#B366FF]">
+          <View className="flex-row items-center justify-center mb-2">
+            <View className="w-2 h-2 rounded-full bg-white mr-2" />
+            <Text className="text-white text-center text-[22px] font-bold">
+              Game Started!
+            </Text>
+          </View>
           <Text className="text-white/80 text-center text-[14px] mb-6">
-            The draft has begun. Join your league now.
+            {maxTeams > 0
+              ? `The draft has begun. ${joinedTeams} of ${maxTeams} teams are drafting now.`
+              : 'The draft has begun. Join your league now.'}
           </Text>
           <TouchableOpacity
-            className="bg-white rounded-full h-[50px] justify-center items-center px-8 w-[80%]"
+            className="bg-white rounded-full h-[50px] justify-center items-center px-8"
             activeOpacity={0.9}
             onPress={() =>
               navigation.navigate('DraftRoom', { leagueId: league?.id })

@@ -9,6 +9,7 @@ import {
 } from '../store/slices/authSlice';
 import { AppDispatch } from '../store';
 import { API_URL } from '../config';
+import { clearSocialSessions } from './socialAuthService';
 
 export class AuthService {
   /** Keeps the short-lived registration token available without opening the app. */
@@ -103,6 +104,10 @@ export class AuthService {
     } catch {
       // Ignore network failures on logout
     }
+
+    // Drop the Google/Facebook sessions too, otherwise the next sign-in silently
+    // reuses the account that just logged out instead of showing the picker.
+    await clearSocialSessions();
 
     // Clear Keychain + AsyncStorage session
     await authStorage.clearSession();

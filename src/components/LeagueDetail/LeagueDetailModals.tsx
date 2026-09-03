@@ -41,11 +41,7 @@ import {
 import type { LeagueStatusValue } from '../../store/api/leagueApi';
 import { showToast } from '../../utils/toast';
 import {
-  DIVISION_WIN_BONUSES,
-  GRAND_CHAMPION_BONUS,
-  HIT_ZERO_BONUS,
-  LAST_PLACE_PENALTIES,
-  SCORE_BANDS,
+  CHEER_DIVISIONS,
 } from '../../utils/cheerScoring';
 
 export interface LeagueSettingsModalProps {
@@ -249,6 +245,15 @@ export const LeagueSettingsSubModal = ({
   const isLockedByStatus =
     currentStatus === 'completed' || currentStatus === 'cancelled';
   const editable = canEdit !== false && !isLockedByStatus;
+  const availableStatusOptions = useMemo(() => {
+    const manuallyAllowed = new Set<LeagueStatusValue>([
+      currentStatus as LeagueStatusValue,
+      'cancelled',
+    ]);
+    if (currentStatus === 'registration_open') manuallyAllowed.add('registration_closed');
+    if (currentStatus === 'registration_closed') manuallyAllowed.add('registration_open');
+    return STATUS_OPTIONS.filter(option => manuallyAllowed.has(option.value));
+  }, [currentStatus]);
 
   const parsedMaxTeams = parseInt(maxTeams, 10);
   const isDirty =
@@ -373,7 +378,7 @@ export const LeagueSettingsSubModal = ({
               activeOpacity={0.7}
             >
               <Text className="text-white text-[14px]">
-                {STATUS_OPTIONS.find(o => o.value === status)?.label ||
+                {availableStatusOptions.find(o => o.value === status)?.label ||
                   'Select status'}
               </Text>
               <ChevronDown color="#ccc" size={20} />
@@ -381,13 +386,13 @@ export const LeagueSettingsSubModal = ({
 
             {isStatusPickerOpen && (
               <View className="border border-[#333] rounded-[16px] mt-2 overflow-hidden">
-                {STATUS_OPTIONS.map((option, index) => {
+                {availableStatusOptions.map((option, index) => {
                   const isSelected = option.value === status;
                   return (
                     <TouchableOpacity
                       key={option.value}
                       className={`px-4 py-3 ${
-                        index !== STATUS_OPTIONS.length - 1
+                        index !== availableStatusOptions.length - 1
                           ? 'border-b border-[#262626]'
                           : ''
                       } ${isSelected ? 'bg-[#8B3DFF]/15' : ''}`}
@@ -483,6 +488,7 @@ export const DraftSettingsSubModal = ({
   const [updateLeague, { isLoading: isSaving }] = useUpdateLeagueMutation();
 
   const settings = league?.draftSettings || {};
+  const isAuction = settings.type === 'auction';
 
   const [startingBudget, setStartingBudget] = useState('');
   const [minimumBid, setMinimumBid] = useState('');
@@ -521,12 +527,12 @@ export const DraftSettingsSubModal = ({
     : null;
   const isDirty =
     !!league &&
-    (startingBudget !== String(settings.startingBudget ?? '') ||
-      minimumBid !== String(settings.minimumBid ?? '') ||
-      bidIncrement !== String(settings.bidIncrement ?? '') ||
-      nominationSeconds !== String(settings.nominationDurationSeconds ?? '') ||
-      biddingSeconds !== String(settings.biddingDurationSeconds ?? '') ||
-      pickSeconds !== String(settings.pickDurationSeconds ?? '') ||
+    ((isAuction &&
+      (minimumBid !== String(settings.minimumBid ?? '') ||
+        bidIncrement !== String(settings.bidIncrement ?? '') ||
+        nominationSeconds !== String(settings.nominationDurationSeconds ?? '') ||
+        biddingSeconds !== String(settings.biddingDurationSeconds ?? ''))) ||
+      (!isAuction && pickSeconds !== String(settings.pickDurationSeconds ?? '')) ||
       (draftStartsAt?.getTime() ?? null) !== originalDate);
 
   const handleSave = async () => {
@@ -534,14 +540,14 @@ export const DraftSettingsSubModal = ({
     const bid = parseInt(minimumBid, 10);
     const increment = parseInt(bidIncrement, 10);
 
-    if ([budget, bid, increment].some(n => Number.isNaN(n) || n < 1)) {
+    if (isAuction && [budget, bid, increment].some(n => Number.isNaN(n) || n < 1)) {
       showToast.error(
         'Invalid amounts',
         'Budget, minimum bid and increment must be at least 1.',
       );
       return;
     }
-    if (bid > budget || increment > budget) {
+    if (isAuction && (bid > budget || increment > budget)) {
       showToast.error(
         'Invalid amounts',
         'Minimum bid and increment cannot exceed the starting budget.',
@@ -557,21 +563,25 @@ export const DraftSettingsSubModal = ({
       await updateLeague({
         id: leagueId,
         draftSettings: {
-          startingBudget: budget,
-          minimumBid: bid,
-          bidIncrement: increment,
-          nominationDurationSeconds: Math.min(
-            300,
-            Math.max(10, parseInt(nominationSeconds, 10) || 30),
-          ),
-          biddingDurationSeconds: Math.min(
-            300,
-            Math.max(10, parseInt(biddingSeconds, 10) || 30),
-          ),
-          pickDurationSeconds: Math.min(
-            600,
-            Math.max(1, parseInt(pickSeconds, 10) || 60),
-          ),
+          ...(isAuction
+            ? {
+                minimumBid: bid,
+                bidIncrement: increment,
+                nominationDurationSeconds: Math.min(
+                  300,
+                  Math.max(10, parseInt(nominationSeconds, 10) || 30),
+                ),
+                biddingDurationSeconds: Math.min(
+                  300,
+                  Math.max(10, parseInt(biddingSeconds, 10) || 30),
+                ),
+              }
+            : {
+                pickDurationSeconds: Math.min(
+                  600,
+                  Math.max(1, parseInt(pickSeconds, 10) || 60),
+                ),
+              }),
           ...(dateChanged && draftStartsAt
             ? { draftStartsAt: draftStartsAt.toISOString() }
             : {}),
@@ -580,7 +590,7 @@ export const DraftSettingsSubModal = ({
 
       showToast.success(
         'Draft settings saved',
-        'Auction rules updated for this league.',
+        `${isAuction ? 'Auction' : 'Snake'} draft rules updated for this league.`,
       );
       onClose();
     } catch (err: any) {
@@ -614,7 +624,9 @@ export const DraftSettingsSubModal = ({
             <Text className="text-white text-[20px] font-medium">
               Draft settings
             </Text>
-            <Text className="text-gray-400 text-[12px]">Auction draft</Text>
+            <Text className="text-gray-400 text-[12px]">
+              {isAuction ? 'Auction draft' : 'Snake draft'}
+            </Text>
           </View>
         </View>
 
@@ -629,12 +641,14 @@ export const DraftSettingsSubModal = ({
         )}
 
         <ScrollView showsVerticalScrollIndicator={false} className="flex-1">
+          {isAuction ? (
+            <>
           <NumberField
             label="Starting budget"
-            hint="Credits each team gets for the auction"
+            hint="Fixed when participant budgets are created"
             value={startingBudget}
             onChangeText={setStartingBudget}
-            editable={editable}
+            editable={false}
           />
           <NumberField
             label="Minimum bid"
@@ -662,6 +676,8 @@ export const DraftSettingsSubModal = ({
             onChangeText={setBiddingSeconds}
             editable={editable}
           />
+            </>
+          ) : (
           <NumberField
             label="Pick timer (seconds)"
             hint="1–600"
@@ -669,6 +685,7 @@ export const DraftSettingsSubModal = ({
             onChangeText={setPickSeconds}
             editable={editable}
           />
+          )}
 
           <View className="mb-8">
             <Text className="text-gray-400 text-[12px] mb-2">
@@ -781,29 +798,28 @@ export const RosterSettingsSubModal = ({
   league,
   canEdit,
 }: any) => {
-  const [updateLeague, { isLoading: isSaving }] = useUpdateLeagueMutation();
-  const settings = league?.fantasyCheerSettings || {};
-  const [rosterSize, setRosterSize] = useState(6);
-  const [starterCount, setStarterCount] = useState(4);
+  void league;
+  const { data, isLoading } = useGetRosterSettingsQuery(leagueId, {
+    skip: !isVisible || !leagueId,
+    refetchOnMountOrArgChange: true,
+  });
+  const [updateRosterSettings, { isLoading: isSaving }] =
+    useUpdateRosterSettingsMutation();
+  const [divisionRules, setDivisionRules] = useState<any[]>([]);
 
   useEffect(() => {
-    if (isVisible) {
-      setRosterSize(Number(settings.rosterSize || 6));
-      setStarterCount(Number(settings.starterCount || 4));
-    }
-  }, [isVisible, settings.rosterSize, settings.starterCount]);
+    if (data) setDivisionRules(data.divisionRules.map(rule => ({ ...rule })));
+  }, [data]);
 
   const save = async () => {
     try {
-      await updateLeague({
-        id: leagueId,
-        fantasyCheerSettings: { rosterSize, starterCount },
+      await updateRosterSettings({
+        leagueId,
+        divisionRules,
       }).unwrap();
       showToast.success(
         'Cheer roster saved',
-        `${starterCount} starters and ${
-          rosterSize - starterCount
-        } bench teams.`,
+        'The division roster rules now control drafting and lineup capacity.',
       );
       onClose();
     } catch (err: any) {
@@ -835,46 +851,61 @@ export const RosterSettingsSubModal = ({
             </Text>
           </View>
         </View>
-        <View className="bg-[#111] border border-[#222] rounded-2xl p-4 mb-4">
-          <View className="flex-row items-center justify-between mb-5">
-            <View className="flex-1 mr-4">
-              <Text className="text-white text-[15px] font-semibold">
-                Roster size
-              </Text>
-              <Text className="text-gray-500 text-[11px]">
-                Starters plus bench cheer teams
-              </Text>
-            </View>
-            <Stepper
-              value={rosterSize}
-              min={1}
-              max={30}
-              disabled={!canEdit}
-              onChange={value => {
-                setRosterSize(value);
-                setStarterCount(current => Math.min(current, value));
-              }}
-            />
-          </View>
-          <View className="flex-row items-center justify-between">
-            <View className="flex-1 mr-4">
-              <Text className="text-white text-[15px] font-semibold">
-                Active starters
-              </Text>
-              <Text className="text-gray-500 text-[11px]">
-                Only starters score at performance time
-              </Text>
-            </View>
-            <Stepper
-              value={starterCount}
-              min={1}
-              max={rosterSize}
-              disabled={!canEdit}
-              onChange={setStarterCount}
-            />
-          </View>
-        </View>
-        {canEdit ? (
+        {isLoading ? (
+          <ActivityIndicator color="#8B3DFF" className="my-8" />
+        ) : (
+          <ScrollView className="mb-4">
+            {divisionRules.map((rule, index) => (
+              <View
+                key={rule.divisionCode}
+                className="bg-[#111] border border-[#222] rounded-2xl p-4 mb-3"
+              >
+                <Text className="text-white text-[15px] font-semibold mb-4">
+                  {rule.divisionName} ({rule.divisionCode})
+                </Text>
+                <View className="flex-row items-center justify-between mb-4">
+                  <Text className="text-gray-300 text-[13px]">Roster teams</Text>
+                  <Stepper
+                    value={rule.exactTeamCount}
+                    min={1}
+                    max={50}
+                    disabled={!canEdit || !data?.canEdit}
+                    onChange={value =>
+                      setDivisionRules(current =>
+                        current.map((item, itemIndex) =>
+                          itemIndex === index
+                            ? {
+                                ...item,
+                                exactTeamCount: value,
+                                starterCount: Math.min(item.starterCount, value),
+                              }
+                            : item,
+                        ),
+                      )
+                    }
+                  />
+                </View>
+                <View className="flex-row items-center justify-between">
+                  <Text className="text-gray-300 text-[13px]">Starters</Text>
+                  <Stepper
+                    value={rule.starterCount}
+                    min={0}
+                    max={rule.exactTeamCount}
+                    disabled={!canEdit || !data?.canEdit}
+                    onChange={value =>
+                      setDivisionRules(current =>
+                        current.map((item, itemIndex) =>
+                          itemIndex === index ? { ...item, starterCount: value } : item,
+                        ),
+                      )
+                    }
+                  />
+                </View>
+              </View>
+            ))}
+          </ScrollView>
+        )}
+        {canEdit && data?.canEdit ? (
           <TouchableOpacity
             className="bg-[#8B3DFF] rounded-full h-[54px] justify-center items-center"
             onPress={save}
@@ -898,258 +929,15 @@ export const RosterSettingsSubModal = ({
   );
 };
 
-const LegacyRosterSettingsSubModal = ({
-  isVisible,
-  onClose,
-  leagueId,
-}: any) => {
-  const { data, isLoading, isError, error, refetch } =
-    useGetRosterSettingsQuery(leagueId, {
-      skip: !isVisible || !leagueId,
-      refetchOnMountOrArgChange: true,
-    });
-  const [updateRosterSettings, { isLoading: isSaving }] =
-    useUpdateRosterSettingsMutation();
-
-  const [slots, setSlots] = useState<any[]>([]);
-  const [benchSize, setBenchSize] = useState(0);
-
-  // Reset the draft whenever fresh settings arrive, so an abandoned edit is discarded.
-  useEffect(() => {
-    if (data) {
-      setSlots(data.slots.map((slot: any) => ({ ...slot })));
-      setBenchSize(data.benchSize);
-    }
-  }, [data]);
-
-  const canEdit = !!data?.canEdit;
-  const starterTotal = useMemo(
-    () => slots.reduce((sum, slot) => sum + slot.starterCount, 0),
-    [slots],
-  );
-  const totalRosterSize = starterTotal + benchSize;
-
-  const isDirty = useMemo(() => {
-    if (!data) return false;
-    if (benchSize !== data.benchSize) return true;
-    return slots.some((slot, idx) => {
-      const original = data.slots[idx];
-      return (
-        !original ||
-        slot.starterCount !== original.starterCount ||
-        slot.minimum !== original.minimum ||
-        slot.maximum !== original.maximum
-      );
-    });
-  }, [slots, benchSize, data]);
-
-  const updateSlot = (positionId: string, field: string, next: number) => {
-    setSlots(prev =>
-      prev.map(slot => {
-        if (slot.positionId !== positionId) return slot;
-        const updated = { ...slot, [field]: next };
-        // Keep each slot internally consistent: minimum <= starters <= maximum.
-        if (field === 'maximum') {
-          updated.starterCount = Math.min(updated.starterCount, next);
-          updated.minimum = Math.min(updated.minimum, next);
-        } else {
-          updated.maximum = Math.max(updated.maximum, next);
-        }
-        return updated;
-      }),
-    );
-  };
-
-  const handleSave = async () => {
-    try {
-      await updateRosterSettings({
-        leagueId,
-        benchSize,
-        slots: slots.map(slot => ({
-          positionId: slot.positionId,
-          minimum: slot.minimum,
-          maximum: slot.maximum,
-          starterCount: slot.starterCount,
-        })),
-      }).unwrap();
-
-      showToast.success(
-        'Roster settings saved',
-        `Fantasy rosters now carry ${totalRosterSize} cheer teams.`,
-      );
-      onClose();
-    } catch (err: any) {
-      const msg =
-        err?.data?.message || err?.message || 'Failed to save roster settings.';
-      showToast.error('Save Failed', msg);
-    }
-  };
-
-  return (
-    <Modal
-      visible={isVisible}
-      transparent={true}
-      animationType="slide"
-      onRequestClose={onClose}
-    >
-      <View className="flex-1 bg-black pt-12 px-5">
-        <View className="flex-row items-center mb-6">
-          <TouchableOpacity
-            onPress={onClose}
-            className="w-10 h-10 border border-[#333] rounded-xl justify-center items-center mr-4"
-          >
-            <ChevronLeft color="#fff" size={24} />
-          </TouchableOpacity>
-          <View className="flex-1">
-            <Text className="text-white text-[20px] font-medium">
-              Roster settings
-            </Text>
-            {!!data && (
-              <Text className="text-gray-400 text-[12px]">
-                {`${starterTotal} starters + ${benchSize} bench = ${totalRosterSize} per team`}
-              </Text>
-            )}
-          </View>
-        </View>
-
-        {isLoading ? (
-          <View className="flex-1 items-center justify-center">
-            <ActivityIndicator size="large" color="#8B3DFF" />
-            <Text className="text-gray-400 text-[13px] mt-3">
-              Loading roster settings...
-            </Text>
-          </View>
-        ) : isError || !data ? (
-          <View className="flex-1 items-center justify-center px-6">
-            <Text className="text-white text-[15px] font-semibold mb-2">
-              Settings unavailable
-            </Text>
-            <Text className="text-gray-400 text-[12px] text-center mb-4">
-              {(error as any)?.data?.message ||
-                'Roster settings could not be loaded.'}
-            </Text>
-            <TouchableOpacity
-              className="bg-[#8B3DFF] px-5 py-2.5 rounded-full"
-              onPress={() => refetch()}
-            >
-              <Text className="text-white text-[13px] font-medium">Retry</Text>
-            </TouchableOpacity>
-          </View>
-        ) : (
-          <>
-            {!canEdit && (
-              <View className="bg-[#1a1a1a] border border-[#333] rounded-2xl px-4 py-3 mb-4">
-                <Text className="text-gray-400 text-[12px]">
-                  {data.lockedReason ||
-                    'Only the league commissioner can change roster settings.'}
-                </Text>
-              </View>
-            )}
-
-            <ScrollView showsVerticalScrollIndicator={false} className="flex-1">
-              <View className="flex-row px-1 mb-2">
-                <Text className="text-gray-500 text-[10px] uppercase font-bold w-[104px]">
-                  Starters
-                </Text>
-                <Text className="text-gray-500 text-[10px] uppercase font-bold ml-4 flex-1">
-                  Division
-                </Text>
-                <Text className="text-gray-500 text-[10px] uppercase font-bold">
-                  Max
-                </Text>
-              </View>
-
-              {slots.map((slot, idx) => (
-                <View
-                  key={`${slot.positionId}-${idx}`}
-                  className="flex-row items-center mb-4"
-                >
-                  <Stepper
-                    value={slot.starterCount}
-                    min={0}
-                    max={slot.maximum}
-                    disabled={!canEdit}
-                    onChange={next =>
-                      updateSlot(slot.positionId, 'starterCount', next)
-                    }
-                  />
-                  <View className="flex-1 mx-4">
-                    <Text className="text-white text-[13px]" numberOfLines={1}>
-                      {slot.name || slot.code || 'Division'}
-                    </Text>
-                    <Text className="text-gray-500 text-[11px]">
-                      {`${slot.code ? `${slot.code} • ` : ''}min ${
-                        slot.minimum
-                      }`}
-                    </Text>
-                  </View>
-                  <Stepper
-                    value={slot.maximum}
-                    min={Math.max(slot.starterCount, slot.minimum)}
-                    disabled={!canEdit}
-                    onChange={next =>
-                      updateSlot(slot.positionId, 'maximum', next)
-                    }
-                  />
-                </View>
-              ))}
-
-              <View className="flex-row items-center mb-4 pt-4 border-t border-[#222]">
-                <Stepper
-                  value={benchSize}
-                  min={0}
-                  disabled={!canEdit}
-                  onChange={setBenchSize}
-                />
-                <View className="flex-1 ml-4">
-                  <Text className="text-white text-[13px]">Bench</Text>
-                  <Text className="text-gray-500 text-[11px]">
-                    Reserves beyond the starting lineup
-                  </Text>
-                </View>
-              </View>
-            </ScrollView>
-
-            {canEdit && (
-              <View className="py-8 bg-black">
-                <TouchableOpacity
-                  className={`rounded-full h-[56px] justify-center items-center ${
-                    isDirty && !isSaving ? 'bg-[#8B3DFF]' : 'bg-[#3a2a5c]'
-                  }`}
-                  disabled={!isDirty || isSaving}
-                  onPress={handleSave}
-                  activeOpacity={0.8}
-                >
-                  {isSaving ? (
-                    <ActivityIndicator size="small" color="#fff" />
-                  ) : (
-                    <Text className="text-white text-[16px] font-medium">
-                      {isDirty ? 'Save changes' : 'No changes to save'}
-                    </Text>
-                  )}
-                </TouchableOpacity>
-              </View>
-            )}
-          </>
-        )}
-      </View>
-    </Modal>
-  );
-};
-
 const METRIC_LABELS: Record<string, string> = {
-  PASS_YARDS: 'Passing yards',
-  PASS_TD: 'Passing touchdown',
-  RUSH_YARDS: 'Rushing yards',
-  RUSH_TD: 'Rushing touchdown',
-  RECEPTION: 'Reception',
-  REC_YARDS: 'Receiving yards',
-  REC_TD: 'Receiving touchdown',
-  INT: 'Interception thrown',
-  FUMBLE_LOST: 'Fumble lost',
+  CHEER_OFFICIAL_SCORE: 'Official score',
+  CHEER_DIVISION_WIN: 'Division win',
+  CHEER_LAST_PLACE: 'Last place',
+  CHEER_HIT_ZERO: 'Hit zero',
+  CHEER_GRAND_CHAMPION: 'Grand champion',
 };
 
-/** PASS_YARDS -> Pass yards, for codes we have no friendly label for. */
+/** CHEER_OFFICIAL_SCORE -> Cheer official score for unknown codes. */
 const humanise = (code: string) =>
   METRIC_LABELS[code] ||
   code
@@ -1173,141 +961,7 @@ const formatRuleValue = (rule: any) => {
   return '—';
 };
 
-const pointsLabel = (points: number) => `${points > 0 ? '+' : ''}${points} pts`;
-
-const otherTeamsLabel = (
-  minimumOtherTeams: number,
-  maximumOtherTeams: number | null,
-) =>
-  maximumOtherTeams === null
-    ? `${minimumOtherTeams}+ other teams`
-    : `${minimumOtherTeams}–${maximumOtherTeams} other teams`;
-
-export const ScoringSettingsSubModal = ({ isVisible, onClose }: any) => {
-  return (
-    <Modal
-      visible={isVisible}
-      transparent
-      animationType="slide"
-      onRequestClose={onClose}
-    >
-      <View className="flex-1 bg-black pt-12 px-5">
-        <View className="flex-row items-center mb-6">
-          <TouchableOpacity
-            onPress={onClose}
-            className="w-10 h-10 border border-[#333] rounded-xl justify-center items-center mr-4"
-          >
-            <ChevronLeft color="#fff" size={24} />
-          </TouchableOpacity>
-          <View className="flex-1">
-            <Text className="text-white text-[20px] font-medium">
-              Scoring rules
-            </Text>
-            <Text className="text-gray-400 text-[12px]">
-              One standard system for every drafted team
-            </Text>
-          </View>
-        </View>
-        <ScrollView className="flex-1" showsVerticalScrollIndicator={false}>
-          <Text className="text-[#E0B566] text-[12px] font-bold uppercase mb-2">
-            Official score
-          </Text>
-          <View className="bg-[#111] border border-[#222] rounded-2xl px-4 mb-6">
-            {SCORE_BANDS.map((band, index) => (
-              <View
-                key={`${band.minimum}-${band.maximum}`}
-                className={`flex-row items-center justify-between py-3 ${
-                  index < SCORE_BANDS.length - 1 ? 'border-b border-[#222]' : ''
-                }`}
-              >
-                <Text className="text-white text-[14px]">
-                  {band.minimum === 0
-                    ? 'Below 87.5'
-                    : band.maximum === 100
-                    ? '98.5–100'
-                    : `${band.minimum}–under ${band.maximum}`}
-                </Text>
-                <Text
-                  className={`text-[14px] font-bold ${
-                    band.points < 0 ? 'text-red-400' : 'text-emerald-400'
-                  }`}
-                >
-                  {pointsLabel(band.points)}
-                </Text>
-              </View>
-            ))}
-          </View>
-
-          <Text className="text-[#E0B566] text-[12px] font-bold uppercase mb-2">
-            Bonuses
-          </Text>
-          <View className="bg-[#111] border border-[#222] rounded-2xl px-4 mb-6">
-            {DIVISION_WIN_BONUSES.map(rule => (
-              <View
-                key={`win-${rule.minimumOtherTeams}`}
-                className="flex-row items-center justify-between border-b border-[#222] py-3"
-              >
-                <Text className="text-white text-[14px] flex-1 mr-4">
-                  Win division ·{' '}
-                  {otherTeamsLabel(
-                    rule.minimumOtherTeams,
-                    rule.maximumOtherTeams,
-                  )}
-                </Text>
-                <Text className="text-emerald-400 text-[14px] font-bold">
-                  {pointsLabel(rule.points)}
-                </Text>
-              </View>
-            ))}
-            <View className="flex-row items-center justify-between border-b border-[#222] py-3">
-              <Text className="text-white text-[14px]">
-                Hit zero deductions
-              </Text>
-              <Text className="text-emerald-400 text-[14px] font-bold">
-                {pointsLabel(HIT_ZERO_BONUS)}
-              </Text>
-            </View>
-            <View className="flex-row items-center justify-between py-3">
-              <Text className="text-white text-[14px]">Grand champion</Text>
-              <Text className="text-emerald-400 text-[14px] font-bold">
-                {pointsLabel(GRAND_CHAMPION_BONUS)}
-              </Text>
-            </View>
-          </View>
-
-          <Text className="text-red-400 text-[12px] font-bold uppercase mb-2">
-            Deductions
-          </Text>
-          <View className="bg-[#111] border border-[#222] rounded-2xl px-4 mb-8">
-            {LAST_PLACE_PENALTIES.map((rule, index) => (
-              <View
-                key={`last-${rule.minimumOtherTeams}`}
-                className={`flex-row items-center justify-between py-3 ${
-                  index < LAST_PLACE_PENALTIES.length - 1
-                    ? 'border-b border-[#222]'
-                    : ''
-                }`}
-              >
-                <Text className="text-white text-[14px] flex-1 mr-4">
-                  Finish last ·{' '}
-                  {otherTeamsLabel(
-                    rule.minimumOtherTeams,
-                    rule.maximumOtherTeams,
-                  )}
-                </Text>
-                <Text className="text-red-400 text-[14px] font-bold">
-                  {pointsLabel(rule.points)}
-                </Text>
-              </View>
-            ))}
-          </View>
-        </ScrollView>
-      </View>
-    </Modal>
-  );
-};
-
-const LegacyScoringSettingsSubModal = ({
+export const ScoringSettingsSubModal = ({
   isVisible,
   onClose,
   leagueId,
@@ -1841,6 +1495,36 @@ export const PlayerDetailModal = ({
     (typeof organization === 'object' ? organization.logoUrl : undefined);
   const [addFreeAgent, { isLoading: isAddingTeam }] =
     useAddFantasyCheerFreeAgentMutation();
+  const { data: rosterSettings } = useGetRosterSettingsQuery(leagueId, {
+    skip: !isVisible || !leagueId,
+  });
+  const [assignedDivisionId, setAssignedDivisionId] = useState<string | null>(null);
+  const divisionOptions = useMemo(() => {
+    const allowed = new Set(
+      (rosterSettings?.divisionRules || []).map(rule => rule.divisionCode.toUpperCase()),
+    );
+    return (selectedPlayer?.eligibleDivisionIds || [])
+      .map((division: any) => {
+        const fallback = CHEER_DIVISIONS.find(
+          option => option.id === division || option.code === division,
+        );
+        return {
+          id: String(typeof division === 'object' ? division._id || division.id : division),
+          code: String(
+            (typeof division === 'object' ? division.code : fallback?.code) || '',
+          ).toUpperCase(),
+          name:
+            (typeof division === 'object'
+              ? division.name || division.code
+              : fallback?.name) || 'Cheer division',
+        };
+      })
+      .filter((division: any) => division.id && allowed.has(division.code));
+  }, [rosterSettings?.divisionRules, selectedPlayer]);
+
+  useEffect(() => {
+    setAssignedDivisionId(null);
+  }, [seasonCheerTeamId, isVisible]);
 
   const handleAddTeam = async () => {
     if (!leagueId || !userTeamId) {
@@ -1854,11 +1538,16 @@ export const PlayerDetailModal = ({
       showToast.error('Invalid Selection', 'Invalid cheer team selected.');
       return;
     }
+    if (!assignedDivisionId) {
+      showToast.error('Division Required', 'Choose a valid roster division first.');
+      return;
+    }
     try {
       await addFreeAgent({
         leagueId,
         fantasyTeamId: userTeamId,
         seasonCheerTeamId: String(seasonCheerTeamId),
+        assignedDivisionId,
       }).unwrap();
       showToast.success(
         'Cheer Team Added',
@@ -1890,7 +1579,7 @@ export const PlayerDetailModal = ({
               <TouchableOpacity
                 className="bg-white/20 rounded-full px-4 py-1.5 flex-row items-center border border-white/30"
                 onPress={handleAddTeam}
-                disabled={isAddingTeam}
+                disabled={isAddingTeam || !assignedDivisionId}
                 activeOpacity={0.8}
               >
                 {isAddingTeam ? (
@@ -1966,6 +1655,32 @@ export const PlayerDetailModal = ({
             </View>
           </View>
           <View className="p-5">
+            <Text className="text-white text-[15px] font-bold mb-2">
+              Assign roster division
+            </Text>
+            {divisionOptions.length ? (
+              <View className="flex-row flex-wrap mb-4">
+                {divisionOptions.map((division: any) => (
+                  <TouchableOpacity
+                    key={division.id}
+                    onPress={() => setAssignedDivisionId(division.id)}
+                    className={`rounded-xl border px-3 py-2 mr-2 mb-2 ${
+                      assignedDivisionId === division.id
+                        ? 'border-[#8B3DFF] bg-[#8B3DFF]/20'
+                        : 'border-[#444] bg-[#252525]'
+                    }`}
+                  >
+                    <Text className="text-white text-[12px] font-semibold">
+                      {division.name}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            ) : (
+              <Text className="text-red-400 text-[12px] mb-4">
+                This team has no eligible division in the League roster template.
+              </Text>
+            )}
             <Text className="text-white text-[15px] font-bold mb-2">
               Fantasy scoring
             </Text>

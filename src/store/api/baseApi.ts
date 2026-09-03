@@ -8,6 +8,7 @@ import { Mutex } from 'async-mutex';
 import { API_URL } from '../../config';
 import { authStorage } from '../../services/authStorage';
 import { logout, setCredentials } from '../slices/authSlice';
+import { reconnectSocketWithCurrentToken } from '../../services/socketService';
 
 const mutex = new Mutex();
 
@@ -65,6 +66,11 @@ const baseQueryWithReauth: BaseQueryFn<
               const user = (await authStorage.getUser()) || {};
               api.dispatch(setCredentials({ user, token: newAccessToken }));
 
+              // Realtime runs on its own handshake: reconnect it with the
+              // fresh token instead of leaving the socket stuck on a rejected
+              // (expired) one.
+              reconnectSocketWithCurrentToken();
+
               // Retry original failed request with new access token
               result = await rawBaseQuery(args, api, extraOptions);
             }
@@ -98,6 +104,7 @@ export const baseApi = createApi({
     'Auth',
     'User',
     'League',
+    'LeagueChat',
     'Team',
     'Game',
     'Player',

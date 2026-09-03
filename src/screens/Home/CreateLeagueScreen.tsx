@@ -56,6 +56,8 @@ interface DraftPickerModalProps {
   onChange: (value: Date) => void;
   onCancel: () => void;
   onConfirm: () => void;
+  minimumDate?: Date;
+  maximumDate?: Date;
 }
 
 function DraftPickerModal({
@@ -66,6 +68,8 @@ function DraftPickerModal({
   onChange,
   onCancel,
   onConfirm,
+  minimumDate,
+  maximumDate,
 }: DraftPickerModalProps) {
   return (
     <Modal
@@ -92,6 +96,8 @@ function DraftPickerModal({
             theme="dark"
             dividerColor="#B366FF"
             onDateChange={onChange}
+            minimumDate={minimumDate}
+            maximumDate={maximumDate}
           />
           <View className="mt-3 w-full flex-row border-t border-[#242424] pt-4">
             <TouchableOpacity
@@ -118,8 +124,38 @@ function DraftPickerModal({
 export default function CreateLeagueScreen() {
   const navigation = useNavigation<NavigationProp>();
 
-  const { data: activeSeasons, isLoading: isLoadingSeasons } =
-    useGetActiveSeasonsQuery();
+  const {
+    data: activeSeasons,
+    isLoading: isLoadingSeasons,
+    isFetching: isFetchingSeasons,
+    isError: isSeasonsError,
+    error: seasonsError,
+    refetch: refetchSeasons,
+  } = useGetActiveSeasonsQuery(undefined, {
+    // Without this, reopening the screen inside the cache window re-renders
+    // the previous result without hitting the network at all - so a season
+    // opened server-side never shows up until the cache expires.
+    refetchOnMountOrArgChange: true,
+  });
+
+  // A failed request is not an empty season list. Kept separate so the
+  // screen can say which one happened instead of blaming the calendar.
+  const seasonsErrorMessage = (() => {
+    const failure = seasonsError as any;
+    if (!failure) return null;
+    if (typeof failure.status === 'number') {
+      return failure.data?.message
+        ? `Server returned ${failure.status}: ${failure.data.message}`
+        : `Server returned ${failure.status}.`;
+    }
+    if (failure.status === 'FETCH_ERROR') {
+      return 'Could not reach the server. Check your connection.';
+    }
+    if (failure.status === 'PARSING_ERROR') {
+      return `Unexpected response from the server (${failure.originalStatus}).`;
+    }
+    return failure.error || failure.message || 'Unknown error.';
+  })();
   const [createLeague, { isLoading: isCreating }] = useCreateLeagueMutation();
   const [getPreSignedUrl] = useLazyGetPreSignedUrlQuery();
 
@@ -184,10 +220,14 @@ export default function CreateLeagueScreen() {
     }
   };
 
-  // Log activeSeasons whenever the API responds
+  // Log whatever the seasons endpoint produced, success or failure.
   useEffect(() => {
+    if (seasonsError) {
+      console.log('Active seasons request failed:', seasonsError);
+      return;
+    }
     console.log('Active Seasons loaded from API:', activeSeasons);
-  }, [activeSeasons]);
+  }, [activeSeasons, seasonsError]);
 
   // Basic Info
   const [leagueName, setLeagueName] = useState('');
@@ -276,6 +316,74 @@ export default function CreateLeagueScreen() {
     activeSeasonObj?.registrationEndsAt,
   );
 
+  const humanizeStatus = (value?: string) =>
+    String(value || '')
+      .replace(/_/g, ' ')
+      .replace(/\b\w/g, letter => letter.toUpperCase());
+
+  const parseDate = (value?: string) => {
+    if (!value) return null;
+    const date = new Date(value);
+    return Number.isNaN(date.getTime()) ? null : date;
+  };
+
+  const formatRange = (from?: string, to?: string) => {
+    const start = formatDeadline(from);
+    const end = formatDeadline(to);
+    if (start && end) return `${start} – ${end}`;
+    return start || end || null;
+  };
+
+  // The server rejects drafts scheduled outside the season it belongs to, so
+  // mirror the season's own window here instead of failing after submit.
+  const seasonWindow = useMemo(
+    () => ({
+      registrationStartsAt: parseDate(activeSeasonObj?.registrationStartsAt),
+      registrationEndsAt: parseDate(activeSeasonObj?.registrationEndsAt),
+      startsAt: parseDate(activeSeasonObj?.startsAt),
+      endsAt: parseDate(activeSeasonObj?.endsAt),
+    }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [activeSeasonObj],
+  );
+
+  const validateDraftStart = (value: Date): string | null => {
+    if (value.getTime() <= Date.now()) {
+      return 'Draft start time must be in the future.';
+    }
+    if (
+      seasonWindow.registrationStartsAt &&
+      value < seasonWindow.registrationStartsAt
+    ) {
+      return `Draft cannot start before season registration opens on ${formatDeadline(
+        activeSeasonObj?.registrationStartsAt,
+      )}.`;
+    }
+    if (seasonWindow.startsAt && value > seasonWindow.startsAt) {
+      return `Draft must start no later than the season start on ${formatDeadline(
+        activeSeasonObj?.startsAt,
+      )}.`;
+    }
+    return null;
+  };
+
+  const scheduledDraftStart = useMemo(() => {
+    if (!draftDate || !draftTime) return null;
+    const combined = new Date(draftDate);
+    combined.setHours(draftTime.getHours(), draftTime.getMinutes(), 0, 0);
+    return combined;
+  }, [draftDate, draftTime]);
+
+  const draftScheduleError = scheduledDraftStart
+    ? validateDraftStart(scheduledDraftStart)
+    : null;
+
+  const draftPickerMinimum = useMemo(() => {
+    const now = new Date();
+    const registrationOpens = seasonWindow.registrationStartsAt;
+    return registrationOpens && registrationOpens > now ? registrationOpens : now;
+  }, [seasonWindow]);
+
   const handleCreateLeague = async () => {
     if (!leagueName.trim() || !fantasyTeamName.trim()) {
       showToast.error(
@@ -291,29 +399,29 @@ export default function CreateLeagueScreen() {
     }
 
     const durationMins = parseInt(draftDurationMinutes, 10);
-    if (isNaN(durationMins) || durationMins < 5) {
+    if (draftType === 'snake' && (isNaN(durationMins) || durationMins < 1 || durationMins > 10)) {
       showToast.error(
         'Validation Error',
-        'Draft duration must be at least 5 minutes.',
+        'Snake pick duration must be between 1 and 10 minutes.',
       );
       return;
     }
 
-    const pickDurationSeconds = durationMins * 60;
+    const pickDurationSeconds = draftType === 'snake' ? durationMins * 60 : 0;
 
     const seasonId =
       selectedSeasonId || seasonsList[0]._id || seasonsList[0].id;
     let draftStartsAt: string | undefined;
 
+    // Both the picked and the defaulted start are checked against the season
+    // window — the default is just as capable of falling outside it.
     if (draftDate && draftTime) {
       const combined = new Date(draftDate);
       combined.setHours(draftTime.getHours(), draftTime.getMinutes(), 0, 0);
 
-      if (combined.getTime() <= Date.now()) {
-        showToast.error(
-          'Validation Error',
-          'Draft start time must be in the future.',
-        );
+      const scheduleError = validateDraftStart(combined);
+      if (scheduleError) {
+        showToast.error('Validation Error', scheduleError);
         return;
       }
 
@@ -321,6 +429,14 @@ export default function CreateLeagueScreen() {
     } else {
       // Default to 15 minutes from now if not explicitly scheduled
       const defaultStart = new Date(Date.now() + 15 * 60 * 1000);
+      const scheduleError = validateDraftStart(defaultStart);
+      if (scheduleError) {
+        showToast.error(
+          'Pick a draft time',
+          `${scheduleError} Choose a draft date and time inside the season window.`,
+        );
+        return;
+      }
       draftStartsAt = defaultStart.toISOString();
     }
 
@@ -333,7 +449,7 @@ export default function CreateLeagueScreen() {
         }
       }
 
-      const createdRes: any = await createLeague({
+      const createdRes = await createLeague({
         seasonId,
         name: leagueName,
         description,
@@ -364,9 +480,8 @@ export default function CreateLeagueScreen() {
         showToast.success('Success', 'League created successfully!');
       }
       navigation.goBack();
-    } catch (error: any) {
-      console.log(error);
-      showToast.error(
+      } catch (error: any) {
+        showToast.error(
         'Error',
         error?.data?.message || 'Failed to create league',
       );
@@ -398,6 +513,36 @@ export default function CreateLeagueScreen() {
             <ActivityIndicator size="large" color="#B366FF" />
             <Text className="text-[#999] mt-4">Loading active seasons...</Text>
           </View>
+        ) : isSeasonsError ? (
+          // A request that failed must not masquerade as "no seasons exist".
+          <View className="flex-1 justify-center items-center px-8">
+            <View className="w-16 h-16 rounded-full border border-[#5a2a2a] bg-[#241010] justify-center items-center mb-4">
+              <Calendar color="#FF6B6B" size={26} />
+            </View>
+            <Text className="text-white text-base font-bold mb-2 text-center">
+              Could not load seasons
+            </Text>
+            <Text className="text-[#999] text-xs text-center mb-6">
+              {seasonsErrorMessage}
+            </Text>
+            <TouchableOpacity
+              className="bg-[#8B3DFF] px-6 py-2.5 rounded-full mb-3"
+              onPress={() => refetchSeasons()}
+              activeOpacity={0.8}
+              disabled={isFetchingSeasons}
+            >
+              <Text className="text-white text-sm font-semibold">
+                {isFetchingSeasons ? 'Retrying…' : 'Try again'}
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              className="border border-[#333] px-5 py-2.5 rounded-full"
+              onPress={() => navigation.goBack()}
+              activeOpacity={0.8}
+            >
+              <Text className="text-[#999] text-sm font-medium">Go back</Text>
+            </TouchableOpacity>
+          </View>
         ) : !hasSeason ? (
           // Nothing to create a league against, so say so instead of letting the
           // whole form be filled in and rejected on submit.
@@ -409,17 +554,26 @@ export default function CreateLeagueScreen() {
               No season is open for registration
             </Text>
             <Text className="text-[#999] text-xs text-center mb-6">
-              Leagues can only be created while a season is accepting
-              registrations. Check back once the next season opens.
+              The server returned no season currently accepting registrations.
+              A season must be past its registration-open date and not yet
+              closed before a league can be created against it.
             </Text>
             <TouchableOpacity
-              className="border border-[#B366FF] px-5 py-2.5 rounded-full"
+              className="bg-[#8B3DFF] px-6 py-2.5 rounded-full mb-3"
+              onPress={() => refetchSeasons()}
+              activeOpacity={0.8}
+              disabled={isFetchingSeasons}
+            >
+              <Text className="text-white text-sm font-semibold">
+                {isFetchingSeasons ? 'Checking…' : 'Check again'}
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              className="border border-[#333] px-5 py-2.5 rounded-full"
               onPress={() => navigation.goBack()}
               activeOpacity={0.8}
             >
-              <Text className="text-[#B366FF] text-sm font-medium">
-                Go back
-              </Text>
+              <Text className="text-[#999] text-sm font-medium">Go back</Text>
             </TouchableOpacity>
           </View>
         ) : (
@@ -435,8 +589,7 @@ export default function CreateLeagueScreen() {
             {activeSeasonObj && (
               <TouchableOpacity
                 className="border border-[#B366FF]/40 rounded-2xl bg-[#120824] p-4 mb-6 flex-row items-center justify-between"
-                activeOpacity={canPickSeason ? 0.7 : 1}
-                disabled={!canPickSeason}
+                activeOpacity={0.7}
                 onPress={() => setIsSeasonModalVisible(true)}
               >
                 <View className="flex-1">
@@ -451,21 +604,31 @@ export default function CreateLeagueScreen() {
                       ? `Registration closes ${registrationDeadline}`
                       : 'Open for registration'}
                   </Text>
-                  {canPickSeason && (
-                    <Text className="text-[#B366FF] text-[11px] mt-1">
-                      {`Tap to choose from ${seasonsList.length} seasons`}
+                  {!!formatRange(
+                    activeSeasonObj.startsAt,
+                    activeSeasonObj.endsAt,
+                  ) && (
+                    <Text className="text-[#777] text-[11px] mt-0.5">
+                      {`Season ${formatRange(
+                        activeSeasonObj.startsAt,
+                        activeSeasonObj.endsAt,
+                      )}`}
                     </Text>
                   )}
+                  <Text className="text-[#B366FF] text-[11px] mt-1">
+                    {canPickSeason
+                      ? `Tap to choose from ${seasonsList.length} seasons`
+                      : 'Tap to review this season'}
+                  </Text>
                 </View>
-                {canPickSeason ? (
-                  <ChevronDown color="#B366FF" size={20} />
-                ) : (
-                  <View className="bg-[#B366FF]/20 px-3 py-1.5 rounded-full border border-[#B366FF]/30">
+                <View className="items-end">
+                  <View className="bg-[#B366FF]/20 px-3 py-1.5 rounded-full border border-[#B366FF]/30 mb-1.5">
                     <Text className="text-[#B366FF] text-xs font-semibold">
-                      Open
+                      {humanizeStatus(activeSeasonObj.status) || 'Open'}
                     </Text>
                   </View>
-                )}
+                  <ChevronDown color="#B366FF" size={20} />
+                </View>
               </TouchableOpacity>
             )}
 
@@ -671,6 +834,8 @@ export default function CreateLeagueScreen() {
               <ChevronDown color="#999" size={20} />
             </TouchableOpacity>
 
+            {draftType === 'auction' && (
+              <>
             <View className="flex-row justify-between mb-4">
               <View className="flex-1 mr-2">
                 <Text className="text-[#ccc] text-sm mb-2 ml-1">
@@ -727,10 +892,13 @@ export default function CreateLeagueScreen() {
                 />
               </View>
             </View>
+              </>
+            )}
 
+            {draftType === 'snake' && (
             <View className="mb-8">
               <Text className="text-[#ccc] text-sm mb-2 ml-1">
-                Draft Duration (minutes - min 5 mins)
+                Pick Duration (minutes, 1-10)
               </Text>
               <TextInput
                 className="border border-[#B366FF] rounded-2xl bg-[#0a0a0a] h-[50px] px-4 text-white text-base"
@@ -741,12 +909,20 @@ export default function CreateLeagueScreen() {
                 placeholderTextColor="#666"
               />
             </View>
+            )}
 
-            <Text className="text-white font-bold text-lg mb-4">
+            <Text className="text-white font-bold text-lg mb-1">
               Schedule Draft
             </Text>
+            <Text className="text-[#777] text-xs mb-4">
+              {seasonWindow.startsAt
+                ? `Must fall between now and the season start on ${formatDeadline(
+                    activeSeasonObj?.startsAt,
+                  )}.`
+                : 'Must be in the future.'}
+            </Text>
 
-            <View className="flex-row justify-between mb-6">
+            <View className="flex-row justify-between mb-3">
               <TouchableOpacity
                 className="flex-1 flex-row items-center border border-[#B366FF] rounded-2xl bg-[#0a0a0a] h-[60px] px-4 mr-2"
                 activeOpacity={0.8}
@@ -783,6 +959,13 @@ export default function CreateLeagueScreen() {
                 </Text>
               </TouchableOpacity>
             </View>
+
+            {!!draftScheduleError && (
+              <Text className="text-[#FF6B6B] text-xs mb-6">
+                {draftScheduleError}
+              </Text>
+            )}
+            {!draftScheduleError && <View className="mb-6" />}
           </ScrollView>
         )}
 
@@ -830,7 +1013,11 @@ export default function CreateLeagueScreen() {
                 renderItem={({ item }) => {
                   const id = String(item._id || item.id);
                   const isSelected = id === selectedSeasonId;
-                  const closes = formatDeadline(item.registrationEndsAt);
+                  const registration = formatRange(
+                    item.registrationStartsAt,
+                    item.registrationEndsAt,
+                  );
+                  const season = formatRange(item.startsAt, item.endsAt);
                   return (
                     <TouchableOpacity
                       className="py-3 border-b border-[#333]"
@@ -848,8 +1035,16 @@ export default function CreateLeagueScreen() {
                       >
                         {item.name}
                       </Text>
-                      {!!closes && (
-                        <Text className="text-[#777] text-xs mt-0.5">{`Registration closes ${closes}`}</Text>
+                      {!!item.status && (
+                        <Text className="text-[#B366FF] text-[11px] mt-0.5">
+                          {humanizeStatus(item.status)}
+                        </Text>
+                      )}
+                      {!!registration && (
+                        <Text className="text-[#777] text-xs mt-0.5">{`Registration ${registration}`}</Text>
+                      )}
+                      {!!season && (
+                        <Text className="text-[#777] text-xs mt-0.5">{`Season ${season}`}</Text>
                       )}
                     </TouchableOpacity>
                   );
@@ -957,6 +1152,8 @@ export default function CreateLeagueScreen() {
           mode="date"
           value={pendingDraftDate}
           onChange={setPendingDraftDate}
+          minimumDate={draftPickerMinimum}
+          maximumDate={seasonWindow.endsAt ?? undefined}
           onConfirm={() => {
             setOpenDatePicker(false);
             setDraftDate(pendingDraftDate);

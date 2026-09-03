@@ -12,7 +12,6 @@ import {
   KeyboardAvoidingView,
   Platform,
   Animated,
-  PermissionsAndroid,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import {
@@ -28,6 +27,7 @@ import {
   CheckCircle2,
   Users,
   Camera,
+  Plus,
 } from 'lucide-react-native';
 import { launchImageLibrary, launchCamera } from 'react-native-image-picker';
 import { useNavigation } from '@react-navigation/native';
@@ -212,7 +212,7 @@ export default function FantasyLeagueScreen() {
       return () => {
         socket.off('teamJoined', handleGlobalTeamJoined);
       };
-    } catch (e) {
+    } catch {
       // ignore
     }
   }, [refetch]);
@@ -224,7 +224,7 @@ export default function FantasyLeagueScreen() {
     setPage(1);
     try {
       await refetch();
-    } catch (e) {
+    } catch {
       // ignore
     } finally {
       setRefreshing(false);
@@ -319,7 +319,7 @@ export default function FantasyLeagueScreen() {
       }
 
       showToast.info('Image Selected', 'Enter or confirm the 6-digit code from the QR.');
-    } catch (e) {
+    } catch {
       showToast.error('Gallery Error', 'Could not access photo library');
     }
   };
@@ -671,7 +671,7 @@ export default function FantasyLeagueScreen() {
               </View>
             ) : null
           }
-          contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 40 }}
+          contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 100 }}
         />
       )}
 
@@ -1005,6 +1005,17 @@ export default function FantasyLeagueScreen() {
           </View>
         </KeyboardAvoidingView>
       </Modal>
+
+      {/* Floating Action Button (Create League - Reference Image) */}
+      <TouchableOpacity
+        onPress={() => navigation.navigate('CreateLeague')}
+        activeOpacity={0.8}
+        className="absolute bottom-6 right-5 w-14 h-14 bg-[#121212] border border-[#2e2e2e] rounded-2xl items-center justify-center shadow-2xl elevation-8"
+        accessibilityLabel="Create League"
+        accessibilityRole="button"
+      >
+        <Plus color="#ffffff" size={26} strokeWidth={2.2} />
+      </TouchableOpacity>
     </SafeAreaView>
   );
 }

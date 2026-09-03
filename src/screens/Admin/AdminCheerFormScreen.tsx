@@ -72,6 +72,13 @@ const titles: Record<AdminCheerStep, { title: string; subtitle: string }> = {
 };
 
 const getId = (value: any) => String(value?._id ?? value?.id ?? value ?? '');
+/** Coerces any API list-ish payload to an array the renderers can trust. */
+const asList = (value: any): any[] => {
+  if (Array.isArray(value)) return value;
+  if (Array.isArray(value?.items)) return value.items;
+  if (Array.isArray(value?.data)) return value.data;
+  return [];
+};
 const labelFor = (value: any) =>
   value?.name ?? value?.teamName ?? value?.code ?? 'Unnamed';
 const dateOnly = (date: Date) => date.toISOString().slice(0, 10);
@@ -122,12 +129,13 @@ function ChoiceList({
   onSelect,
   emptyText = 'Nothing available yet.',
 }: any) {
+  const safeItems = asList(items);
   return (
     <View className="mb-4">
       <Text className="text-gray-400 text-xs mb-2">{label}</Text>
-      {items.length ? (
+      {safeItems.length ? (
         <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-          {items.map((item: any) => {
+          {safeItems.map((item: any) => {
             const id = getId(item);
             const selected = id === selectedId;
             return (
@@ -166,6 +174,7 @@ export default function AdminCheerFormScreen({ navigation, route }: Props) {
   const [divisionId, setDivisionId] = useState('');
   const [competitionId, setCompetitionId] = useState('');
   const [entryId, setEntryId] = useState('');
+  const [isSeeding, setIsSeeding] = useState(false);
   const [form, setForm] = useState<Record<string, string>>({
     name: '',
     shortName: '',
@@ -200,19 +209,25 @@ export default function AdminCheerFormScreen({ navigation, route }: Props) {
     setForm(current => ({ ...current, [key]: value }));
 
   const { data: dashboard } = useGetAdminCheerDashboardQuery(undefined);
-  const seasons = dashboard?.referenceData?.seasons ?? [];
-  const organizations = dashboard?.referenceData?.organizations ?? [];
-  const { data: divisions = [] } = useGetAdminCheerDivisionsQuery(seasonId, {
+  // Every list below is coerced rather than defaulted: a default only covers
+  // `undefined`, so a null or object body would still reach the renderers and
+  // crash the whole screen on its first `.map`.
+  const seasons = asList(dashboard?.referenceData?.seasons);
+  const organizations = asList(dashboard?.referenceData?.organizations);
+  const { data: rawDivisions } = useGetAdminCheerDivisionsQuery(seasonId, {
     skip: !seasonId,
   });
-  const { data: competitions = [] } = useGetAdminCheerCompetitionsQuery(
+  const divisions = asList(rawDivisions);
+  const { data: rawCompetitions } = useGetAdminCheerCompetitionsQuery(
     seasonId,
     { skip: !seasonId },
   );
-  const { data: entries = [] } = useGetAdminCompetitionEntriesQuery(
+  const competitions = asList(rawCompetitions);
+  const { data: rawEntries } = useGetAdminCompetitionEntriesQuery(
     competitionId,
     { skip: !competitionId },
   );
+  const entries = asList(rawEntries);
 
   useEffect(() => {
     if (!seasonId && seasons.length) setSeasonId(getId(seasons[0]));
@@ -276,7 +291,7 @@ export default function AdminCheerFormScreen({ navigation, route }: Props) {
   }, [selectedSeason, step]);
   useEffect(() => {
     if (!selectedCompetition) return;
-    const offered = selectedCompetition.divisionIds ?? [];
+    const offered = asList(selectedCompetition.divisionIds);
     if (
       offered.length &&
       !offered.some((item: any) => getId(item) === divisionId)
@@ -310,6 +325,99 @@ export default function AdminCheerFormScreen({ navigation, route }: Props) {
     return value.trim();
   };
 
+  // Shared by the single-division form and the bulk seeder below so both send
+  // an identical shape to POST /cheer/divisions.
+  const buildDivisionPayload = ({
+    code,
+    name,
+  }: {
+    code: string;
+    name: string;
+  }) => ({
+    seasonId: requireValue(seasonId, 'Create or select a season first'),
+    code,
+    name,
+    discipline: 'cheer',
+    level: requireValue(form.level, 'Level is required'),
+    ageGroup: requireValue(form.ageGroup, 'Age group is required'),
+    genderCategory: 'open',
+    minimumTeamSize: Number(form.minimumTeamSize),
+    maximumTeamSize: Number(form.maximumTeamSize),
+    governingBody: requireValue(
+      form.governingBody,
+      'Governing body is required',
+    ),
+    maximumScore: Number(form.maximumScore),
+    dropHighLow: true,
+    minimumJudgesToDrop: 3,
+  });
+
+  const existingDivisionCodes = useMemo(
+    () =>
+      new Set(
+        divisions
+          .map((item: any) => String(item?.code ?? '').toUpperCase())
+          .filter(Boolean),
+      ),
+    [divisions],
+  );
+  const missingDivisions = CHEER_DIVISIONS.filter(
+    division => !existingDivisionCodes.has(division.code),
+  );
+
+  // League creation fails with "Season is missing roster-template division(s)"
+  // until every code in CHEER_DIVISIONS exists on the season, so offer a
+  // one-tap seed instead of running this step ten times.
+  const seedAllDivisions = async () => {
+    if (!seasonId) {
+      showToast.error('Select a season', 'Create or select a season first.');
+      return;
+    }
+    if (!missingDivisions.length) {
+      showToast.success(
+        'Nothing to seed',
+        'This season already has all 10 roster-template divisions.',
+      );
+      return;
+    }
+    setIsSeeding(true);
+    const failures: string[] = [];
+    let created = 0;
+    try {
+      for (const division of missingDivisions) {
+        try {
+          await createDivision(
+            buildDivisionPayload({ code: division.code, name: division.name }),
+          ).unwrap();
+          created += 1;
+        } catch (requestError: any) {
+          failures.push(
+            `${division.code}: ${
+              requestError?.data?.message ||
+              requestError?.message ||
+              'request failed'
+            }`,
+          );
+        }
+      }
+    } finally {
+      setIsSeeding(false);
+    }
+    if (failures.length) {
+      showToast.error(
+        `Seeded ${created} of ${missingDivisions.length}`,
+        failures[0],
+      );
+      return;
+    }
+    showToast.success(
+      'Divisions seeded',
+      `Created ${created} division${
+        created === 1 ? '' : 's'
+      }. This season can build a fantasy roster now.`,
+    );
+  };
+
   const submit = async () => {
     try {
       let result: any;
@@ -335,30 +443,18 @@ export default function AdminCheerFormScreen({ navigation, route }: Props) {
         const selectedDivision = CHEER_DIVISIONS.find(
           division => division.code === form.code,
         );
-        result = await createDivision({
-          seasonId: requireValue(seasonId, 'Create or select a season first'),
-          code: requireValue(
-            selectedDivision?.code || form.code,
-            'Division is required',
-          ),
-          name: requireValue(
-            selectedDivision?.name || form.name,
-            'Division is required',
-          ),
-          discipline: 'cheer',
-          level: requireValue(form.level, 'Level is required'),
-          ageGroup: requireValue(form.ageGroup, 'Age group is required'),
-          genderCategory: 'open',
-          minimumTeamSize: Number(form.minimumTeamSize),
-          maximumTeamSize: Number(form.maximumTeamSize),
-          governingBody: requireValue(
-            form.governingBody,
-            'Governing body is required',
-          ),
-          maximumScore: Number(form.maximumScore),
-          dropHighLow: true,
-          minimumJudgesToDrop: 3,
-        }).unwrap();
+        result = await createDivision(
+          buildDivisionPayload({
+            code: requireValue(
+              selectedDivision?.code || form.code,
+              'Division is required',
+            ),
+            name: requireValue(
+              selectedDivision?.name || form.name,
+              'Division is required',
+            ),
+          }),
+        ).unwrap();
       } else if (step === 'competition') {
         result = await createCompetition({
           seasonId: requireValue(seasonId, 'Select a season'),
@@ -531,13 +627,24 @@ export default function AdminCheerFormScreen({ navigation, route }: Props) {
         keyboardShouldPersistTaps="handled"
       >
         {showSeason && (
-          <ChoiceList
-            label="Season"
-            items={seasons}
-            selectedId={seasonId}
-            onSelect={setSeasonId}
-            emptyText="Complete Step 1 first."
-          />
+          <>
+            <ChoiceList
+              label="Season"
+              items={seasons}
+              selectedId={seasonId}
+              onSelect={setSeasonId}
+              emptyText="Complete Step 1 first."
+            />
+            {!!seasonId && (
+              <Text className="text-gray-600 text-xs mb-4">
+                {`id ${seasonId} · status ${
+                  selectedSeason?.status ?? 'unknown'
+                } · ${divisions.length} division${
+                  divisions.length === 1 ? '' : 's'
+                }`}
+              </Text>
+            )}
+          </>
         )}
         {showCompetition && (
           <ChoiceList
@@ -552,8 +659,8 @@ export default function AdminCheerFormScreen({ navigation, route }: Props) {
           <ChoiceList
             label="Division"
             items={
-              step === 'entry' && selectedCompetition?.divisionIds?.length
-                ? selectedCompetition.divisionIds
+              step === 'entry' && asList(selectedCompetition?.divisionIds).length
+                ? asList(selectedCompetition.divisionIds)
                 : divisions
             }
             selectedId={divisionId}
@@ -659,6 +766,37 @@ export default function AdminCheerFormScreen({ navigation, route }: Props) {
               value={form.governingBody}
               onChangeText={set('governingBody')}
             />
+            <TouchableOpacity
+              disabled={isSaving || isSeeding || !seasonId}
+              onPress={seedAllDivisions}
+              className={`rounded-2xl py-4 items-center border mb-2 ${
+                isSaving || isSeeding || !seasonId
+                  ? 'border-white/15'
+                  : 'border-[#E0B566]'
+              }`}
+            >
+              {isSeeding ? (
+                <ActivityIndicator color="#E0B566" />
+              ) : (
+                <Text
+                  className={
+                    isSaving || !seasonId
+                      ? 'text-gray-600 font-semibold'
+                      : 'text-[#E0B566] font-semibold'
+                  }
+                >
+                  {missingDivisions.length
+                    ? `Seed ${missingDivisions.length} missing division${
+                        missingDivisions.length === 1 ? '' : 's'
+                      }`
+                    : 'All 10 divisions present'}
+                </Text>
+              )}
+            </TouchableOpacity>
+            <Text className="text-gray-600 text-xs mb-2">
+              Seeding applies the level, age group and governing body above to
+              every division it creates.
+            </Text>
           </>
         )}
         {step === 'competition' && (
@@ -812,7 +950,7 @@ export default function AdminCheerFormScreen({ navigation, route }: Props) {
         )}
 
         <TouchableOpacity
-          disabled={isSaving}
+          disabled={isSaving || isSeeding}
           onPress={submit}
           className={`rounded-2xl py-4 items-center mt-2 ${
             isSaving ? 'bg-[#6f5a32]' : 'bg-[#E0B566]'

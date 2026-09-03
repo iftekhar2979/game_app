@@ -2,6 +2,8 @@ import UIKit
 import React
 import React_RCTAppDelegate
 import ReactAppDependencyProvider
+import GoogleSignIn
+import FBSDKCoreKit
 
 @main
 class AppDelegate: UIResponder, UIApplicationDelegate {
@@ -29,7 +31,33 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
       launchOptions: launchOptions
     )
 
+    ApplicationDelegate.shared.application(
+      application,
+      didFinishLaunchingWithOptions: launchOptions
+    )
+
     return true
+  }
+
+  /// Routes the callback URL each provider opens when its sign-in sheet closes.
+  /// Google is offered the URL first; anything it does not claim goes to the
+  /// Facebook SDK. Without this the sheet dismisses and the promise never
+  /// settles. Sign in with Apple needs nothing here - it is handled in-process.
+  func application(
+    _ app: UIApplication,
+    open url: URL,
+    options: [UIApplication.OpenURLOptionsKey: Any] = [:]
+  ) -> Bool {
+    if GIDSignIn.sharedInstance.handle(url) {
+      return true
+    }
+
+    return ApplicationDelegate.shared.application(
+      app,
+      open: url,
+      sourceApplication: options[.sourceApplication] as? String,
+      annotation: options[.annotation]
+    )
   }
 }
 
