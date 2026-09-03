@@ -1,8 +1,8 @@
 export const CHEER_DIVISIONS = [
-  { id: 'x-small', code: 'XSMALL', name: 'X Small' },
+  { id: 'x-small', code: 'X_SMALL', name: 'X Small' },
   { id: 'small', code: 'SMALL', name: 'Small' },
   { id: 'medium-large', code: 'MEDIUM_LARGE', name: 'Medium/Large' },
-  { id: 'x-small-coed', code: 'XSMALL_COED', name: 'X Small Coed' },
+  { id: 'x-small-coed', code: 'X_SMALL_COED', name: 'X Small Coed' },
   { id: 'small-coed', code: 'SMALL_COED', name: 'Small Coed' },
   {
     id: 'medium-large-coed',

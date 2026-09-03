@@ -19,6 +19,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import {
   ChevronLeft,
+  MessageCircle,
   MoreVertical,
   UserCheck,
   Plus,
@@ -78,6 +79,12 @@ import {
   leaveLeagueRoom,
 } from '../../services/socketService';
 import { CHEER_DIVISIONS } from '../../utils/cheerScoring';
+import { useGetLeagueChatUnreadQuery } from '../../store/api/leagueChatApi';
+import {
+  incrementUnread,
+  selectLeagueUnreadCount,
+  setUnreadCount,
+} from '../../store/slices/leagueChatSlice';
 
 type NavigationProp = NativeStackNavigationProp<
   RootStackParamList,
@@ -102,35 +109,6 @@ interface TeamMember {
   joinedAt?: string;
 }
 
-const MOCK_TEAM_MEMBERS: TeamMember[] = [
-  { id: 't1', name: 'Team Cheerleading', handle: '@cheerleading' },
-  { id: 't2', name: 'Team Rubel', handle: '@rubel' },
-  { id: 't3', name: 'Team Okafor', handle: '@okafor' },
-  { id: 't4', name: 'Team Walter', handle: '@walter' },
-  { id: 't5', name: 'Team Noah', handle: '@noah' },
-  { id: 't6', name: 'Team Leo', handle: '@leo' },
-];
-
-const MOCK_LEAGUE_STANDINGS = [
-  {
-    id: 'l1',
-    name: 'Team Cheerleading',
-    handle: '@cheerleading',
-    score: '0 - 0',
-  },
-  {
-    id: 'l2',
-    name: 'Team Cheerleading',
-    handle: '@cheerleading',
-    score: '0 - 0',
-  },
-  {
-    id: 'l3',
-    name: 'Team Cheerleading',
-    handle: '@cheerleading',
-    score: '0 - 0',
-  },
-];
 
 export interface ApiLeaguePayload {
   _id: string;
@@ -489,6 +467,20 @@ export default function LeagueDetailScreen() {
     (state: RootState) =>
       (state.auth?.user as any)?._id || (state.auth?.user as any)?.id,
   );
+
+  // Unread league-chat badge. The authoritative count is fetched once when the
+  // screen mounts; from then on it is kept current by realtime socket events -
+  // there is deliberately no polling here.
+  const chatUnreadCount = useSelector(selectLeagueUnreadCount(leagueId));
+  const { data: chatUnread } = useGetLeagueChatUnreadQuery(leagueId, {
+    skip: isMockId || !isUserJoined,
+    refetchOnMountOrArgChange: true,
+  });
+
+  useEffect(() => {
+    if (!chatUnread) return;
+    dispatch(setUnreadCount({ leagueId, count: chatUnread.unreadCount }));
+  }, [chatUnread, dispatch, leagueId]);
   const callerTeamId =
     reduxActiveTeamId ||
     (apiLeagueData as any)?.caller?.team?._id ||
@@ -817,17 +809,39 @@ export default function LeagueDetailScreen() {
 
       socket.on('matchupUpdated', handleMatchupUpdated);
 
+      // A new chat message while the user sits on this screen bumps the badge
+      // on the chat bubble. `incrementUnread` is a no-op when the chat screen
+      // for this league is the one in the foreground.
+      const handleChatMessage = (eventData: any) => {
+        if (
+          !eventData?.message ||
+          String(eventData.leagueId) !== String(leagueId)
+        ) {
+          return;
+        }
+        if (
+          currentUserId &&
+          String(eventData.message.sender?.id) === String(currentUserId)
+        ) {
+          return;
+        }
+        dispatch(incrementUnread(leagueId));
+      };
+
+      socket.on('leagueChatMessage', handleChatMessage);
+
       return () => {
         socket.off('teamJoined', handleTeamJoined);
         socket.off('playerAcquired', handlePlayerAcquired);
         socket.off('playerDropped', handlePlayerDropped);
         socket.off('matchupUpdated', handleMatchupUpdated);
+        socket.off('leagueChatMessage', handleChatMessage);
         leaveLeagueRoom(leagueId);
       };
     } catch (e) {
       console.warn('Socket connection error:', e);
     }
-  }, [leagueId, refetchMembers]);
+  }, [leagueId, refetchMembers, currentUserId, dispatch]);
 
   const [isPlayerModalVisible, setIsPlayerModalVisible] = useState(false);
   const [selectedPlayer, setSelectedPlayer] = useState<any>(null);
@@ -1067,12 +1081,43 @@ export default function LeagueDetailScreen() {
                 </View>
               </View>
 
-              <TouchableOpacity
-                className="p-2 border border-[#333] rounded-xl bg-[#1a1a1a]"
-                onPress={() => setIsSettingsModalVisible(true)}
-              >
-                <MoreVertical color="#fff" size={18} />
-              </TouchableOpacity>
+              <View className="flex-row items-center gap-2">
+                {isUserJoined && !isMockId ? (
+                  <TouchableOpacity
+                    className="p-2 border border-[#493563] rounded-xl bg-[#21172d]"
+                    onPress={() =>
+                      navigation.navigate('LeagueChat', {
+                        leagueId,
+                        leagueName: league.name,
+                      })
+                    }
+                    accessibilityRole="button"
+                    accessibilityLabel={
+                      chatUnreadCount > 0
+                        ? `Open league chat, ${chatUnreadCount} unread messages`
+                        : 'Open league chat'
+                    }
+                  >
+                    <MessageCircle color="#E0B566" size={18} />
+                    {chatUnreadCount > 0 ? (
+                      <View
+                        className="absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] px-1 rounded-full bg-[#E53935] border border-[#21172d] items-center justify-center"
+                        accessibilityElementsHidden
+                      >
+                        <Text className="text-white text-[10px] font-bold">
+                          {chatUnreadCount > 99 ? '99+' : chatUnreadCount}
+                        </Text>
+                      </View>
+                    ) : null}
+                  </TouchableOpacity>
+                ) : null}
+                <TouchableOpacity
+                  className="p-2 border border-[#333] rounded-xl bg-[#1a1a1a]"
+                  onPress={() => setIsSettingsModalVisible(true)}
+                >
+                  <MoreVertical color="#fff" size={18} />
+                </TouchableOpacity>
+              </View>
             </View>
 
             {/* Quick Stats Line */}

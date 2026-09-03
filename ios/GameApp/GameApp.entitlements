@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!--
+	  Sign in with Apple. This file is not yet referenced by the Xcode project:
+	  open GameApp.xcodeproj, select the GameApp target, and add
+	  Signing & Capabilities -> + Capability -> "Sign in with Apple".
+	  Xcode will point CODE_SIGN_ENTITLEMENTS at this file and enable the
+	  capability on the App ID in your developer account, which is what actually
+	  authorises the entitlement.
+	-->
+	<key>com.apple.developer.applesignin</key>
+	<array>
+		<string>Default</string>
+	</array>
+</dict>
+</plist>

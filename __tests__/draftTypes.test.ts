@@ -43,6 +43,11 @@ describe('buildDraftSettings', () => {
 
     expect(settings.type).toBe('snake');
     expect(settings.orderStrategy).toBe('random');
+    if (settings.type !== 'snake') throw new Error('Expected snake settings');
+    expect(settings.pickDurationSeconds).toBe(60);
+    expect(settings).not.toHaveProperty('startingBudget');
+    expect(settings).not.toHaveProperty('minimumBid');
+    expect(settings).not.toHaveProperty('nominationDurationSeconds');
   });
 
   it('never collapses the order strategy into the draft type', () => {
@@ -56,18 +61,21 @@ describe('buildDraftSettings', () => {
 
     expect(settings.type).toBe('auction');
     expect(settings.orderStrategy).toBe('random');
+    if (settings.type !== 'auction') throw new Error('Expected auction settings');
     expect(settings.startingBudget).toBe(200);
   });
 
-  it('clamps timers into the ranges the server accepts', () => {
+  it('clamps auction timers into the ranges the server accepts', () => {
     const settings = buildDraftSettings({
       ...base,
-      type: 'snake',
+      type: 'auction',
       nominationDurationSeconds: 5000,
       biddingDurationSeconds: 1,
     });
 
+    if (settings.type !== 'auction') throw new Error('Expected auction settings');
     expect(settings.nominationDurationSeconds).toBe(300);
     expect(settings.biddingDurationSeconds).toBe(10);
+    expect(settings).not.toHaveProperty('pickDurationSeconds');
   });
 });

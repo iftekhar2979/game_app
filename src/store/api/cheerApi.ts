@@ -58,12 +58,12 @@ export const cheerApi = baseApi.injectEndpoints({
     }),
     draftCheerTeam: builder.mutation<
       any,
-      { leagueId: string; seasonCheerTeamId: string }
+      { leagueId: string; seasonCheerTeamId: string; assignedDivisionId: string }
     >({
-      query: ({ leagueId, seasonCheerTeamId }) => ({
+      query: ({ leagueId, ...body }) => ({
         url: `leagues/${leagueId}/draft/cheer-team-picks`,
         method: 'POST',
-        body: { seasonCheerTeamId },
+        body,
       }),
       transformResponse: unwrap,
       invalidatesTags: (_result, _error, { leagueId }) => [
@@ -83,12 +83,12 @@ export const cheerApi = baseApi.injectEndpoints({
     }),
     addFantasyCheerFreeAgent: builder.mutation<
       any,
-      { leagueId: string; fantasyTeamId: string; seasonCheerTeamId: string }
+      { leagueId: string; fantasyTeamId: string; seasonCheerTeamId: string; assignedDivisionId: string }
     >({
-      query: ({ leagueId, fantasyTeamId, seasonCheerTeamId }) => ({
+      query: ({ leagueId, fantasyTeamId, ...body }) => ({
         url: `fantasy-cheer/leagues/${leagueId}/teams/${fantasyTeamId}/free-agents`,
         method: 'POST',
-        body: { seasonCheerTeamId },
+        body,
       }),
       transformResponse: unwrap,
       invalidatesTags: (_result, _error, { leagueId }) => [
@@ -133,6 +133,7 @@ export const cheerApi = baseApi.injectEndpoints({
         leagueId: string;
         fantasyTeamId: string;
         seasonCheerTeamId: string;
+        assignedDivisionId: string;
         dropOwnershipId?: string;
         bidAmount: number;
       }
@@ -262,7 +263,7 @@ export const cheerApi = baseApi.injectEndpoints({
     }),
     nominateCheerTeam: builder.mutation<
       any,
-      { leagueId: string; seasonCheerTeamId: string; openingBid: number }
+      { leagueId: string; seasonCheerTeamId: string; assignedDivisionId: string; openingBid: number }
     >({
       query: ({ leagueId, ...body }) => ({
         url: `leagues/${leagueId}/auction/nominations`,

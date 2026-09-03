@@ -41,15 +41,28 @@ export interface DraftSettingsInput {
  * the type, never in place of it.
  */
 export function buildDraftSettings(input: DraftSettingsInput) {
-  return {
+  const common = {
     type: input.type,
     orderStrategy: 'random' as DraftOrderStrategyValue,
+    draftStartsAt: input.draftStartsAt,
+  };
+  if (input.type === 'snake') {
+    return {
+      ...common,
+      type: 'snake' as const,
+      pickDurationSeconds: Math.min(
+        600,
+        Math.max(1, input.pickDurationSeconds || 60),
+      ),
+    };
+  }
+  return {
+    ...common,
+    type: 'auction' as const,
     startingBudget: input.startingBudget,
     minimumBid: input.minimumBid,
     bidIncrement: input.bidIncrement,
     nominationDurationSeconds: Math.min(300, Math.max(10, input.nominationDurationSeconds || 30)),
     biddingDurationSeconds: Math.min(300, Math.max(10, input.biddingDurationSeconds || 15)),
-    pickDurationSeconds: input.pickDurationSeconds,
-    draftStartsAt: input.draftStartsAt,
   };
 }

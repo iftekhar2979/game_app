@@ -3,6 +3,7 @@ import { baseApi } from './api/baseApi';
 import authReducer from './slices/authSlice';
 import avatarReducer from './slices/avatarSlice';
 import leagueReducer from './slices/leagueSlice';
+import leagueChatReducer from './slices/leagueChatSlice';
 import postReducer from './slices/postSlice';
 // Import injected APIs just so they attach to baseApi
 import './api/seasonApi';
@@ -11,6 +12,7 @@ import './api/socialApi';
 import './api/avatarApi';
 import './api/dfsApi';
 import './api/adminCheerApi';
+import './api/leagueChatApi';
 
 export const store = configureStore({
   reducer: {
@@ -18,6 +20,7 @@ export const store = configureStore({
     auth: authReducer,
     avatar: avatarReducer,
     league: leagueReducer,
+    leagueChat: leagueChatReducer,
     post: postReducer,
   },
   middleware: getDefaultMiddleware =>

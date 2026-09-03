@@ -5,9 +5,9 @@ import {
   type CurrentMatchupQueryArg,
 } from './matchupQuery';
 
-export interface DraftSettingsPayload {
+export interface AuctionDraftSettingsPayload {
   // Matches the server DraftType enum; only 'auction' is executable today.
-  type: 'auction' | 'snake' | 'linear' | 'offline';
+  type: 'auction';
   // Mirrors the server DraftOrderStrategy enum — separate from DraftType.
   orderStrategy: 'random' | 'manual' | 'reverse_standings';
   startingBudget: number;
@@ -15,9 +15,19 @@ export interface DraftSettingsPayload {
   bidIncrement: number;
   nominationDurationSeconds: number;
   biddingDurationSeconds: number;
-  pickDurationSeconds?: number;
   draftStartsAt?: string;
 }
+
+export interface SnakeDraftSettingsPayload {
+  type: 'snake';
+  orderStrategy: 'random' | 'manual' | 'reverse_standings';
+  pickDurationSeconds: number;
+  draftStartsAt?: string;
+}
+
+export type DraftSettingsPayload =
+  | AuctionDraftSettingsPayload
+  | SnakeDraftSettingsPayload;
 
 export type MatchupTiebreaker = 'bench_points' | 'none';
 
@@ -42,6 +52,14 @@ export interface LeagueResponse {
   _id: string;
   name: string;
   status: string;
+  code?: string;
+}
+
+export interface CreateLeagueResponse {
+  league: LeagueResponse;
+  membership: unknown;
+  team: unknown;
+  code: string;
 }
 
 export interface ApiResponse<T> {
@@ -172,12 +190,10 @@ export interface AvailableAthletesArgs {
   limit?: number;
 }
 
-export interface RosterSettingsSlot {
-  positionId: string;
-  code: string | null;
-  name: string | null;
-  minimum: number;
-  maximum: number;
+export interface DivisionRosterRule {
+  divisionCode: string;
+  divisionName: string;
+  exactTeamCount: number;
   starterCount: number;
 }
 
@@ -187,21 +203,19 @@ export interface RosterSettings {
   isLeagueOwned: boolean;
   canEdit: boolean;
   lockedReason: string | null;
-  slots: RosterSettingsSlot[];
-  benchSize: number;
-  starterCount: number;
+  divisionRules: DivisionRosterRule[];
   totalRosterSize: number;
+  totalStarterCount: number;
 }
 
 export interface UpdateRosterSettingsPayload {
   leagueId: string;
-  slots: {
-    positionId: string;
-    minimum: number;
-    maximum: number;
+  divisionRules: {
+    divisionCode: string;
+    divisionName: string;
+    exactTeamCount: number;
     starterCount: number;
   }[];
-  benchSize: number;
 }
 
 export const LEAGUE_STATUSES = [
@@ -354,19 +368,19 @@ export interface LeaguesPageResponse {
 
 export const leagueApi = baseApi.injectEndpoints({
   endpoints: builder => ({
-    createLeague: builder.mutation<LeagueResponse, CreateLeaguePayload>({
+    createLeague: builder.mutation<CreateLeagueResponse, CreateLeaguePayload>({
       query: body => ({
         url: 'leagues',
         method: 'POST',
         body,
       }),
       transformResponse: (
-        response: ApiResponse<LeagueResponse> | LeagueResponse,
+        response: ApiResponse<CreateLeagueResponse> | CreateLeagueResponse,
       ) => {
         if ('data' in response && response.data) {
           return response.data;
         }
-        return response as LeagueResponse;
+        return response as CreateLeagueResponse;
       },
       invalidatesTags: ['League'],
     }),

@@ -1,3 +1,12 @@
 <resources>
     <string name="app_name">GameApp</string>
+
+    <!--
+      Facebook Login. The native SDK reads these resources at startup - it does
+      not see the .env values, so the ids must be filled in here as well.
+      `fb_login_protocol_scheme` is literally "fb" + the app id.
+    -->
+    <string name="facebook_app_id">FACEBOOK_APP_ID_HERE</string>
+    <string name="facebook_client_token">FACEBOOK_CLIENT_TOKEN_HERE</string>
+    <string name="fb_login_protocol_scheme">fbFACEBOOK_APP_ID_HERE</string>
 </resources>

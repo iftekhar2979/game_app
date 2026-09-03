@@ -7,11 +7,16 @@
     "ios": "react-native run-ios",
     "lint": "eslint .",
     "start": "react-native start",
-    "test": "jest"
+    "test": "jest",
+    "clean:android": "cd android && gradlew clean && cd ..",
+    "build:apk": "cd android && gradlew assembleRelease && cd ..",
+    "build:aab": "cd android && gradlew bundleRelease && cd .."
   },
   "dependencies": {
     "@hookform/resolvers": "^5.4.0",
+    "@invertase/react-native-apple-authentication": "^2.5.1",
     "@react-native-async-storage/async-storage": "^3.1.1",
+    "@react-native-google-signin/google-signin": "^16.1.4",
     "@react-native/new-app-screen": "0.86.0",
     "@react-navigation/native": "^7.3.7",
     "@react-navigation/native-stack": "^7.17.9",
@@ -24,6 +29,7 @@
     "react-native": "0.86.0",
     "react-native-calendars": "^1.1314.0",
     "react-native-date-picker": "^5.0.13",
+    "react-native-fbsdk-next": "^13.4.3",
     "react-native-image-picker": "^8.2.1",
     "react-native-keychain": "^10.0.0",
     "react-native-safe-area-context": "^5.5.2",

@@ -22,6 +22,7 @@ import HomeScreen from './src/screens/Home/HomeScreen';
 import FantasyLeagueScreen from './src/screens/Home/FantasyLeagueScreen';
 import CreateLeagueScreen from './src/screens/Home/CreateLeagueScreen';
 import LeagueDetailScreen from './src/screens/Home/LeagueDetailScreen';
+import LeagueChatScreen from './src/screens/Home/LeagueChatScreen';
 import DraftRoomScreen from './src/screens/Home/DraftRoomScreen';
 import TeamRosterScreen from './src/screens/Home/TeamRosterScreen';
 import CommunityFeedScreen from './src/screens/Community/CommunityFeedScreen';
@@ -83,6 +84,7 @@ export type RootStackParamList = {
   DfsLineup: { contestId: string };
   CreateLeague: undefined;
   LeagueDetail: { leagueId: string };
+  LeagueChat: { leagueId: string; leagueName?: string };
   DraftRoom: { leagueId: string };
   TeamRoster: { leagueId: string; teamId: string; teamName?: string };
   Community: undefined;
@@ -212,6 +214,7 @@ function AppContent() {
             <Stack.Screen name="DfsLineup" component={DfsLineupScreen} />
             <Stack.Screen name="CreateLeague" component={CreateLeagueScreen} />
             <Stack.Screen name="LeagueDetail" component={LeagueDetailScreen} />
+            <Stack.Screen name="LeagueChat" component={LeagueChatScreen} />
             <Stack.Screen name="DraftRoom" component={DraftRoomScreen} />
             <Stack.Screen name="TeamRoster" component={TeamRosterScreen} />
             <Stack.Screen name="Community" component={CommunityFeedScreen} />
