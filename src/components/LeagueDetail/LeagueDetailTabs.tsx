@@ -38,6 +38,7 @@ import {
   formatGameStatus,
   formatMatchupScore,
 } from './matchupDisplay';
+export { ScoringRulesTab } from '../Scoring/FixedScoringRules';
 
 export const MatchupTab = ({
   leagueId,

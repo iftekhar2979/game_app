@@ -202,7 +202,7 @@ export default function AdminCheerFormScreen({ navigation, route }: Props) {
     officialScore: '95',
     otherTeamsInDivision: '2',
     placement: '1',
-    hitZero: 'yes',
+    deductionPoints: '0',
     grandChampion: 'no',
   });
   const set = (key: string) => (value: string) =>
@@ -514,19 +514,22 @@ export default function AdminCheerFormScreen({ navigation, route }: Props) {
           Math.floor(Number(form.otherTeamsInDivision) || 0),
         );
         const placement = Math.max(1, Math.floor(Number(form.placement) || 1));
+        const totalDeductions = Math.max(0, Number(form.deductionPoints) || 0);
         if (placement > otherTeamsInDivision + 1) {
           throw new Error(
             'Placement cannot exceed the total number of teams in the division',
           );
         }
-        const fantasyScoring = calculateCheerFantasyPoints({
+        // Computed purely to validate the inputs before submitting - an
+        // out-of-range score throws here rather than reaching the server.
+        calculateCheerFantasyPoints({
           officialScore,
           otherTeamsInDivision,
           wonDivision: placement === 1,
           finishedLast:
             otherTeamsInDivision >= 2 &&
             placement === otherTeamsInDivision + 1,
-          hitZero: form.hitZero === 'yes',
+          hitZero: totalDeductions === 0,
           grandChampion: form.grandChampion === 'yes',
         });
         result = await scorePerformance({
@@ -541,13 +544,24 @@ export default function AdminCheerFormScreen({ navigation, route }: Props) {
                 maximumPoints: 100,
               },
             ],
-            deductions: [],
-            isHitZero: form.hitZero === 'yes',
-            placement,
-            otherTeamsInDivision,
+            deductions:
+              totalDeductions > 0
+                ? [
+                    {
+                      code: 'TOTAL_DEDUCTIONS',
+                      reason: 'Total routine deductions',
+                      points: totalDeductions,
+                    },
+                  ]
+                : [],
             isGrandChampion: form.grandChampion === 'yes',
-            fantasyPoints: fantasyScoring.totalPoints,
-            fantasyPointsBreakdown: fantasyScoring,
+            // Not sent, all server-derived: isHitZero follows from the
+            // deductions above, placement from ranking the division on publish,
+            // and otherTeamsInDivision from counting it. The placement and
+            // other-teams fields on this form feed the local preview only.
+            // Only the raw result is submitted. The server applies the fixed
+            // scoring rules and owns the resulting fantasy points; the preview
+            // below is a local convenience, never the stored value.
           },
         }).unwrap();
       }
@@ -596,7 +610,7 @@ export default function AdminCheerFormScreen({ navigation, route }: Props) {
         wonDivision: placement === 1,
         finishedLast:
           otherTeamsInDivision >= 2 && placement === otherTeamsInDivision + 1,
-        hitZero: form.hitZero === 'yes',
+        hitZero: (Number(form.deductionPoints) || 0) === 0,
         grandChampion: form.grandChampion === 'yes',
       });
     } catch {
@@ -912,15 +926,29 @@ export default function AdminCheerFormScreen({ navigation, route }: Props) {
               onChangeText={set('placement')}
               keyboardType="number-pad"
             />
-            <ChoiceList
-              label="Hit zero deductions"
-              items={[
-                { _id: 'yes', name: 'Yes' },
-                { _id: 'no', name: 'No' },
-              ]}
-              selectedId={form.hitZero}
-              onSelect={set('hitZero')}
+            <Field
+              label="Total deductions (0 = hit zero)"
+              value={form.deductionPoints}
+              onChangeText={set('deductionPoints')}
+              keyboardType="decimal-pad"
             />
+            {/* Hit zero is a fact about the routine, not a choice: it is true
+                exactly when no deductions were taken, and the server derives it
+                the same way. Showing it read-only keeps the two in step. */}
+            <View className="mb-4 flex-row items-center justify-between bg-[#171717] border border-white/15 rounded-xl px-4 py-3">
+              <Text className="text-gray-400 text-xs">Hit zero</Text>
+              <Text
+                className={
+                  (Number(form.deductionPoints) || 0) === 0
+                    ? 'text-[#4CAF50] text-sm font-bold'
+                    : 'text-gray-500 text-sm font-bold'
+                }
+              >
+                {(Number(form.deductionPoints) || 0) === 0
+                  ? 'Yes · +10 pts'
+                  : 'No · deductions recorded'}
+              </Text>
+            </View>
             <ChoiceList
               label="Grand champion"
               items={[
