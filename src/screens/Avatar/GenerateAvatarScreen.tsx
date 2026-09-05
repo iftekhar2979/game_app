@@ -19,11 +19,23 @@ import { uploadImage } from '../../services/mediaUpload';
 import { authStorage } from '../../services/authStorage';
 import { authService } from '../../services/authService';
 import { showToast } from '../../utils/toast';
-import { BASES, FULLBODY_STAGE_SCALE, indexOfAsset, listFor } from '../../avatar/registry';
-import { REGISTRY_VERSION } from '../../avatar/registry';
+import {
+  BASES,
+  FULLBODY_STAGE_SCALE,
+  HAIR_COLORS,
+  REGISTRY_VERSION,
+  getEyeSource,
+  indexOfAsset,
+  listFor,
+} from '../../avatar/registry';
+import {
+  previewSourceForAsset,
+  sourceForAsset,
+  sourceForBase,
+} from '../../avatar/assetSource';
 import { resolveConfig } from '../../avatar/resolveConfig';
 import { prefetchEditorArtwork, prefetchSources } from '../../avatar/prefetchArtwork';
-import { AvatarConfig, AvatarSlot } from '../../avatar/types';
+import { AvatarAsset, AvatarConfig, AvatarSlot } from '../../avatar/types';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList, 'GenerateAvatar'>;
 type GenerateAvatarRouteProp = RouteProp<RootStackParamList, 'GenerateAvatar'>;
@@ -46,102 +58,20 @@ const hexToTintMatrix = (hex: string) => {
   return '1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 1 0';
 };
 
-// --- HALF BODY ASSETS ---
-const ALL_HAIR_STYLES: AvatarAsset[] = [
-  { id: 2, target: 'female', avatarCategories: [4, 5, 6], source: require('../../assets/images/avatar/hair/Hair2.png') },
-  { id: 3, target: 'female', avatarCategories: [4, 5, 6], source: require('../../assets/images/avatar/hair/Hair6.png') },
-  { id: 4, target: 'male', avatarCategories: [1], source: require('../../assets/images/avatar/male/hair/black_hair_1_1.png') },
-  { id: 5, target: 'male', avatarCategories: [1], source: require('../../assets/images/avatar/male/hair/black_hair_1_2.png') },
-  { id: 6, target: 'male', avatarCategories: [1], source: require('../../assets/images/avatar/male/hair/black_hair_1_5.png') },
-  { id: 7, target: 'male', avatarCategories: [1], source: require('../../assets/images/avatar/male/hair/hair_1_3.png') },
-  { id: 8, target: 'male', avatarCategories: [2], source: require('../../assets/images/avatar/male/hair/hair_2_1.png') },
-  { id: 9, target: 'male', avatarCategories: [2], source: require('../../assets/images/avatar/male/hair/black_hair_2_3.png') },
-  { id: 10, target: 'male', avatarCategories: [2], source: require('../../assets/images/avatar/male/hair/black_hair_2_4.png') },
-  { id: 11, target: 'male', avatarCategories: [2], source: require('../../assets/images/avatar/male/hair/black_hair_2_5.png') },
-  { id: 12, target: 'male', avatarCategories: [2], source: require('../../assets/images/avatar/male/hair/red_hair_2_1.png') },
-  { id: 13, target: 'male', avatarCategories: [2], source: require('../../assets/images/avatar/male/hair/white_hair_2_2.png') },
-];
-const HAIR_COLORS = [
-  '#E6C27A', '#8D5B36', '#4A2F1D', '#1A1A1A', '#A33327', '#E6E6E6'
-];
-const ALL_BLAZERS: AvatarAsset[] = [
-  { id: 1, target: 'female', avatarCategories: [4, 5, 6], source: require('../../assets/images/avatar/fullbody/upperbody/suit1.png') },
-  { id: 2, target: 'female', avatarCategories: [4, 5, 6], source: require('../../assets/images/avatar/fullbody/upperbody/half_sleve_blouse_1.png') },
-  { id: 3, target: 'female', avatarCategories: [4, 5, 6], source: require('../../assets/images/avatar/fullbody/upperbody/full_sleve_1.png') },
-  { id: 4, target: 'female', avatarCategories: [4, 5, 6], source: require('../../assets/images/avatar/fullbody/upperbody/necksleb_1.png') },
-  { id: 5, target: 'female', avatarCategories: [4, 5, 6], source: require('../../assets/images/avatar/fullbody/upperbody/neckless_sleve_2.png') },
-  { id: 6, target: 'male', avatarCategories: [1], source: require('../../assets/images/avatar/male/upperbody/blue_shirt_1_1.png') },
-  { id: 7, target: 'male', avatarCategories: [1], source: require('../../assets/images/avatar/male/upperbody/blue_shirt_1_2.png') },
-  { id: 8, target: 'male', avatarCategories: [1], source: require('../../assets/images/avatar/male/upperbody/green_shirt_1_1.png') },
-  { id: 9, target: 'male', avatarCategories: [1], source: require('../../assets/images/avatar/male/upperbody/red_shirt_1_1.png') },
-  { id: 10, target: 'male', avatarCategories: [2], source: require('../../assets/images/avatar/male/upperbody/black_shirt_2_1.png') },
-  { id: 11, target: 'male', avatarCategories: [2], source: require('../../assets/images/avatar/male/upperbody/black_undershirt_2_1.png') },
-  { id: 12, target: 'male', avatarCategories: [2], source: require('../../assets/images/avatar/male/upperbody/blue_shirt_2_1.png') },
-  { id: 13, target: 'male', avatarCategories: [2], source: require('../../assets/images/avatar/male/upperbody/blue_undershirt_2_1.png') },
-  { id: 14, target: 'male', avatarCategories: [2], source: require('../../assets/images/avatar/male/upperbody/green_shirt_2_1.png') },
-  { id: 15, target: 'male', avatarCategories: [2], source: require('../../assets/images/avatar/male/upperbody/green_undershirt_2_1.png') },
-  { id: 16, target: 'male', avatarCategories: [2], source: require('../../assets/images/avatar/male/upperbody/red_undershirt_2_1.png') },
-];
-
-// --- FULL BODY ASSETS ---
-type AvatarAsset = { id: number; target: 'female' | 'male'; avatarCategories: number[]; source: any };
-
-const ALL_FULLBODY_HAIR: AvatarAsset[] = [
-  { id: 2, target: 'female', avatarCategories: [4, 5, 6], source: require('../../assets/images/avatar/hair/Hair2.png') },
-  { id: 3, target: 'female', avatarCategories: [4, 5, 6], source: require('../../assets/images/avatar/hair/Hair6.png') },
-  { id: 4, target: 'male', avatarCategories: [1], source: require('../../assets/images/avatar/male/hair/black_hair_1_1.png') },
-  { id: 5, target: 'male', avatarCategories: [1], source: require('../../assets/images/avatar/male/hair/black_hair_1_2.png') },
-  { id: 6, target: 'male', avatarCategories: [1], source: require('../../assets/images/avatar/male/hair/black_hair_1_5.png') },
-  { id: 7, target: 'male', avatarCategories: [1], source: require('../../assets/images/avatar/male/hair/hair_1_3.png') },
-  { id: 8, target: 'male', avatarCategories: [2], source: require('../../assets/images/avatar/male/hair/hair_2_1.png') },
-  { id: 9, target: 'male', avatarCategories: [2], source: require('../../assets/images/avatar/male/hair/black_hair_2_3.png') },
-  { id: 10, target: 'male', avatarCategories: [2], source: require('../../assets/images/avatar/male/hair/black_hair_2_4.png') },
-  { id: 11, target: 'male', avatarCategories: [2], source: require('../../assets/images/avatar/male/hair/black_hair_2_5.png') },
-  { id: 12, target: 'male', avatarCategories: [2], source: require('../../assets/images/avatar/male/hair/red_hair_2_1.png') },
-  { id: 13, target: 'male', avatarCategories: [2], source: require('../../assets/images/avatar/male/hair/white_hair_2_2.png') },
-];
-const ALL_FULLBODY_SKIRTS: AvatarAsset[] = [
-  { id: 1, target: 'female', avatarCategories: [4, 5, 6], source: require('../../assets/images/avatar/fullbody/skirt/full_pant_33.png') },
-  { id: 2, target: 'female', avatarCategories: [4, 5, 6], source: require('../../assets/images/avatar/fullbody/skirt/short_pant_1.png') },
-  { id: 3, target: 'female', avatarCategories: [4, 5, 6], source: require('../../assets/images/avatar/fullbody/skirt/short_pant_2.png') },
-  { id: 4, target: 'female', avatarCategories: [4, 5, 6], source: require('../../assets/images/avatar/fullbody/skirt/short_pant_3.png') },
-  { id: 5, target: 'male', avatarCategories: [1], source: require('../../assets/images/avatar/male/pants/black_short_pant_1_1.png') },
-  { id: 6, target: 'male', avatarCategories: [1], source: require('../../assets/images/avatar/male/pants/blue_short_pant_1_1.png') },
-  { id: 7, target: 'male', avatarCategories: [1], source: require('../../assets/images/avatar/male/pants/green_short_pant_1_1.png') },
-  { id: 11, target: 'male', avatarCategories: [1], source: require('../../assets/images/avatar/male/pants/green_pant_1_1.png') },
-  { id: 12, target: 'male', avatarCategories: [1], source: require('../../assets/images/avatar/male/pants/red_short_pant_1_1.png') },
-  { id: 8, target: 'male', avatarCategories: [1], source: require('../../assets/images/avatar/male/pants/green_short_pant_2.png') },
-  { id: 9, target: 'male', avatarCategories: [2], source: require('../../assets/images/avatar/male/pants/blue_short_pant_2_1.png') },
-  { id: 10, target: 'male', avatarCategories: [2], source: require('../../assets/images/avatar/male/pants/red_short_pant_2_1.png') },
-];
-const ALL_FULLBODY_OUTFITS: AvatarAsset[] = [
-  { id: 1, target: 'female', avatarCategories: [4, 5, 6], source: require('../../assets/images/avatar/fullbody/upperbody/suit1.png') },
-  { id: 2, target: 'female', avatarCategories: [4, 5, 6], source: require('../../assets/images/avatar/fullbody/upperbody/half_sleve_blouse_1.png') },
-  { id: 3, target: 'female', avatarCategories: [4, 5, 6], source: require('../../assets/images/avatar/fullbody/upperbody/full_sleve_1.png') },
-  { id: 4, target: 'female', avatarCategories: [4, 5, 6], source: require('../../assets/images/avatar/fullbody/upperbody/necksleb_1.png') },
-  { id: 5, target: 'female', avatarCategories: [4, 5, 6], source: require('../../assets/images/avatar/fullbody/upperbody/neckless_sleve_2.png') },
-  { id: 6, target: 'male', avatarCategories: [1], source: require('../../assets/images/avatar/male/upperbody/blue_shirt_1_1.png') },
-  { id: 7, target: 'male', avatarCategories: [1], source: require('../../assets/images/avatar/male/upperbody/blue_shirt_1_2.png') },
-  { id: 8, target: 'male', avatarCategories: [1], source: require('../../assets/images/avatar/male/upperbody/green_shirt_1_1.png') },
-  { id: 9, target: 'male', avatarCategories: [1], source: require('../../assets/images/avatar/male/upperbody/red_shirt_1_1.png') },
-  { id: 10, target: 'male', avatarCategories: [2], source: require('../../assets/images/avatar/male/upperbody/black_shirt_2_1.png') },
-  { id: 11, target: 'male', avatarCategories: [2], source: require('../../assets/images/avatar/male/upperbody/black_undershirt_2_1.png') },
-  { id: 12, target: 'male', avatarCategories: [2], source: require('../../assets/images/avatar/male/upperbody/blue_shirt_2_1.png') },
-  { id: 13, target: 'male', avatarCategories: [2], source: require('../../assets/images/avatar/male/upperbody/blue_undershirt_2_1.png') },
-  { id: 14, target: 'male', avatarCategories: [2], source: require('../../assets/images/avatar/male/upperbody/green_shirt_2_1.png') },
-  { id: 15, target: 'male', avatarCategories: [2], source: require('../../assets/images/avatar/male/upperbody/green_undershirt_2_1.png') },
-  { id: 16, target: 'male', avatarCategories: [2], source: require('../../assets/images/avatar/male/upperbody/red_undershirt_2_1.png') },
-];
-const ALL_SHOES: AvatarAsset[] = [
-  { id: 1, target: 'female', avatarCategories: [4, 5, 6], source: require('../../assets/images/avatar/fullbody/shoes/green_shoe_1.png') },
-  { id: 2, target: 'female', avatarCategories: [4, 5, 6], source: require('../../assets/images/avatar/fullbody/shoes/green_shoe_14.png') },
-  { id: 3, target: 'female', avatarCategories: [4, 5, 6], source: require('../../assets/images/avatar/fullbody/shoes/green_shoes_41.png') },
-  { id: 4, target: 'female', avatarCategories: [4, 5, 6], source: require('../../assets/images/avatar/fullbody/shoes/shoe_1.png') },
-];
-
-const ALL_BODY_COLORS: AvatarAsset[] = [
-  { id: 1, target: 'male', avatarCategories: [1], source: require('../../assets/images/avatar/fullbody/body_color/brown_yellow.png') },
-];
+/**
+ * Every part list on this screen comes from `avatar/registry`.
+ *
+ * These arrays used to be duplicated here verbatim - and the hair and outfit
+ * lists twice over, as separate half-body and full-body copies - which meant
+ * the registry was the source of truth for *ids* while the screen kept its own
+ * source of truth for *artwork*. The two had to stay in the same order or
+ * `idAt` below would save the wrong part, and only a test was holding that
+ * line.
+ *
+ * The practical cost was that these copies were bundled `require()` handles, so
+ * the pickers could never show uploaded artwork no matter what the catalogue
+ * said. Going through the registry is what connects them to it.
+ */
 
 const GenerateAvatarScreen = () => {
   const navigation = useNavigation<NavigationProp>();
@@ -168,15 +98,19 @@ const GenerateAvatarScreen = () => {
   const target = route.params?.target || 'female';
   const avatarCategory = route.params?.avatarCategory || 1;
 
-  const HAIR_STYLES = ALL_HAIR_STYLES.filter(a => a.target === target && a.avatarCategories && a.avatarCategories.includes(avatarCategory));
-  const BLAZERS = ALL_BLAZERS.filter(a => a.target === target && a.avatarCategories && a.avatarCategories.includes(avatarCategory));
-  const FULLBODY_HAIR = ALL_FULLBODY_HAIR.filter(a => a.target === target && a.avatarCategories && a.avatarCategories.includes(avatarCategory));
-  const FULLBODY_SKIRTS = ALL_FULLBODY_SKIRTS.filter(a => a.target === target && a.avatarCategories && a.avatarCategories.includes(avatarCategory));
-  const FULLBODY_OUTFITS = ALL_FULLBODY_OUTFITS.filter(a => a.target === target && a.avatarCategories && a.avatarCategories.includes(avatarCategory));
-  const SHOES = ALL_SHOES.filter(a => a.target === target && a.avatarCategories && a.avatarCategories.includes(avatarCategory));
-  const BODY_COLORS = ALL_BODY_COLORS.filter(a => a.target === target && a.avatarCategories && a.avatarCategories.includes(avatarCategory));
+  /**
+   * `listFor` already filters by target and category, which is what the seven
+   * hand-written filters here used to do. Half-body and full-body draw the same
+   * hair and outfit lists - they always did, the screen just held two copies.
+   */
+  const HAIR_STYLES = listFor('hair', target, avatarCategory);
+  const BLAZERS = listFor('outfit', target, avatarCategory);
+  const FULLBODY_HAIR = HAIR_STYLES;
+  const FULLBODY_OUTFITS = BLAZERS;
+  const FULLBODY_SKIRTS = listFor('skirt', target, avatarCategory);
+  const SHOES = listFor('shoes', target, avatarCategory);
+  const BODY_COLORS = listFor('bodyColor', target, avatarCategory);
 
-  const baseImage = route.params?.baseImage || require('../../assets/images/avatar/base/base_avatar_3.png');
   const isFullbody = route.params?.isFullbody === true;
 
   /**
@@ -197,6 +131,26 @@ const GenerateAvatarScreen = () => {
     const options = listFor(slot, activeBase.target, activeBase.category);
     return options[index]?.id ?? null;
   };
+
+  /**
+   * Artwork for a picker index, uploaded where the catalogue has any.
+   *
+   * `layerArtwork` feeds the preview stage and needs the full-resolution image;
+   * `tileArtwork` feeds the 72px picker tiles and prefers the smaller preview,
+   * because a layer PNG is painted on a full-body canvas and the bases run to
+   * half a megabyte each.
+   */
+  const layerArtwork = (slot: AvatarSlot, index: number | null) =>
+    sourceForAsset(slot, idAt(slot, index), catalogue.artwork);
+
+  const tileArtwork = (slot: AvatarSlot, index: number, asset: AvatarAsset) =>
+    previewSourceForAsset(slot, idAt(slot, index), catalogue.artwork) ?? asset.source;
+
+  /** The body itself, resolved by the same rule as every other layer. */
+  const baseImage =
+    sourceForBase(activeBase?.id, catalogue.artwork) ??
+    activeBase?.source ??
+    BASES[0].source;
 
   /**
    * Edit mode. Present when the wardrobe reopened a saved look; absent when
@@ -292,25 +246,13 @@ const GenerateAvatarScreen = () => {
     ).catch(() => undefined);
   }, [activeBase, catalogue.artwork, catalogue.isLoading]);
 
-  const getHalfClosedEyeSource = () => {
-    if (target === 'male' && avatarCategory === 2) {
-      return require('../../assets/images/avatar/utils/half_closed_eye_male_2.png');
-    }
-    if (target === 'male' && avatarCategory === 1) {
-      return require('../../assets/images/avatar/utils/half_closed_eye_male_1.png');
-    }
-    return require('../../assets/images/avatar/utils/half_closed_eye_female_all.png');
-  };
-
-  const getFullClosedEyeSource = () => {
-    if (target === 'male' && avatarCategory === 2) {
-      return require('../../assets/images/avatar/utils/full_closed_eye_male_2.png');
-    }
-    if (target === 'male' && avatarCategory === 1) {
-      return require('../../assets/images/avatar/utils/full_closed_eye_male_1.png');
-    }
-    return require('../../assets/images/avatar/utils/full_closed_eye_female_all.png');
-  };
+  /**
+   * Blink overlays are chosen by base rather than picked, so they have no
+   * catalogue row and stay bundled. `getEyeSource` is the registry's own
+   * version of the two lookup functions that used to live here.
+   */
+  const halfClosedEyeSource = getEyeSource('half', target, avatarCategory);
+  const fullClosedEyeSource = getEyeSource('full', target, avatarCategory);
 
   // Every picker is seeded in its useState initializer, so edit mode's first
   // paint is already the saved look. Hydrating in an effect instead would flash
@@ -390,6 +332,23 @@ const GenerateAvatarScreen = () => {
     outputRange: [1, 1.008],
   });
 
+  /**
+   * The look's layers, resolved once per render.
+   *
+   * `null` means nothing anywhere can draw that slot - no upload, and no
+   * bundled art under that id - so the layer is skipped. Gating the JSX on the
+   * artwork rather than on the picker index is what makes that degradation
+   * automatic: a part that cannot be drawn simply is not drawn, instead of
+   * rendering as a broken image over the body.
+   */
+  const bodyColorArt = layerArtwork('bodyColor', selectedBodyColor);
+  const halfOutfitArt = isFullbody ? null : layerArtwork('outfit', selectedBody);
+  const halfHairArt = isFullbody ? null : layerArtwork('hair', selectedHair);
+  const fullSkirtArt = isFullbody ? layerArtwork('skirt', selectedFullbodySkirt) : null;
+  const fullShoesArt = isFullbody ? layerArtwork('shoes', selectedShoes) : null;
+  const fullOutfitArt = isFullbody ? layerArtwork('outfit', selectedFullbodyOutfit) : null;
+  const fullHairArt = isFullbody ? layerArtwork('hair', selectedFullbodyHair) : null;
+
   return (
     <View style={[styles.container, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
       {/* Header */}
@@ -447,9 +406,9 @@ const GenerateAvatarScreen = () => {
                 />
 
                 {/* Body Color Layer (Conditional for avatarCategory === 1) */}
-                {avatarCategory === 1 && selectedBodyColor !== null && BODY_COLORS[selectedBodyColor] && (
+                {avatarCategory === 1 && bodyColorArt && (
                   <Image
-                    source={BODY_COLORS[selectedBodyColor].source}
+                    source={bodyColorArt}
                     className="absolute w-full h-full"
                     resizeMode="contain"
                   />
@@ -457,28 +416,28 @@ const GenerateAvatarScreen = () => {
 
                 {/* Eye Blinking Animation Overlay - Opacity toggled to prevent load lag */}
                 <Image
-                  source={getHalfClosedEyeSource()}
+                  source={halfClosedEyeSource}
                   className="absolute w-full h-full"
                   resizeMode="contain"
                   style={{ opacity: eyeState === 'half_closed' ? 1 : 0 }}
                 />
                 <Image
-                  source={getFullClosedEyeSource()}
+                  source={fullClosedEyeSource}
                   className="absolute w-full h-full"
                   resizeMode="contain"
                   style={{ opacity: eyeState === 'closed' ? 1 : 0 }}
                 />
 
                 {/* --- HALF BODY LAYERS --- */}
-                {!isFullbody && selectedBody !== null && BLAZERS[selectedBody] && (
+                {!isFullbody && halfOutfitArt && (
                   <Image
-                    source={BLAZERS[selectedBody].source}
+                    source={halfOutfitArt}
                     className="absolute w-full h-full"
                     resizeMode="contain"
                   />
                 )}
 
-                {!isFullbody && selectedHair !== null && HAIR_STYLES[selectedHair] && (
+                {!isFullbody && halfHairArt && (
                   <View className="absolute w-full h-full scale-[1.03] top-[-1%]">
                     {selectedHairColor ? (
                       <Svg width="100%" height="100%">
@@ -494,13 +453,13 @@ const GenerateAvatarScreen = () => {
                           width="100%"
                           height="100%"
                           preserveAspectRatio="xMidYMid meet"
-                          href={HAIR_STYLES[selectedHair].source}
+                          href={halfHairArt}
                           filter="url(#hairColorFilter)"
                         />
                       </Svg>
                     ) : (
                       <Image
-                        source={HAIR_STYLES[selectedHair].source}
+                        source={halfHairArt}
                         className="absolute w-full h-full"
                         resizeMode="contain"
                       />
@@ -509,25 +468,25 @@ const GenerateAvatarScreen = () => {
                 )}
 
                 {/* --- FULL BODY LAYERS --- */}
-                {isFullbody && selectedFullbodySkirt !== null && FULLBODY_SKIRTS[selectedFullbodySkirt] && (
+                {isFullbody && fullSkirtArt && (
                   <Image
-                    source={FULLBODY_SKIRTS[selectedFullbodySkirt].source}
+                    source={fullSkirtArt}
                     className="absolute w-full h-full"
                     resizeMode="contain"
                   />
                 )}
 
-                {isFullbody && selectedShoes !== null && SHOES[selectedShoes] && (
+                {isFullbody && fullShoesArt && (
                   <Image
-                    source={SHOES[selectedShoes].source}
+                    source={fullShoesArt}
                     className="absolute w-full h-full"
                     resizeMode="contain"
                   />
                 )}
 
-                {isFullbody && selectedFullbodyOutfit !== null && FULLBODY_OUTFITS[selectedFullbodyOutfit] && (
+                {isFullbody && fullOutfitArt && (
                   <Image
-                    source={FULLBODY_OUTFITS[selectedFullbodyOutfit].source}
+                    source={fullOutfitArt}
                     className="absolute w-full h-full"
                     resizeMode="contain"
                   />
@@ -535,7 +494,7 @@ const GenerateAvatarScreen = () => {
 
 
 
-                {isFullbody && selectedFullbodyHair !== null && FULLBODY_HAIR[selectedFullbodyHair] && (
+                {isFullbody && fullHairArt && (
                   <View className="absolute w-full h-full">
                     {selectedHairColor ? (
                       <Svg width="100%" height="100%">
@@ -551,13 +510,13 @@ const GenerateAvatarScreen = () => {
                           width="100%"
                           height="100%"
                           preserveAspectRatio="xMidYMid meet"
-                          href={FULLBODY_HAIR[selectedFullbodyHair].source}
+                          href={fullHairArt}
                           filter="url(#fullbodyHairColorFilter)"
                         />
                       </Svg>
                     ) : (
                       <Image
-                        source={FULLBODY_HAIR[selectedFullbodyHair].source}
+                        source={fullHairArt}
                         className="absolute w-full h-full"
                         resizeMode="contain"
                       />
@@ -626,7 +585,7 @@ const GenerateAvatarScreen = () => {
                   >
                     <View className="w-[72px] h-[90px] rounded-xl border border-[#5B1F7D] bg-[#1A0B2E] overflow-hidden justify-end pb-6">
                       <Image
-                        source={hair.source}
+                        source={tileArtwork('hair', index, hair)}
                         className="w-[180%] h-[180%] absolute top-[-40%] left-[-40%]"
                         resizeMode="cover"
                       />
@@ -669,7 +628,7 @@ const GenerateAvatarScreen = () => {
                   >
                     <View className="w-[72px] h-[90px] rounded-xl border border-[#3A144E] bg-black/40 overflow-hidden justify-center items-center pb-4">
                       <Image
-                        source={blazer.source}
+                        source={tileArtwork('outfit', index, blazer)}
                         className="w-[50%] h-[50%]"
                         resizeMode="contain"
                       />
@@ -707,7 +666,7 @@ const GenerateAvatarScreen = () => {
                         className={`w-[72px] h-[90px] rounded-xl border-2 ${selectedBodyColor === index ? 'border-[#B366FF]' : 'border-[#5B1F7D]'} bg-[#1A0B2E] overflow-hidden items-center justify-center`}
                       >
                         <Image
-                          source={bodyColor.source}
+                          source={tileArtwork('bodyColor', index, bodyColor)}
                           className="w-full h-full"
                           resizeMode="contain"
                         />
@@ -729,7 +688,7 @@ const GenerateAvatarScreen = () => {
                   return (
                     <AssetPickerTile
                       key={`fb-hair-${assetKey ?? index}`}
-                      source={hair.source}
+                      source={tileArtwork('hair', index, hair)}
                       imageClassName="w-[250%] h-[250%] absolute top-[-10%]"
                       state={catalogue.stateOf(assetKey)}
                       isSelected={selectedFullbodyHair === index}
@@ -792,7 +751,7 @@ const GenerateAvatarScreen = () => {
                         className={`w-[72px] h-[90px] rounded-xl border-2 ${selectedBodyColor === index ? 'border-[#B366FF]' : 'border-[#5B1F7D]'} bg-[#1A0B2E] overflow-hidden items-center justify-center`}
                       >
                         <Image
-                          source={bodyColor.source}
+                          source={tileArtwork('bodyColor', index, bodyColor)}
                           className="w-full h-full"
                           resizeMode="contain"
                         />
@@ -811,7 +770,7 @@ const GenerateAvatarScreen = () => {
                   return (
                     <AssetPickerTile
                       key={`fb-skirt-${assetKey ?? index}`}
-                      source={skirt.source}
+                      source={tileArtwork('skirt', index, skirt)}
                       imageClassName="w-[220%] h-[220%] absolute top-[-40%]"
                       state={catalogue.stateOf(assetKey)}
                       isSelected={selectedFullbodySkirt === index}
@@ -835,7 +794,7 @@ const GenerateAvatarScreen = () => {
                     return (
                       <AssetPickerTile
                         key={`fb-outfit-${assetKey ?? index}`}
-                        source={outfit.source}
+                        source={tileArtwork('outfit', index, outfit)}
                         imageClassName="w-[220%] h-[220%] absolute top-[-25%]"
                         state={catalogue.stateOf(assetKey)}
                         isSelected={selectedFullbodyOutfit === index}
@@ -860,7 +819,7 @@ const GenerateAvatarScreen = () => {
                     return (
                       <AssetPickerTile
                         key={`fb-shoe-${assetKey ?? index}`}
-                        source={shoe.source}
+                        source={tileArtwork('shoes', index, shoe)}
                         imageClassName="w-[280%] h-[280%] absolute bottom-[0%]"
                         state={catalogue.stateOf(assetKey)}
                         isSelected={selectedShoes === index}
