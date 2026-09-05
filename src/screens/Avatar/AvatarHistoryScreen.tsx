@@ -18,6 +18,7 @@ import UsedAssets from '../../components/Avatar/UsedAssets';
 import CustomLoader from '../../components/Loader/CustomLoader';
 import { getBaseById } from '../../avatar/registry';
 import { describeUsedAssets, normaliseConfig } from '../../avatar/resolveConfig';
+import { useAssetCatalogue } from '../../avatar/useAssetCatalogue';
 import {
   SavedAvatarEntry,
   useApplyAvatarMutation,
@@ -57,6 +58,12 @@ export default function AvatarHistoryScreen() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
   const { data, isLoading, isFetching, refetch } = useGetMyAvatarsQuery({ page: 1, limit: 30 });
+  /**
+   * Only its artwork lookup is wanted here. The wardrobe shows looks the user
+   * has already saved, so ownership and pricing are irrelevant - a part stays
+   * on an avatar that wears it even once it is retired or no longer owned.
+   */
+  const { artwork } = useAssetCatalogue();
   const [applyAvatar] = useApplyAvatarMutation();
   const [deleteAvatar] = useDeleteAvatarMutation();
 
@@ -86,8 +93,8 @@ export default function AvatarHistoryScreen() {
   }, [avatars, selectedId]);
 
   const usedAssets = useMemo(
-    () => describeUsedAssets(selected?.config),
-    [selected?.config],
+    () => describeUsedAssets(selected?.config, artwork),
+    [selected?.config, artwork],
   );
 
   const handleApply = async (entry: SavedAvatarEntry) => {
@@ -176,6 +183,7 @@ export default function AvatarHistoryScreen() {
               height={MAIN_PREVIEW_HEIGHT}
               fallbackUri={selected.entry.avatarUrl}
               fallbackName="Avatar"
+              catalogue={artwork}
             />
           </View>
 
@@ -251,6 +259,7 @@ export default function AvatarHistoryScreen() {
                     animated={false}
                     fallbackUri={entry.avatarUrl}
                     fallbackName="Avatar"
+                    catalogue={artwork}
                   />
                   {entry.isCurrent && (
                     <View className="flex-row items-center justify-center mt-1.5">

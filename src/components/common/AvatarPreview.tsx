@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Animated, Image, StyleSheet, View } from 'react-native';
 import Svg, { Defs, Filter, FeColorMatrix, Image as SvgImage } from 'react-native-svg';
 
+import { ArtworkCatalogue } from '../../avatar/assetSource';
 import { FULLBODY_STAGE_SCALE, getEyeSource } from '../../avatar/registry';
 import { baseOf, resolveConfig } from '../../avatar/resolveConfig';
 import { AvatarConfig } from '../../avatar/types';
@@ -42,6 +43,13 @@ interface AvatarPreviewProps {
   fallbackName?: string | null;
   /** Card chrome. Off gives a bare figure on transparency. */
   framed?: boolean;
+  /**
+   * Redirects layers to uploaded artwork where the catalogue has any.
+   *
+   * Optional so every existing call site keeps rendering from the bundle. The
+   * wardrobe passes one; a profile thumbnail has no reason to.
+   */
+  catalogue?: ArtworkCatalogue;
 }
 
 export default function AvatarPreview({
@@ -51,8 +59,9 @@ export default function AvatarPreview({
   fallbackUri,
   fallbackName,
   framed = true,
+  catalogue,
 }: AvatarPreviewProps) {
-  const layers = useMemo(() => resolveConfig(config), [config]);
+  const layers = useMemo(() => resolveConfig(config, catalogue), [config, catalogue]);
   const base = baseOf(config);
 
   // Stable per-instance id: a grid renders several of these at once and SVG
@@ -109,6 +118,9 @@ export default function AvatarPreview({
 
   const hairLayer = layers.find((layer) => layer.slot === 'hair');
   const bodyLayers = layers.filter((layer) => layer.slot !== 'hair' && layer.slot !== 'base');
+  // Taken from the resolved layer, not `base.source`, so a base whose artwork
+  // has moved to S3 draws remotely like every other layer.
+  const baseSource = layers.find((layer) => layer.slot === 'base')?.source ?? base.source;
 
   return (
     <View style={[styles.stageFrame, framed && styles.framed, { height }]}>
@@ -124,7 +136,7 @@ export default function AvatarPreview({
           },
         ]}
       >
-        <Image source={base.source} style={styles.layer} resizeMode="contain" />
+        <Image source={baseSource} style={styles.layer} resizeMode="contain" />
 
         {/* Skin overlay, where the base uses one. */}
         {bodyLayers
@@ -138,7 +150,9 @@ export default function AvatarPreview({
             />
           ))}
 
-        {/* Blink overlays: both mounted, opacity toggled, so neither pops in late. */}
+        {/* Blink overlays: both mounted, opacity toggled, so neither pops in
+            late. These stay bundled — they are chosen by base rather than
+            picked, so they have no catalogue row to carry a URL. */}
         <Image
           source={getEyeSource('half', base.target, base.category)}
           style={[styles.layer, { opacity: eyeState === 'half_closed' ? 1 : 0 }]}

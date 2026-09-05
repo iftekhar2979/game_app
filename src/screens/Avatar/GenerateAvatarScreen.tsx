@@ -21,6 +21,8 @@ import { authService } from '../../services/authService';
 import { showToast } from '../../utils/toast';
 import { BASES, FULLBODY_STAGE_SCALE, indexOfAsset, listFor } from '../../avatar/registry';
 import { REGISTRY_VERSION } from '../../avatar/registry';
+import { resolveConfig } from '../../avatar/resolveConfig';
+import { prefetchEditorArtwork, prefetchSources } from '../../avatar/prefetchArtwork';
 import { AvatarConfig, AvatarSlot } from '../../avatar/types';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList, 'GenerateAvatar'>;
@@ -271,6 +273,24 @@ const GenerateAvatarScreen = () => {
     hairColor: selectedHairColor,
   });
   const previewHeight = isFullbody ? FULLBODY_PREVIEW_HEIGHT : PREVIEW_HEIGHT;
+
+  /**
+   * Warm every part offered for this base as soon as the catalogue lands.
+   *
+   * Without this the pickers fill in one remote image at a time as the user
+   * scrolls. A failure here is not worth reporting - the artwork still loads on
+   * demand, just visibly - so the outcome is deliberately ignored.
+   */
+  useEffect(() => {
+    if (!activeBase || catalogue.isLoading) return;
+
+    prefetchEditorArtwork(
+      activeBase.target,
+      activeBase.category,
+      activeBase.id,
+      catalogue.artwork,
+    ).catch(() => undefined);
+  }, [activeBase, catalogue.artwork, catalogue.isLoading]);
 
   const getHalfClosedEyeSource = () => {
     if (target === 'male' && avatarCategory === 2) {
@@ -876,6 +896,32 @@ const GenerateAvatarScreen = () => {
 
             try {
               setIsSaving(true);
+
+              /**
+               * Every remote layer must be cached before the shutter opens.
+               *
+               * `ViewShot` photographs whatever is on screen at that instant,
+               * so a layer still in flight is captured as a hole and then
+               * uploaded as the user's avatar - silently, because the capture
+               * itself succeeds. The settle below is a couple of frames, which
+               * is enough for bundled art that is already decoded and nowhere
+               * near enough for a network fetch.
+               *
+               * Failing the save is the right outcome here: an avatar missing
+               * its outfit is worse than one the user has to save twice.
+               */
+              const pending = resolveConfig(buildConfig(), catalogue.artwork).map(
+                (layer) => layer.source,
+              );
+              const artwork = await prefetchSources(pending);
+
+              if (!artwork.ok) {
+                showToast.error(
+                  'Artwork still loading',
+                  'Some parts of your avatar have not finished downloading. Check your connection and try again.',
+                );
+                return;
+              }
 
               // Freeze the blink loop and strip the card chrome, then let a
               // couple of frames land before capturing so the snapshot is

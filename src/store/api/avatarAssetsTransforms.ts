@@ -48,7 +48,10 @@ export interface AvatarCatalogueAsset {
   target: 'female' | 'male';
   categories: number[];
   bundledId: string | null;
+  /** Uploaded full-resolution artwork. Null while the asset is bundle-only. */
   imageUrl: string | null;
+  /** Smaller artwork for picker tiles. Null falls back to `imageUrl`. */
+  previewUrl: string | null;
   isFree: boolean;
   isOwned: boolean;
   isRetired: boolean;
@@ -73,6 +76,7 @@ export const toCatalogueAsset = (raw: AvatarAssetResponse): AvatarCatalogueAsset
     categories: raw.categories ?? [],
     bundledId: raw.bundledId ?? null,
     imageUrl: raw.imageUrl ?? null,
+    previewUrl: raw.previewUrl ?? null,
     isFree: raw.isFree,
     isOwned,
     isRetired,
