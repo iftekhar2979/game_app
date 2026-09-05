@@ -34,13 +34,9 @@ import {
 import { showToast } from '../../utils/toast';
 import {
   CHEER_DIVISIONS,
-  DIVISION_WIN_BONUSES,
-  GRAND_CHAMPION_BONUS,
-  HIT_ZERO_BONUS,
-  LAST_PLACE_PENALTIES,
-  SCORE_BANDS,
   getCheerPerformanceFantasyPreview,
 } from '../../utils/cheerScoring';
+import { FixedScoringRulesList } from '../../components/Scoring/FixedScoringRules';
 import type { AdminCheerStep } from './AdminCheerFormScreen';
 
 type Navigation = NativeStackNavigationProp<RootStackParamList, 'AdminCheer'>;
@@ -520,18 +516,9 @@ export default function AdminCheerScreen() {
               <Trophy color="#E0B566" size={22} />
             </View>
             <View className="mt-4 pt-4 border-t border-white/10">
-              <Text className="text-gray-300 text-xs leading-5">
-                {SCORE_BANDS.length} official score bands · Division win +
-                {DIVISION_WIN_BONUSES[0].points} / +
-                {DIVISION_WIN_BONUSES[1].points} / +
-                {DIVISION_WIN_BONUSES[2].points}
-              </Text>
-              <Text className="text-gray-300 text-xs leading-5">
-                Hit zero +{HIT_ZERO_BONUS} · Grand champion +
-                {GRAND_CHAMPION_BONUS} · Last place -
-                {Math.abs(LAST_PLACE_PENALTIES[0].points)} / -
-                {Math.abs(LAST_PLACE_PENALTIES[1].points)}
-              </Text>
+              {/* Same component the league screen renders - the dashboard has
+                  no separate copy of these numbers and nothing to edit. */}
+              <FixedScoringRulesList />
             </View>
           </View>
 

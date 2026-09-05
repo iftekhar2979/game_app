@@ -58,6 +58,7 @@ import {
   TeamTab,
   PlayersTab,
   LeagueTab,
+  ScoringRulesTab,
 } from '../../components/LeagueDetail/LeagueDetailTabs';
 import {
   PlayerDetailModal,
@@ -65,7 +66,6 @@ import {
   LeagueSettingsSubModal,
   DraftSettingsSubModal,
   RosterSettingsSubModal,
-  ScoringSettingsSubModal,
   MemberSettingsSubModal,
   GiveCommissionerAccessModal,
   LockRosterModal,
@@ -433,7 +433,7 @@ export default function LeagueDetailScreen() {
     league?.status === 'Play' ||
     league?.status === 'active';
   const [activeTab, setActiveTab] = useState<
-    'Matchup' | 'Draft' | 'Team' | 'Players' | 'League'
+    'Matchup' | 'Draft' | 'Team' | 'Players' | 'League' | 'Scoring'
   >(isPlayMode ? 'Matchup' : 'Draft');
 
   const [isUserJoined, setIsUserJoined] = useState(false);
@@ -852,10 +852,6 @@ export default function LeagueDetailScreen() {
     useState(false);
   const [isDraftSettingsSubModalVisible, setIsDraftSettingsSubModalVisible] =
     useState(false);
-  const [
-    isScoringSettingsSubModalVisible,
-    setIsScoringSettingsSubModalVisible,
-  ] = useState(false);
   const [isMemberSettingsSubModalVisible, setIsMemberSettingsSubModalVisible] =
     useState(false);
   const [isCommissionerModalVisible, setIsCommissionerModalVisible] =
@@ -873,7 +869,10 @@ export default function LeagueDetailScreen() {
     } else if (optionTitle === 'Draft settings') {
       setIsDraftSettingsSubModalVisible(true);
     } else if (optionTitle === 'Scoring settings') {
-      setIsScoringSettingsSubModalVisible(true);
+      // Scoring is fixed system-wide, so there is nothing to configure - send
+      // the user to the read-only rules tab instead of a settings screen.
+      setIsSettingsModalVisible(false);
+      setActiveTab('Scoring');
     } else if (optionTitle === 'Member settings') {
       setIsMemberSettingsSubModalVisible(true);
     } else if (optionTitle === 'Commissioner control') {
@@ -1201,80 +1200,44 @@ export default function LeagueDetailScreen() {
           )}
 
           {/* Tabs */}
-          <View className="flex-row justify-between items-center mb-6 px-1">
-            {isPlayMode ? (
+          {/* Horizontally scrollable: five tabs no longer fit a phone width */}
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            className="mb-6"
+            contentContainerStyle={{ paddingHorizontal: 4 }}
+          >
+            {(
+              [
+                isPlayMode
+                  ? ({ key: 'Matchup', label: 'Matchup' } as const)
+                  : ({ key: 'Draft', label: 'Draft' } as const),
+                { key: 'Team', label: 'My Roster' } as const,
+                { key: 'Players', label: 'Cheer Teams' } as const,
+                { key: 'League', label: 'League' } as const,
+                { key: 'Scoring', label: 'Scoring' } as const,
+              ]
+            ).map(tab => (
               <TouchableOpacity
+                key={tab.key}
                 className={`${
-                  activeTab === 'Matchup' ? 'bg-[#FFB84D]' : 'bg-transparent'
-                } px-5 py-2 rounded-xl`}
-                onPress={() => setActiveTab('Matchup')}
+                  activeTab === tab.key ? 'bg-[#FFB84D]' : 'bg-transparent'
+                } px-4 py-2 rounded-xl mr-1`}
+                onPress={() => setActiveTab(tab.key)}
               >
                 <Text
                   className={`${
-                    activeTab === 'Matchup' ? 'text-white' : 'text-gray-400'
+                    activeTab === tab.key ? 'text-white' : 'text-gray-400'
                   } text-[15px] font-semibold`}
                 >
-                  Matchup
+                  {tab.label}
                 </Text>
               </TouchableOpacity>
-            ) : (
-              <TouchableOpacity
-                className={`${
-                  activeTab === 'Draft' ? 'bg-[#FFB84D]' : 'bg-transparent'
-                } px-5 py-2 rounded-xl`}
-                onPress={() => setActiveTab('Draft')}
-              >
-                <Text
-                  className={`${
-                    activeTab === 'Draft' ? 'text-white' : 'text-gray-400'
-                  } text-[15px] font-semibold`}
-                >
-                  Draft
-                </Text>
-              </TouchableOpacity>
-            )}
-            <TouchableOpacity
-              className={`${
-                activeTab === 'Team' ? 'bg-[#FFB84D]' : 'bg-transparent'
-              } px-5 py-2 rounded-xl`}
-              onPress={() => setActiveTab('Team')}
-            >
-              <Text
-                className={`${
-                  activeTab === 'Team' ? 'text-white' : 'text-gray-400'
-                } text-[15px] font-semibold`}
-              >
-                My Roster
-              </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              className={`${
-                activeTab === 'Players' ? 'bg-[#FFB84D]' : 'bg-transparent'
-              } px-3 py-2 rounded-xl`}
-              onPress={() => setActiveTab('Players')}
-            >
-              <Text
-                className={`${
-                  activeTab === 'Players' ? 'text-white' : 'text-gray-400'
-                } text-[15px] font-semibold`}
-              >
-                Cheer Teams
-              </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              className={`${
-                activeTab === 'League' ? 'bg-[#FFB84D]' : 'bg-transparent'
-              } px-3 py-2 rounded-xl`}
-              onPress={() => setActiveTab('League')}
-            >
-              <Text
-                className={`${
-                  activeTab === 'League' ? 'text-white' : 'text-gray-400'
-                } text-[15px] font-semibold`}
-              >
-                League
-              </Text>
-            </TouchableOpacity>
+            ))}
+          </ScrollView>
+          {/* Scoring Tab Content */}
+          <View style={{ display: activeTab === 'Scoring' ? 'flex' : 'none' }}>
+            <ScoringRulesTab />
           </View>
 
           {/* Matchup Tab Content */}
@@ -1436,13 +1399,6 @@ export default function LeagueDetailScreen() {
         currentUserId={currentUserId}
       />
 
-      <ScoringSettingsSubModal
-        isVisible={isScoringSettingsSubModalVisible}
-        onClose={() => setIsScoringSettingsSubModalVisible(false)}
-        leagueId={leagueId}
-        league={league}
-        canEdit={!!callerInfo?.isCreator}
-      />
 
       <GiveCommissionerAccessModal
         isVisible={isCommissionerModalVisible}

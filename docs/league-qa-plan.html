@@ -1,0 +1,1166 @@
+<title>League QA Pass</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&display=swap">
+<style>
+:root{
+  --bg:#F6F4FA; --surface:#FFFFFF; --surface-2:#FBFAFD;
+  --ink:#17141F; --ink-2:#453F55; --muted:#6E6880;
+  --line:#E4E0EC; --line-2:#D3CDE0;
+  --accent:#6D28D9; --accent-ink:#FFFFFF; --accent-wash:#F1EAFE;
+  --amber:#9A5B08; --amber-wash:#FDF1DF;
+  --pass:#0F6B45; --pass-wash:#E2F5EC;
+  --fail:#A81E1E; --fail-wash:#FBE9E7;
+  --block:#6E6880; --block-wash:#EDEAF2;
+  --shadow:0 1px 2px rgba(23,20,31,.05), 0 8px 24px -16px rgba(23,20,31,.28);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0D0B12; --surface:#161320; --surface-2:#1C1828;
+    --ink:#EFEBF7; --ink-2:#C6BFD6; --muted:#9C94AE;
+    --line:#2A2438; --line-2:#3A3350;
+    --accent:#B98CFF; --accent-ink:#1A1226; --accent-wash:#241B36;
+    --amber:#E8A94A; --amber-wash:#2E2313;
+    --pass:#5BD69C; --pass-wash:#122A20;
+    --fail:#FF8A79; --fail-wash:#301715;
+    --block:#9C94AE; --block-wash:#221E2E;
+    --shadow:0 1px 2px rgba(0,0,0,.5), 0 10px 28px -18px rgba(0,0,0,.9);
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0D0B12; --surface:#161320; --surface-2:#1C1828;
+  --ink:#EFEBF7; --ink-2:#C6BFD6; --muted:#9C94AE;
+  --line:#2A2438; --line-2:#3A3350;
+  --accent:#B98CFF; --accent-ink:#1A1226; --accent-wash:#241B36;
+  --amber:#E8A94A; --amber-wash:#2E2313;
+  --pass:#5BD69C; --pass-wash:#122A20;
+  --fail:#FF8A79; --fail-wash:#301715;
+  --block:#9C94AE; --block-wash:#221E2E;
+  --shadow:0 1px 2px rgba(0,0,0,.5), 0 10px 28px -18px rgba(0,0,0,.9);
+}
+
+*{box-sizing:border-box}
+body{
+  background:var(--bg); color:var(--ink);
+  font-family:"IBM Plex Sans",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  font-size:15px; line-height:1.6; margin:0;
+  -webkit-font-smoothing:antialiased;
+}
+.wrap{max-width:920px; margin:0 auto; padding:0 20px 96px}
+
+header.masthead{padding:44px 0 26px; border-bottom:1px solid var(--line)}
+.eyebrow{
+  font-family:"IBM Plex Mono",ui-monospace,monospace; font-size:11px; font-weight:500;
+  letter-spacing:.13em; text-transform:uppercase; color:var(--accent); margin:0 0 12px;
+}
+h1{
+  font-family:Archivo,"Helvetica Neue",sans-serif; font-weight:700; font-size:clamp(30px,5.2vw,44px);
+  line-height:1.05; letter-spacing:-.022em; margin:0 0 14px; text-wrap:balance;
+}
+.standfirst{font-size:16.5px; color:var(--ink-2); max-width:63ch; margin:0 0 22px}
+.meta{
+  display:flex; flex-wrap:wrap; gap:8px 10px;
+  font-family:"IBM Plex Mono",monospace; font-size:11.5px; color:var(--muted);
+}
+.meta span{
+  border:1px solid var(--line); border-radius:999px; padding:3px 10px; background:var(--surface);
+}
+
+.progress-bar{
+  position:sticky; top:0; z-index:20; background:var(--bg);
+  border-bottom:1px solid var(--line); margin:0 -20px; padding:10px 20px;
+  display:flex; align-items:center; gap:14px; flex-wrap:wrap;
+}
+.track{flex:1 1 180px; height:6px; border-radius:999px; background:var(--line); overflow:hidden; display:flex}
+.track i{display:block; height:100%; width:0; transition:width .25s ease}
+.track .p{background:var(--pass)} .track .f{background:var(--fail)} .track .b{background:var(--block)}
+.counts{
+  display:flex; gap:12px; font-family:"IBM Plex Mono",monospace; font-size:12px;
+  font-variant-numeric:tabular-nums; color:var(--muted); white-space:nowrap;
+}
+.counts b{font-weight:600}
+.counts .cp b{color:var(--pass)} .counts .cf b{color:var(--fail)} .counts .cb b{color:var(--block)}
+button.reset{
+  font:inherit; font-size:12px; color:var(--muted); background:var(--surface);
+  border:1px solid var(--line-2); border-radius:8px; padding:3px 10px; cursor:pointer;
+}
+button.reset:hover{color:var(--ink); border-color:var(--accent)}
+button.reset:focus-visible{outline:2px solid var(--accent); outline-offset:2px}
+
+.preflight{
+  margin:30px 0 8px; background:var(--surface); border:1px solid var(--line);
+  border-radius:14px; padding:22px 24px; box-shadow:var(--shadow);
+}
+.preflight h2{margin:0 0 16px}
+.grid2{display:grid; grid-template-columns:repeat(auto-fit,minmax(230px,1fr)); gap:22px 30px}
+.grid2 h3{
+  font-family:"IBM Plex Mono",monospace; font-size:11px; letter-spacing:.1em; text-transform:uppercase;
+  color:var(--muted); font-weight:600; margin:0 0 8px;
+}
+.grid2 ul{margin:0; padding-left:17px; font-size:14px; color:var(--ink-2)}
+.grid2 li{margin-bottom:5px}
+
+h2{
+  font-family:Archivo,sans-serif; font-weight:600; font-size:21px; letter-spacing:-.012em;
+  margin:0; color:var(--ink);
+}
+section.area{margin-top:46px}
+.area-head{display:flex; align-items:baseline; gap:12px; padding-bottom:10px; border-bottom:2px solid var(--ink)}
+.area-key{
+  font-family:Archivo,sans-serif; font-weight:700; font-size:13px; letter-spacing:.06em;
+  color:var(--accent-ink); background:var(--accent); border-radius:6px; padding:2px 8px;
+}
+.area-head h2{flex:1}
+.area-count{font-family:"IBM Plex Mono",monospace; font-size:11.5px; color:var(--muted); font-variant-numeric:tabular-nums; white-space:nowrap}
+.area-note{font-size:14px; color:var(--muted); margin:10px 0 0; max-width:68ch}
+
+.cases{display:flex; flex-direction:column; margin-top:16px}
+.case{
+  display:grid; grid-template-columns:64px 1fr; gap:0 16px;
+  padding:16px 0; border-bottom:1px solid var(--line);
+}
+.case:last-child{border-bottom:none}
+.case.done{opacity:.6}
+.cid{
+  font-family:"IBM Plex Mono",monospace; font-size:12px; font-weight:600; color:var(--muted);
+  padding-top:2px; letter-spacing:.02em;
+}
+.case h3{
+  font-family:"IBM Plex Sans",sans-serif; font-size:15.5px; font-weight:600; margin:0 0 6px;
+  line-height:1.4; color:var(--ink);
+}
+.case h3 .p0{
+  font-family:"IBM Plex Mono",monospace; font-size:9.5px; font-weight:600; letter-spacing:.08em;
+  color:var(--amber); background:var(--amber-wash); border-radius:4px; padding:2px 5px;
+  vertical-align:2px; margin-left:7px;
+}
+.case p{margin:0; font-size:14px; color:var(--ink-2)}
+.exp{
+  font-size:14px; color:var(--ink-2); border-left:2px solid var(--accent);
+  padding-left:11px; margin:9px 0 0;
+}
+.exp b{
+  font-family:"IBM Plex Mono",monospace; font-size:10px; font-weight:600; letter-spacing:.1em;
+  text-transform:uppercase; color:var(--accent); display:block; margin-bottom:2px;
+}
+code{
+  font-family:"IBM Plex Mono",monospace; font-size:12.5px; background:var(--surface-2);
+  border:1px solid var(--line); border-radius:4px; padding:1px 5px; color:var(--ink);
+}
+.exp code{background:transparent; border:none; padding:0; color:var(--ink)}
+
+.status{display:flex; gap:5px; margin-top:11px}
+.status button{
+  font-family:"IBM Plex Mono",monospace; font-size:10.5px; font-weight:500; letter-spacing:.06em;
+  text-transform:uppercase; background:var(--surface); color:var(--muted);
+  border:1px solid var(--line-2); border-radius:7px; padding:4px 11px; cursor:pointer;
+  transition:background .12s, color .12s, border-color .12s;
+}
+.status button:hover{border-color:var(--accent); color:var(--ink)}
+.status button:focus-visible{outline:2px solid var(--accent); outline-offset:2px}
+.status button[aria-pressed="true"][data-v="pass"]{background:var(--pass-wash); color:var(--pass); border-color:var(--pass)}
+.status button[aria-pressed="true"][data-v="fail"]{background:var(--fail-wash); color:var(--fail); border-color:var(--fail)}
+.status button[aria-pressed="true"][data-v="block"]{background:var(--block-wash); color:var(--ink-2); border-color:var(--line-2)}
+
+.tablewrap{overflow-x:auto; margin:16px 0 0; border:1px solid var(--line); border-radius:10px; background:var(--surface)}
+table{border-collapse:collapse; width:100%; font-size:13.5px; min-width:320px}
+th,td{text-align:left; padding:8px 14px; border-bottom:1px solid var(--line)}
+th{
+  font-family:"IBM Plex Mono",monospace; font-size:10.5px; letter-spacing:.09em; text-transform:uppercase;
+  color:var(--muted); font-weight:600;
+}
+tr:last-child td{border-bottom:none}
+td.num{font-family:"IBM Plex Mono",monospace; font-variant-numeric:tabular-nums; text-align:right; white-space:nowrap}
+
+footer{
+  margin-top:56px; padding-top:22px; border-top:1px solid var(--line);
+  font-size:13px; color:var(--muted);
+}
+footer p{margin:0}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+@media (max-width:560px){
+  .case{grid-template-columns:1fr; gap:4px}
+  .cid{padding-top:0}
+}
+</style>
+
+<div class="wrap">
+
+<header class="masthead">
+  <p class="eyebrow">Manual QA &middot; Fantasy Cheer</p>
+  <h1>League QA Pass</h1>
+  <p class="standfirst">Every league flow in the app, end to end &mdash; discovery, creation, joining, the draft room, rosters, matchups, commissioner settings, chat and realtime. Work top to bottom and mark each case as you go.</p>
+  <div class="meta">
+    <span>branch feature/cheer-team-fantasy-migration</span>
+    <span>119 cases &middot; 13 areas</span>
+    <span>tester ______</span>
+    <span>build ______</span>
+  </div>
+</header>
+
+<div class="progress-bar">
+  <div class="track" aria-hidden="true"><i class="p" id="bp"></i><i class="f" id="bf"></i><i class="b" id="bb"></i></div>
+  <div class="counts">
+    <span class="cp"><b id="np">0</b> pass</span>
+    <span class="cf"><b id="nf">0</b> fail</span>
+    <span class="cb"><b id="nb">0</b> blocked</span>
+    <span><b id="nt">0</b>/<span id="ntotal">119</span> done</span>
+  </div>
+  <button class="reset" id="reset" type="button">Clear run</button>
+</div>
+
+<div class="preflight">
+  <h2>Before you start</h2>
+  <div class="grid2">
+    <div>
+      <h3>Accounts you need</h3>
+      <ul>
+        <li><b>Commissioner</b> &mdash; creates the league, owns every settings modal</li>
+        <li><b>Member</b> &mdash; joins and drafts, never sees commissioner controls</li>
+        <li><b>Outsider</b> &mdash; not a member; used for the private, full and closed cases</li>
+        <li><b>Admin</b> &mdash; submits cheer competition results so scores land</li>
+      </ul>
+    </div>
+    <div>
+      <h3>Environment</h3>
+      <ul>
+        <li>An <b>active season</b> must exist &mdash; league creation hard-blocks without one</li>
+        <li><b>Two devices</b> signed in as different members on the same league, for every realtime case</li>
+        <li>Seeded season cheer teams across at least <b>two divisions</b></li>
+        <li>A way to kill the network (airplane mode) for the resilience area</li>
+      </ul>
+    </div>
+    <div>
+      <h3>How to log a case</h3>
+      <ul>
+        <li><b>Pass</b> &mdash; you observed exactly the expected result</li>
+        <li><b>Fail</b> &mdash; file a ticket with the case ID (e.g. <code>F05</code>) in the title</li>
+        <li><b>Blocked</b> &mdash; you could not reach it; note what stopped you</li>
+      </ul>
+    </div>
+    <div>
+      <h3>Run order matters</h3>
+      <ul>
+        <li>A &rarr; B &rarr; C build the league the rest of the plan uses</li>
+        <li>E or F must complete before G, I and J have any data</li>
+        <li>K11 deletes the league &mdash; run it last</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<section class="area">
+  <div class="area-head"><span class="area-key">A</span><h2>Discovery and league list</h2><span class="area-count">9 cases</span></div>
+  <p class="area-note">Fantasy tab. Search is debounced 300&nbsp;ms; filters and sort both reset paging to page 1; the list appends by id and must never show a league twice.</p>
+  <div class="cases">
+
+    <div class="case"><div class="cid">A01</div><div>
+      <h3>List loads with real leagues<span class="p0">P0</span></h3>
+      <p>Open the Fantasy tab cold.</p>
+      <div class="exp"><b>Expect</b>Cards show league name, status pill and joined/max team count. Status maps: <code>registration_open</code> and <code>drafting</code> render as &ldquo;Draft&rdquo; in purple; <code>active</code> and <code>auction_active</code> render as &ldquo;Play&rdquo; in green.</div>
+    </div></div>
+
+    <div class="case"><div class="cid">A02</div><div>
+      <h3>Search debounce</h3>
+      <p>Type a six-letter league name quickly into the search field.</p>
+      <div class="exp"><b>Expect</b>One request fires about 300&nbsp;ms after you stop typing, not one per keystroke. Results match the term.</div>
+    </div></div>
+
+    <div class="case"><div class="cid">A03</div><div>
+      <h3>Clear-search control</h3>
+      <p>With text in the search box, tap the clear control.</p>
+      <div class="exp"><b>Expect</b>The clear affordance only appears while the field is non-empty; tapping it empties the field and restores the unfiltered list.</div>
+    </div></div>
+
+    <div class="case"><div class="cid">A04</div><div>
+      <h3>Status filter chips</h3>
+      <p>Cycle All &rarr; Draft/Registration &rarr; Play.</p>
+      <div class="exp"><b>Expect</b>The selected chip inverts to dark text on the accent fill. Each change resets to page 1 and refetches, and no row from the previous filter survives.</div>
+    </div></div>
+
+    <div class="case"><div class="cid">A05</div><div>
+      <h3>Sort options</h3>
+      <p>Apply each sort in turn: newest, name, status (&ldquo;Draft / Registration&rdquo; first), team count.</p>
+      <div class="exp"><b>Expect</b>Ordering visibly changes and paging resets. The sort holds as you scroll into later pages.</div>
+    </div></div>
+
+    <div class="case"><div class="cid">A06</div><div>
+      <h3>Infinite scroll<span class="p0">P0</span></h3>
+      <p>With more than one page of leagues, scroll to the bottom repeatedly.</p>
+      <div class="exp"><b>Expect</b>The next page appends near the end of the list. No league appears twice. Scrolling past the last page stops fetching instead of looping.</div>
+    </div></div>
+
+    <div class="case"><div class="cid">A07</div><div>
+      <h3>Pull to refresh</h3>
+      <p>Pull down on the list.</p>
+      <div class="exp"><b>Expect</b>Spinner shows, the list resets to page 1, and a league created on the other device now appears.</div>
+    </div></div>
+
+    <div class="case"><div class="cid">A08</div><div>
+      <h3>Empty state</h3>
+      <p>Search for a term that matches nothing.</p>
+      <div class="exp"><b>Expect</b>&ldquo;No leagues found matching your selected filters.&rdquo; &mdash; not a blank screen and not an endless spinner.</div>
+    </div></div>
+
+    <div class="case"><div class="cid">A09</div><div>
+      <h3>Locally created fallback</h3>
+      <p>Create a league while the list endpoint returns nothing, then return to the list with no search term and no filter applied.</p>
+      <div class="exp"><b>Expect</b>The just-created league still shows, marked Draft. Applying any filter or search hides the fallback rather than mixing it into filtered results.</div>
+    </div></div>
+
+  </div>
+</section>
+
+<section class="area">
+  <div class="area-head"><span class="area-key">B</span><h2>League creation</h2><span class="area-count">13 cases</span></div>
+  <p class="area-note">All validation runs client-side before the create request; server failures surface through the error toast. Scoring is deliberately absent from this form &mdash; it is fixed system-wide (area J).</p>
+  <div class="cases">
+
+    <div class="case"><div class="cid">B01</div><div>
+      <h3>No active season blocks creation<span class="p0">P0</span></h3>
+      <p>With no active season configured, submit the form.</p>
+      <div class="exp"><b>Expect</b>Error toast &ldquo;No active season found to create a league.&rdquo; and no request is sent. A season-load failure instead shows the underlying error rather than blaming the calendar.</div>
+    </div></div>
+
+    <div class="case"><div class="cid">B02</div><div>
+      <h3>Required fields</h3>
+      <p>Submit with the league name empty, then with the fantasy team name empty, then with the description empty.</p>
+      <div class="exp"><b>Expect</b>League name and fantasy team name are each required and named individually in the error. Description saves fine when blank.</div>
+    </div></div>
+
+    <div class="case"><div class="cid">B03</div><div>
+      <h3>Logo upload</h3>
+      <p>Pick an image from the library for the league logo.</p>
+      <div class="exp"><b>Expect</b>Preview renders, the upload completes, and the saved league shows that logo in both the list card and the detail header.</div>
+    </div></div>
+
+    <div class="case"><div class="cid">B04</div><div>
+      <h3>Logo upload failure</h3>
+      <p>Kill the network mid-upload, or pick an oversized file.</p>
+      <div class="exp"><b>Expect</b>A specific upload error, the form stays filled, and you can retry or continue without a logo. The whole creation is not lost.</div>
+    </div></div>
+
+    <div class="case"><div class="cid">B05</div><div>
+      <h3>Visibility, public and private</h3>
+      <p>Create one league of each visibility.</p>
+      <div class="exp"><b>Expect</b>Public leagues are discoverable in the Fantasy list from the outsider account; private ones are not, and are reachable only by invite code.</div>
+    </div></div>
+
+    <div class="case"><div class="cid">B06</div><div>
+      <h3>Max teams picker</h3>
+      <p>Open the picker, change it from the default, and save.</p>
+      <div class="exp"><b>Expect</b>Default is 10; the selected value is highlighted in the list and the summary reads &ldquo;N Teams&rdquo;. The saved league enforces that cap on joins.</div>
+    </div></div>
+
+    <div class="case"><div class="cid">B07</div><div>
+      <h3>Draft type switch</h3>
+      <p>Toggle between Auction and Snake.</p>
+      <div class="exp"><b>Expect</b>The settings panel swaps wholesale &mdash; budget and bid fields for auction, pick duration for snake. No orphan field from the other mode is submitted.</div>
+    </div></div>
+
+    <div class="case"><div class="cid">B08</div><div>
+      <h3>Auction settings persist<span class="p0">P0</span></h3>
+      <p>Set starting budget, minimum bid, bid increment, nomination time and bidding time to non-default values.</p>
+      <div class="exp"><b>Expect</b>Defaults are minimum bid 1 and nomination 30&nbsp;s. Every value round-trips: reopen Draft settings on the created league and see exactly what you entered.</div>
+    </div></div>
+
+    <div class="case"><div class="cid">B09</div><div>
+      <h3>Snake pick duration bounds<span class="p0">P0</span></h3>
+      <p>Enter 0 minutes, then 11, then 5.</p>
+      <div class="exp"><b>Expect</b>0 and 11 are both rejected with &ldquo;Snake pick duration must be between 1 and 10 minutes.&rdquo; 5 saves.</div>
+    </div></div>
+
+    <div class="case"><div class="cid">B10</div><div>
+      <h3>Draft date bounded by the season</h3>
+      <p>Open the draft date picker and try to select a date in the past and one after the season ends.</p>
+      <div class="exp"><b>Expect</b>Both are unreachable &mdash; the picker clamps to the season window. The time picker accepts any time on a valid date.</div>
+    </div></div>
+
+    <div class="case"><div class="cid">B11</div><div>
+      <h3>Unscheduled draft defaults</h3>
+      <p>Create a league without touching the date or time pickers.</p>
+      <div class="exp"><b>Expect</b>The draft is scheduled 15 minutes out, and the detail screen&rsquo;s countdown reflects that rather than showing no countdown at all.</div>
+    </div></div>
+
+    <div class="case"><div class="cid">B12</div><div>
+      <h3>Matchup settings</h3>
+      <p>Create one league with head-to-head plus the bench-points tiebreaker, and one with total points and no tiebreaker.</p>
+      <div class="exp"><b>Expect</b>Both save, and the Matchup tab later renders the matching format (see I05 and I06).</div>
+    </div></div>
+
+    <div class="case"><div class="cid">B13</div><div>
+      <h3>Success returns a joinable code<span class="p0">P0</span></h3>
+      <p>Complete a valid creation.</p>
+      <div class="exp"><b>Expect</b>An invite code is returned and shown; the creator is already a member with their fantasy team; the code works from the outsider account in C01. A server-side rejection surfaces the API&rsquo;s own message, not a generic &ldquo;Failed to create league&rdquo;.</div>
+    </div></div>
+
+  </div>
+</section>
+
+<section class="area">
+  <div class="area-head"><span class="area-key">C</span><h2>Joining a league</h2><span class="area-count">12 cases</span></div>
+  <p class="area-note">Two doors: the invite code (typed, scanned, or read from a saved QR image) and the Join button on a public league&rsquo;s detail screen. Code input is trimmed and upper-cased before it is sent.</p>
+  <div class="cases">
+
+    <div class="case"><div class="cid">C01</div><div>
+      <h3>Join by typed code<span class="p0">P0</span></h3>
+      <p>From the outsider account, enter the code from B13 together with a fantasy team name.</p>
+      <div class="exp"><b>Expect</b>Join succeeds, the league appears under your leagues, and you land in it as a member with your team.</div>
+    </div></div>
+
+    <div class="case"><div class="cid">C02</div><div>
+      <h3>Code normalisation</h3>
+      <p>Enter the same code in lower case with a leading and trailing space.</p>
+      <div class="exp"><b>Expect</b>Accepted &mdash; trimmed and upper-cased before sending, with the same result as C01.</div>
+    </div></div>
+
+    <div class="case"><div class="cid">C03</div><div>
+      <h3>Empty or malformed code</h3>
+      <p>Submit with the code field blank, then with three characters.</p>
+      <div class="exp"><b>Expect</b>&ldquo;Please enter a valid invite code&rdquo; and no network call.</div>
+    </div></div>
+
+    <div class="case"><div class="cid">C04</div><div>
+      <h3>QR scan</h3>
+      <p>Point the scanner at the commissioner&rsquo;s QR code.</p>
+      <div class="exp"><b>Expect</b>The code is detected and filled automatically, and the framing guidance is visible while you align.</div>
+    </div></div>
+
+    <div class="case"><div class="cid">C05</div><div>
+      <h3>Unreadable QR</h3>
+      <p>Scan something that is not a league QR.</p>
+      <div class="exp"><b>Expect</b>&ldquo;Could not detect a valid league code.&rdquo; The sheet stays open so you can type the code instead.</div>
+    </div></div>
+
+    <div class="case"><div class="cid">C06</div><div>
+      <h3>QR from a saved image</h3>
+      <p>Choose a screenshot of a QR from the photo library.</p>
+      <div class="exp"><b>Expect</b>A prompt to enter or confirm the six-digit code from the QR, with the manual field editable.</div>
+    </div></div>
+
+    <div class="case"><div class="cid">C07</div><div>
+      <h3>Fantasy team name required</h3>
+      <p>Enter a valid code but leave the team name blank.</p>
+      <div class="exp"><b>Expect</b>Blocked with a message naming the team name. The code is not consumed.</div>
+    </div></div>
+
+    <div class="case"><div class="cid">C08</div><div>
+      <h3>Wrong code</h3>
+      <p>Enter a well-formed code that belongs to no league.</p>
+      <div class="exp"><b>Expect</b>&ldquo;Could not join league with this code.&rdquo; and you stay on the sheet with your input intact.</div>
+    </div></div>
+
+    <div class="case"><div class="cid">C09</div><div>
+      <h3>Already a member<span class="p0">P0</span></h3>
+      <p>Join the same league twice from the same account.</p>
+      <div class="exp"><b>Expect</b>Rejected with a clear message. No second team is created and the joined-team count does not increment.</div>
+    </div></div>
+
+    <div class="case"><div class="cid">C10</div><div>
+      <h3>League at capacity<span class="p0">P0</span></h3>
+      <p>Fill a league to its max teams, then attempt one more join.</p>
+      <div class="exp"><b>Expect</b>Rejected with a &ldquo;league is full&rdquo; message; the detail screen shows no free slot and the Join control is gone or disabled.</div>
+    </div></div>
+
+    <div class="case"><div class="cid">C11</div><div>
+      <h3>Registration closed or draft under way</h3>
+      <p>Attempt to join a league whose status is <code>registration_closed</code>, then one that is <code>active</code>.</p>
+      <div class="exp"><b>Expect</b>Both refused, with a message explaining the league is no longer accepting teams.</div>
+    </div></div>
+
+    <div class="case"><div class="cid">C12</div><div>
+      <h3>Join from the detail screen<span class="p0">P0</span></h3>
+      <p>Open a public league you do not belong to and use the Join modal.</p>
+      <div class="exp"><b>Expect</b>On success the modal closes, your team fills the first empty slot, members refetch, and the other device sees you appear without refreshing (see M02). On failure the reason appears <em>inline in the modal</em> &mdash; it must not vanish behind a toast.</div>
+    </div></div>
+
+  </div>
+</section>
+
+<section class="area">
+  <div class="area-head"><span class="area-key">D</span><h2>League detail shell and countdown</h2><span class="area-count">8 cases</span></div>
+  <p class="area-note">Six tabs in a horizontal scroller: Matchup, Draft, Team, Players, League, Scoring. The default tab and the countdown both key off league status and the scheduled draft start.</p>
+  <div class="cases">
+
+    <div class="case"><div class="cid">D01</div><div>
+      <h3>Loading state</h3>
+      <p>Open a league on a slow connection.</p>
+      <div class="exp"><b>Expect</b>A spinner with &ldquo;Loading League Details&hellip;&rdquo;, with no half-rendered tabs and no flash of placeholder data.</div>
+    </div></div>
+
+    <div class="case"><div class="cid">D02</div><div>
+      <h3>All six tabs reachable</h3>
+      <p>Scroll the tab strip horizontally and open every tab.</p>
+      <div class="exp"><b>Expect</b>All six reachable on a narrow phone; the active tab is filled amber with white text; every tab renders content or a proper empty state.</div>
+    </div></div>
+
+    <div class="case"><div class="cid">D03</div><div>
+      <h3>Default tab by status<span class="p0">P0</span></h3>
+      <p>Open a pre-draft league, then an active one.</p>
+      <div class="exp"><b>Expect</b>Pre-draft opens on Draft; an active league opens on Matchup.</div>
+    </div></div>
+
+    <div class="case"><div class="cid">D04</div><div>
+      <h3>Status flip only moves you off Draft</h3>
+      <p>While sitting on the Team tab, have the commissioner set the league to active.</p>
+      <div class="exp"><b>Expect</b>You stay on Team. Only a viewer sitting on the Draft tab is moved to Matchup.</div>
+    </div></div>
+
+    <div class="case"><div class="cid">D05</div><div>
+      <h3>Countdown ticks</h3>
+      <p>Watch the countdown on a league drafting in the future.</p>
+      <div class="exp"><b>Expect</b>Days, hours, minutes and seconds decrement once per second and are still correct after the app has been backgrounded for a minute.</div>
+    </div></div>
+
+    <div class="case"><div class="cid">D06</div><div>
+      <h3>Countdown reaching zero<span class="p0">P0</span></h3>
+      <p>Schedule a draft about two minutes out and wait on the screen.</p>
+      <div class="exp"><b>Expect</b>At zero the counter shows all zeros, the league flips to Play, and the view switches to Matchup once &mdash; no flicker and no repeated switching.</div>
+    </div></div>
+
+    <div class="case"><div class="cid">D07</div><div>
+      <h3>No scheduled draft</h3>
+      <p>Open a league with no draft date set anywhere.</p>
+      <div class="exp"><b>Expect</b>No countdown block at all &mdash; not a frozen zero and not &ldquo;NaN&rdquo;.</div>
+    </div></div>
+
+    <div class="case"><div class="cid">D08</div><div>
+      <h3>Leave and return<span class="p0">P0</span></h3>
+      <p>Back out during a live countdown, then re-enter. Repeat several times.</p>
+      <div class="exp"><b>Expect</b>No crash and no doubled tick rate (a leaked interval makes the timer count down twice per second). The socket room is rejoined cleanly.</div>
+    </div></div>
+
+  </div>
+</section>
+
+<section class="area">
+  <div class="area-head"><span class="area-key">E</span><h2>Draft room, snake</h2><span class="area-count">8 cases</span></div>
+  <p class="area-note">Run this with both devices in the draft room at once, and watch the board, the turn indicator and the pick feed on <em>both</em> screens for every pick.</p>
+  <div class="cases">
+
+    <div class="case"><div class="cid">E01</div><div>
+      <h3>Commissioner starts the draft<span class="p0">P0</span></h3>
+      <p>Tap Start draft as the commissioner.</p>
+      <div class="exp"><b>Expect</b>Toast &ldquo;Draft started &mdash; the pick order has been generated.&rdquo; The order populates and the board fills with team-owned slots.</div>
+    </div></div>
+
+    <div class="case"><div class="cid">E02</div><div>
+      <h3>Members cannot start it</h3>
+      <p>Look for the Start control as an ordinary member.</p>
+      <div class="exp"><b>Expect</b>Hidden or disabled, and the endpoint is refused server-side if called directly.</div>
+    </div></div>
+
+    <div class="case"><div class="cid">E03</div><div>
+      <h3>Pending state copy</h3>
+      <p>Open the draft room before the draft starts.</p>
+      <div class="exp"><b>Expect</b>&ldquo;The pick order is generated when the draft starts.&rdquo; &mdash; not an empty board with no explanation.</div>
+    </div></div>
+
+    <div class="case"><div class="cid">E04</div><div>
+      <h3>Turn header accuracy<span class="p0">P0</span></h3>
+      <p>Make several picks and read the header each time.</p>
+      <div class="exp"><b>Expect</b>&ldquo;Round X of Y &middot; Pick N of M&rdquo; advances by exactly one pick, and the snake order reverses correctly at the end of each round.</div>
+    </div></div>
+
+    <div class="case"><div class="cid">E05</div><div>
+      <h3>Not your turn</h3>
+      <p>Watch from the device whose turn it is not.</p>
+      <div class="exp"><b>Expect</b>&ldquo;Waiting for another team to pick.&rdquo; and picking is disabled &mdash; tapping a cheer team does nothing rather than firing a request that gets rejected.</div>
+    </div></div>
+
+    <div class="case"><div class="cid">E06</div><div>
+      <h3>Making a pick with a division slot<span class="p0">P0</span></h3>
+      <p>On your turn, choose a cheer team; the division picker opens.</p>
+      <div class="exp"><b>Expect</b>Only divisions with an open slot are selectable. Confirming gives &ldquo;Draft Pick Success!&rdquo;, the team lands on your roster in that division, and the turn passes.</div>
+    </div></div>
+
+    <div class="case"><div class="cid">E07</div><div>
+      <h3>Drafted teams leave the pool<span class="p0">P0</span></h3>
+      <p>After the other device picks a team, look for that team in your available list.</p>
+      <div class="exp"><b>Expect</b>It disappears or is clearly marked taken, without a manual refresh. Attempting to pick it anyway is refused.</div>
+    </div></div>
+
+    <div class="case"><div class="cid">E08</div><div>
+      <h3>Draft completion</h3>
+      <p>Play out every pick.</p>
+      <div class="exp"><b>Expect</b>The draft status becomes completed, the room stops asking for picks, and the league moves into play with full rosters on both teams.</div>
+    </div></div>
+
+  </div>
+</section>
+
+<section class="area">
+  <div class="area-head"><span class="area-key">F</span><h2>Draft room, auction</h2><span class="area-count">9 cases</span></div>
+  <p class="area-note">Auction is the mode the app executes end to end. Use short nomination and bidding durations from B08 so the timers are testable inside a session.</p>
+  <div class="cases">
+
+    <div class="case"><div class="cid">F01</div><div>
+      <h3>Start the auction<span class="p0">P0</span></h3>
+      <p>Commissioner starts the auction.</p>
+      <div class="exp"><b>Expect</b>A toast confirms the first manager may nominate, and both devices show the same nominating team.</div>
+    </div></div>
+
+    <div class="case"><div class="cid">F02</div><div>
+      <h3>Nominate a cheer team<span class="p0">P0</span></h3>
+      <p>As the nominating manager, nominate a team and assign its division.</p>
+      <div class="exp"><b>Expect</b>&ldquo;Team nominated&rdquo;, and the turn opens for bidding on both devices with the bidding deadline shown as a local time.</div>
+    </div></div>
+
+    <div class="case"><div class="cid">F03</div><div>
+      <h3>Nominating out of turn</h3>
+      <p>Try to nominate from the wrong device.</p>
+      <div class="exp"><b>Expect</b>Blocked in the UI, and no phantom nomination appears on either screen.</div>
+    </div></div>
+
+    <div class="case"><div class="cid">F04</div><div>
+      <h3>Bid defaults to the minimum</h3>
+      <p>Leave the bid field blank and submit.</p>
+      <div class="exp"><b>Expect</b>The league&rsquo;s minimum bid is used &mdash; not 0 and not NaN.</div>
+    </div></div>
+
+    <div class="case"><div class="cid">F05</div><div>
+      <h3>Bid below the increment is refused<span class="p0">P0</span></h3>
+      <p>Bid an amount below the current bid plus the configured increment.</p>
+      <div class="exp"><b>Expect</b>Refused with a message stating the required amount, and the leading bid is unchanged on both devices.</div>
+    </div></div>
+
+    <div class="case"><div class="cid">F06</div><div>
+      <h3>Winning bid updates live<span class="p0">P0</span></h3>
+      <p>Bid from device A and watch device B.</p>
+      <div class="exp"><b>Expect</b>A sees &ldquo;your bid is now leading&rdquo;; B shows the new current bid within a second without pulling to refresh.</div>
+    </div></div>
+
+    <div class="case"><div class="cid">F07</div><div>
+      <h3>Bidding beyond budget<span class="p0">P0</span></h3>
+      <p>Bid more than your remaining draft budget, then spend down until you cannot afford a minimum bid.</p>
+      <div class="exp"><b>Expect</b>Over-budget bids are refused. With no affordable bid left, the bidding controls are disabled rather than failing on submit. Budget remaining is never negative.</div>
+    </div></div>
+
+    <div class="case"><div class="cid">F08</div><div>
+      <h3>Finalize the turn</h3>
+      <p>Let the bidding timer expire, then finalize.</p>
+      <div class="exp"><b>Expect</b>The high bidder receives the team, their budget drops by exactly the winning bid, the roster and pick feed update on both devices, and nomination passes to the next manager.</div>
+    </div></div>
+
+    <div class="case"><div class="cid">F09</div><div>
+      <h3>Complete the auction</h3>
+      <p>Fill every slot and complete the auction.</p>
+      <div class="exp"><b>Expect</b>The auction closes, no further nominations are accepted, and every team has a roster matching the division rules.</div>
+    </div></div>
+
+  </div>
+</section>
+
+<section class="area">
+  <div class="area-head"><span class="area-key">G</span><h2>Team and roster</h2><span class="area-count">11 cases</span></div>
+  <p class="area-note">The roster is resolved server-side for the caller&rsquo;s own team. Division rules define an exact team count and a starter count per division; starters can never exceed the division&rsquo;s team count.</p>
+  <div class="cases">
+
+    <div class="case"><div class="cid">G01</div><div>
+      <h3>My roster loads<span class="p0">P0</span></h3>
+      <p>Open the Team tab after drafting.</p>
+      <div class="exp"><b>Expect</b>Starters and bench are separated, the counts match the totals, and every row shows name, division, opening value and how the team was acquired.</div>
+    </div></div>
+
+    <div class="case"><div class="cid">G02</div><div>
+      <h3>Empty roster before the draft</h3>
+      <p>Open the Team tab on a league that has not drafted.</p>
+      <div class="exp"><b>Expect</b>A clear empty state, not a spinner that never resolves.</div>
+    </div></div>
+
+    <div class="case"><div class="cid">G03</div><div>
+      <h3>Promote a bench team to starter<span class="p0">P0</span></h3>
+      <p>Move a bench cheer team into a starting slot in the same division.</p>
+      <div class="exp"><b>Expect</b>The change applies immediately, survives backing out and re-entering, and the Matchup tab reflects the new starters.</div>
+    </div></div>
+
+    <div class="case"><div class="cid">G04</div><div>
+      <h3>Bench a starter</h3>
+      <p>Move a starter to the bench and leave the slot open.</p>
+      <div class="exp"><b>Expect</b>Allowed, with a visible warning that the division is under-filled rather than silently scoring zero on match day.</div>
+    </div></div>
+
+    <div class="case"><div class="cid">G05</div><div>
+      <h3>Division starter cap<span class="p0">P0</span></h3>
+      <p>Try to start more teams in one division than that division&rsquo;s starter count allows.</p>
+      <div class="exp"><b>Expect</b>Refused with a message naming the division and the limit. Nothing is silently swapped out to make room.</div>
+    </div></div>
+
+    <div class="case"><div class="cid">G06</div><div>
+      <h3>Release a team</h3>
+      <p>Release a rostered cheer team.</p>
+      <div class="exp"><b>Expect</b>Confirmation first; then the roster shrinks, the team returns to the available pool, and the other device sees the drop live.</div>
+    </div></div>
+
+    <div class="case"><div class="cid">G07</div><div>
+      <h3>Add a free agent<span class="p0">P0</span></h3>
+      <p>With an open roster slot, add an unowned cheer team. Then try again with a full roster.</p>
+      <div class="exp"><b>Expect</b>The first lands on the bench and the roster count increments. The second is refused with a message telling you to drop someone first.</div>
+    </div></div>
+
+    <div class="case"><div class="cid">G08</div><div>
+      <h3>Waiver claim</h3>
+      <p>Submit a waiver claim, then view your pending claims.</p>
+      <div class="exp"><b>Expect</b>The claim is listed with its bid or priority, and your FAAB balance or waiver priority is reflected correctly.</div>
+    </div></div>
+
+    <div class="case"><div class="cid">G09</div><div>
+      <h3>Trade proposal round trip</h3>
+      <p>Propose a trade from device A and respond from device B.</p>
+      <div class="exp"><b>Expect</b>B sees the proposal and can accept or reject. On acceptance both rosters swap the right teams; on rejection both are untouched.</div>
+    </div></div>
+
+    <div class="case"><div class="cid">G10</div><div>
+      <h3>Trade voting</h3>
+      <p>With league voting in play, cast votes from the other members.</p>
+      <div class="exp"><b>Expect</b>The tally is visible and the trade only settles once the vote resolves.</div>
+    </div></div>
+
+    <div class="case"><div class="cid">G11</div><div>
+      <h3>Another team&rsquo;s roster is read-only<span class="p0">P0</span></h3>
+      <p>Open an opponent&rsquo;s roster.</p>
+      <div class="exp"><b>Expect</b>You can see their starters and bench, but every lineup, drop and add control is absent &mdash; not merely styled as disabled.</div>
+    </div></div>
+
+  </div>
+</section>
+
+<section class="area">
+  <div class="area-head"><span class="area-key">H</span><h2>Players tab</h2><span class="area-count">5 cases</span></div>
+  <p class="area-note">Available entries page 20 at a time and can be narrowed by search term and position. Eligibility is supplied by the server per league, not computed on the device.</p>
+  <div class="cases">
+
+    <div class="case"><div class="cid">H01</div><div>
+      <h3>Paged list</h3>
+      <p>Scroll the available list past the first page.</p>
+      <div class="exp"><b>Expect</b>Twenty per page, appended smoothly, no duplicates, and paging stops at the last page.</div>
+    </div></div>
+
+    <div class="case"><div class="cid">H02</div><div>
+      <h3>Search by name</h3>
+      <p>Search for a known cheer team or athlete.</p>
+      <div class="exp"><b>Expect</b>Filtered results, and clearing the term restores the full list from page 1.</div>
+    </div></div>
+
+    <div class="case"><div class="cid">H03</div><div>
+      <h3>Filter by position or division</h3>
+      <p>Apply each position filter in turn, then combine one with a search term.</p>
+      <div class="exp"><b>Expect</b>Only matching entries show, and combining search with a filter narrows the list rather than resetting either one.</div>
+    </div></div>
+
+    <div class="case"><div class="cid">H04</div><div>
+      <h3>Ineligible entries are marked<span class="p0">P0</span></h3>
+      <p>Find an entry the league marks ineligible.</p>
+      <div class="exp"><b>Expect</b>Visibly flagged and not addable or draftable, with the reason evident rather than a silent failure on tap.</div>
+    </div></div>
+
+    <div class="case"><div class="cid">H05</div><div>
+      <h3>Player detail modal</h3>
+      <p>Open a player&rsquo;s detail sheet.</p>
+      <div class="exp"><b>Expect</b>Photo, organisation, opening value and eligible positions all render. A missing photo or organisation falls back gracefully instead of showing a broken image.</div>
+    </div></div>
+
+  </div>
+</section>
+
+<section class="area">
+  <div class="area-head"><span class="area-key">I</span><h2>Matchups and standings</h2><span class="area-count">10 cases</span></div>
+  <p class="area-note">The current-matchup query caches per week, so switching weeks is a genuine cache-key test rather than just a refetch.</p>
+  <div class="cases">
+
+    <div class="case"><div class="cid">I01</div><div>
+      <h3>Current matchup renders<span class="p0">P0</span></h3>
+      <p>Open the Matchup tab in an active league.</p>
+      <div class="exp"><b>Expect</b>Your side badged MY and the opponent OPP, a VS divider, both totals, and each side&rsquo;s starters listed with their points.</div>
+    </div></div>
+
+    <div class="case"><div class="cid">I02</div><div>
+      <h3>Week switching<span class="p0">P0</span></h3>
+      <p>Move to a previous week, back to the current one, then forward again.</p>
+      <div class="exp"><b>Expect</b>Each week shows its own matchup and score. Returning to a week you already loaded shows that week&rsquo;s data &mdash; never a previous week&rsquo;s numbers under the new week&rsquo;s heading.</div>
+    </div></div>
+
+    <div class="case"><div class="cid">I03</div><div>
+      <h3>Error and retry</h3>
+      <p>Kill the network and open the tab.</p>
+      <div class="exp"><b>Expect</b>An error message with a working Retry button. Restoring the network and tapping Retry loads the matchup.</div>
+    </div></div>
+
+    <div class="case"><div class="cid">I04</div><div>
+      <h3>No matchup scheduled</h3>
+      <p>Open Matchup in a league with no fixture for the period.</p>
+      <div class="exp"><b>Expect</b>A stated empty condition, not an empty scoreboard reading 0&ndash;0 as if a game exists.</div>
+    </div></div>
+
+    <div class="case"><div class="cid">I05</div><div>
+      <h3>Total-points format</h3>
+      <p>Open the total-points league created in B12.</p>
+      <div class="exp"><b>Expect</b>Cumulative scoring against the field, not a head-to-head pairing.</div>
+    </div></div>
+
+    <div class="case"><div class="cid">I06</div><div>
+      <h3>Bench-points tiebreaker<span class="p0">P0</span></h3>
+      <p>Engineer a tie in a head-to-head league with the bench tiebreaker set, then repeat with the tiebreaker set to none.</p>
+      <div class="exp"><b>Expect</b>With the tiebreaker, the team with more bench points wins and the UI says the tiebreaker decided it. With none, the result stands as a tie.</div>
+    </div></div>
+
+    <div class="case"><div class="cid">I07</div><div>
+      <h3>Standings<span class="p0">P0</span></h3>
+      <p>Open standings after at least two scored periods.</p>
+      <div class="exp"><b>Expect</b>Rank, win-loss-tie, points for and points against per team, ordered correctly, with your own team identifiable and the numbers aligned in columns.</div>
+    </div></div>
+
+    <div class="case"><div class="cid">I08</div><div>
+      <h3>Matchup history</h3>
+      <p>Open the history list.</p>
+      <div class="exp"><b>Expect</b>Past periods with final scores and results. The in-progress period is not listed as final.</div>
+    </div></div>
+
+    <div class="case"><div class="cid">I09</div><div>
+      <h3>Live score update<span class="p0">P0</span></h3>
+      <p>Have the admin submit a competition result while the Matchup tab is open.</p>
+      <div class="exp"><b>Expect</b>Scores update in place within a second, with no manual refresh, and both devices agree on the total.</div>
+    </div></div>
+
+    <div class="case"><div class="cid">I10</div><div>
+      <h3>Finalize the period</h3>
+      <p>As commissioner, finalize the fantasy period.</p>
+      <div class="exp"><b>Expect</b>Results lock, standings update, the current period advances by one, and at season end the champion is marked on the winning team.</div>
+    </div></div>
+
+  </div>
+</section>
+
+<section class="area">
+  <div class="area-head"><span class="area-key">J</span><h2>Scoring rules</h2><span class="area-count">6 cases</span></div>
+  <p class="area-note">Scoring is fixed for every team, league, division and season &mdash; there is no per-league configuration anywhere in the product. The tab is a read-only rendering of the canonical table, and the server is the only thing that calculates points.</p>
+
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th>Reference &mdash; official score bands</th><th class="num">Points</th></tr></thead>
+      <tbody>
+        <tr><td>98.5 &ndash; 100</td><td class="num">+50</td></tr>
+        <tr><td>97 &ndash; 98.5</td><td class="num">+40</td></tr>
+        <tr><td>95.5 &ndash; 97</td><td class="num">+30</td></tr>
+        <tr><td>94 &ndash; 95.5</td><td class="num">+25</td></tr>
+        <tr><td>92 &ndash; 94</td><td class="num">+20</td></tr>
+        <tr><td>90 &ndash; 92</td><td class="num">+10</td></tr>
+        <tr><td>87.5 &ndash; 90</td><td class="num">&minus;10</td></tr>
+        <tr><td>below 87.5</td><td class="num">&minus;20</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="cases">
+
+    <div class="case"><div class="cid">J01</div><div>
+      <h3>Tab is strictly read-only<span class="p0">P0</span></h3>
+      <p>Open the Scoring tab as commissioner and as a member.</p>
+      <div class="exp"><b>Expect</b>Identical for both. No input, stepper, toggle or Save anywhere &mdash; scoring is not configurable.</div>
+    </div></div>
+
+    <div class="case"><div class="cid">J02</div><div>
+      <h3>Bands match the source of truth<span class="p0">P0</span></h3>
+      <p>Compare every row on screen to the table above.</p>
+      <div class="exp"><b>Expect</b>All eight bands present and contiguous, covering 0&ndash;100 with no gaps and no overlaps in the copy.</div>
+    </div></div>
+
+    <div class="case"><div class="cid">J03</div><div>
+      <h3>Boundary scores take the higher band<span class="p0">P0</span></h3>
+      <p>Have the admin submit results of exactly 98.5, exactly 90, and exactly 87.5.</p>
+      <div class="exp"><b>Expect</b>98.5 scores +50 not +40; 90 scores +10 not &minus;10; 87.5 scores &minus;10 not &minus;20.</div>
+    </div></div>
+
+    <div class="case"><div class="cid">J04</div><div>
+      <h3>Bonuses and deductions</h3>
+      <p>Check the bonus and deduction sections against the rules.</p>
+      <div class="exp"><b>Expect</b>Division wins +10 / +20 / +30 by field size; hit zero deductions +10; grand champion +25. Last place &minus;15 with 2&ndash;4 other teams and &minus;25 with 5 or more. Finishing second of two earns and loses nothing.</div>
+    </div></div>
+
+    <div class="case"><div class="cid">J05</div><div>
+      <h3>Win bonus and last-place penalty never stack<span class="p0">P0</span></h3>
+      <p>Score a division small enough that the same team could plausibly hit both branches.</p>
+      <div class="exp"><b>Expect</b>Exactly one applies and winning takes precedence. The total equals band + division result + hit zero + grand champion, with nothing double-counted.</div>
+    </div></div>
+
+    <div class="case"><div class="cid">J06</div><div>
+      <h3>Out-of-range scores are rejected, not clamped<span class="p0">P0</span></h3>
+      <p>Have the admin submit &minus;5 and 105.</p>
+      <div class="exp"><b>Expect</b>Both refused with a validation error. Neither is quietly treated as 0 or 100 and scored.</div>
+    </div></div>
+
+  </div>
+</section>
+
+<section class="area">
+  <div class="area-head"><span class="area-key">K</span><h2>Commissioner settings</h2><span class="area-count">11 cases</span></div>
+  <p class="area-note">Every sub-modal is gated on the caller being the league creator. Run each case twice &mdash; once as commissioner, once as a plain member &mdash; and confirm the member sees nothing editable. K11 destroys the league, so save it for last.</p>
+  <div class="cases">
+
+    <div class="case"><div class="cid">K01</div><div>
+      <h3>Settings menu contents</h3>
+      <p>Open the settings sheet as commissioner.</p>
+      <div class="exp"><b>Expect</b>League settings, Roster settings, Draft settings, Scoring settings, Member settings, Commissioner control, Team settings and Delete league &mdash; each opening the right panel.</div>
+    </div></div>
+
+    <div class="case"><div class="cid">K02</div><div>
+      <h3>Scoring settings is a redirect<span class="p0">P0</span></h3>
+      <p>Tap &ldquo;Scoring settings&rdquo;.</p>
+      <div class="exp"><b>Expect</b>The sheet closes and you land on the read-only Scoring tab. No scoring editor opens.</div>
+    </div></div>
+
+    <div class="case"><div class="cid">K03</div><div>
+      <h3>League settings save</h3>
+      <p>Change name, description, logo and max teams; save; reopen.</p>
+      <div class="exp"><b>Expect</b>All four persist, and the detail header and list card both reflect the new name and logo.</div>
+    </div></div>
+
+    <div class="case"><div class="cid">K04</div><div>
+      <h3>Max teams cannot drop below joined teams<span class="p0">P0</span></h3>
+      <p>With N teams joined, set max teams to N&nbsp;&minus;&nbsp;1.</p>
+      <div class="exp"><b>Expect</b>Refused with a clear reason. No existing team is orphaned or silently removed.</div>
+    </div></div>
+
+    <div class="case"><div class="cid">K05</div><div>
+      <h3>Status transitions</h3>
+      <p>Step the league through the status list: draft, registration open, registration closed, auction scheduled, auction active, active, completed.</p>
+      <div class="exp"><b>Expect</b>Each valid transition applies and immediately changes what members can do (joining, drafting, lineup edits). Invalid jumps are refused rather than leaving the league wedged.</div>
+    </div></div>
+
+    <div class="case"><div class="cid">K06</div><div>
+      <h3>Roster settings steppers<span class="p0">P0</span></h3>
+      <p>Adjust each division&rsquo;s team count and starter count, then save.</p>
+      <div class="exp"><b>Expect</b>Starter count is capped at that division&rsquo;s team count, and lowering the team count pulls the starter count down with it. A successful save confirms; a rejected save shows &ldquo;Save Failed&rdquo; with the server&rsquo;s own message.</div>
+    </div></div>
+
+    <div class="case"><div class="cid">K07</div><div>
+      <h3>Roster settings lock<span class="p0">P0</span></h3>
+      <p>Open roster settings once the draft has started.</p>
+      <div class="exp"><b>Expect</b>Every stepper is disabled and the lock reason is shown &mdash; the roster shape cannot change under a drafted roster.</div>
+    </div></div>
+
+    <div class="case"><div class="cid">K08</div><div>
+      <h3>Draft settings reopen cleanly</h3>
+      <p>Open draft settings, edit a value, close without saving, then reopen.</p>
+      <div class="exp"><b>Expect</b>Fields re-seed from the saved league on open. Your abandoned edit is gone, not sticky.</div>
+    </div></div>
+
+    <div class="case"><div class="cid">K09</div><div>
+      <h3>Member management<span class="p0">P0</span></h3>
+      <p>Change a member&rsquo;s role, then remove a member. Then try to remove yourself and the creator.</p>
+      <div class="exp"><b>Expect</b>The role change takes effect on that member&rsquo;s next load. Removal drops their team and frees a slot. Removing yourself or the creator is refused.</div>
+    </div></div>
+
+    <div class="case"><div class="cid">K10</div><div>
+      <h3>Grant commissioner access</h3>
+      <p>Give a member commissioner rights, then check the settings sheet on their device.</p>
+      <div class="exp"><b>Expect</b>They gain the commissioner controls, and the original commissioner keeps theirs.</div>
+    </div></div>
+
+    <div class="case"><div class="cid">K11</div><div>
+      <h3>Delete league<span class="p0">P0</span></h3>
+      <p>Delete the league from the confirm dialog. <em>Run this last.</em></p>
+      <div class="exp"><b>Expect</b>Confirmation is required. After deletion the league is gone from every member&rsquo;s list, and a member sitting inside it is returned to the list with an explanation rather than a crash.</div>
+    </div></div>
+
+  </div>
+</section>
+
+<section class="area">
+  <div class="area-head"><span class="area-key">L</span><h2>League chat</h2><span class="area-count">9 cases</span></div>
+  <p class="area-note">The unread count is fetched once on mount and kept current by socket events after that &mdash; there is deliberately no polling, so a stale badge is a real bug.</p>
+  <div class="cases">
+
+    <div class="case"><div class="cid">L01</div><div>
+      <h3>Send a message<span class="p0">P0</span></h3>
+      <p>Send from device A while device B has the chat open.</p>
+      <div class="exp"><b>Expect</b>It appears once on A &mdash; not duplicated by the socket echo of your own send &mdash; and once on B, in order and attributed correctly.</div>
+    </div></div>
+
+    <div class="case"><div class="cid">L02</div><div>
+      <h3>Older-message paging</h3>
+      <p>With more than one page of history, scroll up repeatedly.</p>
+      <div class="exp"><b>Expect</b>Older pages load in order with no duplicates and no jumping scroll position.</div>
+    </div></div>
+
+    <div class="case"><div class="cid">L03</div><div>
+      <h3>Unread badge on cold open<span class="p0">P0</span></h3>
+      <p>Receive messages while the app is closed, then open the league.</p>
+      <div class="exp"><b>Expect</b>The badge shows the correct server-side count on mount.</div>
+    </div></div>
+
+    <div class="case"><div class="cid">L04</div><div>
+      <h3>Badge increments live</h3>
+      <p>Sit on the league detail screen, not the chat, while B sends a message.</p>
+      <div class="exp"><b>Expect</b>The badge increments immediately over the socket.</div>
+    </div></div>
+
+    <div class="case"><div class="cid">L05</div><div>
+      <h3>Your own messages do not count<span class="p0">P0</span></h3>
+      <p>Send a message from a second session of your own account.</p>
+      <div class="exp"><b>Expect</b>Your unread badge does not increment for your own message.</div>
+    </div></div>
+
+    <div class="case"><div class="cid">L06</div><div>
+      <h3>Opening chat marks read<span class="p0">P0</span></h3>
+      <p>Open the chat with unread messages waiting, then back out.</p>
+      <div class="exp"><b>Expect</b>The badge clears and stays cleared. Messages arriving while the chat is open never accrue unread.</div>
+    </div></div>
+
+    <div class="case"><div class="cid">L07</div><div>
+      <h3>Badges are per league</h3>
+      <p>Be a member of two leagues and receive messages in only one.</p>
+      <div class="exp"><b>Expect</b>Only that league&rsquo;s badge changes, and reading one does not clear the other.</div>
+    </div></div>
+
+    <div class="case"><div class="cid">L08</div><div>
+      <h3>Send button states</h3>
+      <p>Try to send an empty message; send while a send is in flight; open chat after a load failure.</p>
+      <div class="exp"><b>Expect</b>Send is disabled and visibly dimmed in all three cases, and the input is not editable when the chat failed to load.</div>
+    </div></div>
+
+    <div class="case"><div class="cid">L09</div><div>
+      <h3>Sender fallbacks</h3>
+      <p>Find a message from a member with no display name and no avatar.</p>
+      <div class="exp"><b>Expect</b>The label falls back to the username, then to a generic member label. A non-http avatar value renders the placeholder rather than a broken image.</div>
+    </div></div>
+
+  </div>
+</section>
+
+<section class="area">
+  <div class="area-head"><span class="area-key">M</span><h2>Realtime and resilience</h2><span class="area-count">8 cases</span></div>
+  <p class="area-note">Every case here needs two devices in the same league. The screen subscribes on mount and must unsubscribe and leave the room on unmount.</p>
+  <div class="cases">
+
+    <div class="case"><div class="cid">M01</div><div>
+      <h3>Room join and leave<span class="p0">P0</span></h3>
+      <p>Enter and leave a league five times, then have B trigger an event.</p>
+      <div class="exp"><b>Expect</b>You receive the event exactly once. Repeated entry must not stack duplicate listeners.</div>
+    </div></div>
+
+    <div class="case"><div class="cid">M02</div><div>
+      <h3>Team joined</h3>
+      <p>Join from B while A is watching the league detail screen.</p>
+      <div class="exp"><b>Expect</b>The new team fills a slot on A and the members list refetches, with no manual refresh.</div>
+    </div></div>
+
+    <div class="case"><div class="cid">M03</div><div>
+      <h3>Player acquired and dropped<span class="p0">P0</span></h3>
+      <p>Add and then release a cheer team on B.</p>
+      <div class="exp"><b>Expect</b>A&rsquo;s available pool and the pick feed both update, in both directions.</div>
+    </div></div>
+
+    <div class="case"><div class="cid">M04</div><div>
+      <h3>Socket unavailable</h3>
+      <p>Block the socket connection but leave HTTP working.</p>
+      <div class="exp"><b>Expect</b>The league is fully usable through normal fetches. The connection problem is logged, not surfaced as a crash or a blocking error screen.</div>
+    </div></div>
+
+    <div class="case"><div class="cid">M05</div><div>
+      <h3>Offline behaviour<span class="p0">P0</span></h3>
+      <p>Turn on airplane mode, move through every tab, and attempt a join, a lineup change and a chat send.</p>
+      <div class="exp"><b>Expect</b>Each surfaces a readable error and none corrupt local state. Restoring the network and retrying succeeds without restarting the app.</div>
+    </div></div>
+
+    <div class="case"><div class="cid">M06</div><div>
+      <h3>Token refresh mid-session<span class="p0">P0</span></h3>
+      <p>Let the access token expire while a league screen is open, then act &mdash; change a lineup, send a message.</p>
+      <div class="exp"><b>Expect</b>A single silent refresh, then the action succeeds. You are not logged out, and the request is not sent twice.</div>
+    </div></div>
+
+    <div class="case"><div class="cid">M07</div><div>
+      <h3>Background and restore</h3>
+      <p>Background the app for several minutes during a live draft, then return.</p>
+      <div class="exp"><b>Expect</b>State resyncs &mdash; current turn, leading bid and countdown are all correct on return, not frozen at the moment you left.</div>
+    </div></div>
+
+    <div class="case"><div class="cid">M08</div><div>
+      <h3>Rapid tab switching</h3>
+      <p>Switch between all six tabs quickly for about thirty seconds on a mid-range device.</p>
+      <div class="exp"><b>Expect</b>No crash, no stutter severe enough to drop frames, and memory that does not climb steadily. All six tabs stay mounted, so this is where a leak shows up.</div>
+    </div></div>
+
+  </div>
+</section>
+
+<footer>
+  <p>Statuses are saved in this browser only, so each tester keeps their own run. File failures with the case ID in the ticket title.</p>
+</footer>
+
+</div>
+
+<script>
+(function () {
+  var KEY = 'league-qa-run-v1';
+  var state = {};
+  try { state = JSON.parse(localStorage.getItem(KEY) || '{}') || {}; } catch (e) { state = {}; }
+
+  var cases = Array.prototype.slice.call(document.querySelectorAll('.case'));
+  var total = cases.length;
+  document.getElementById('ntotal').textContent = total;
+
+  function save() {
+    try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) {}
+  }
+
+  function tally() {
+    var p = 0, f = 0, b = 0, k;
+    for (k in state) {
+      if (state[k] === 'pass') p++;
+      else if (state[k] === 'fail') f++;
+      else if (state[k] === 'block') b++;
+    }
+    document.getElementById('np').textContent = p;
+    document.getElementById('nf').textContent = f;
+    document.getElementById('nb').textContent = b;
+    document.getElementById('nt').textContent = p + f + b;
+    document.getElementById('bp').style.width = (p / total * 100) + '%';
+    document.getElementById('bf').style.width = (f / total * 100) + '%';
+    document.getElementById('bb').style.width = (b / total * 100) + '%';
+  }
+
+  var LABELS = { pass: 'Pass', fail: 'Fail', block: 'Blocked' };
+
+  cases.forEach(function (node) {
+    var id = node.querySelector('.cid').textContent.trim();
+    var row = document.createElement('div');
+    row.className = 'status';
+    ['pass', 'fail', 'block'].forEach(function (v) {
+      var btn = document.createElement('button');
+      btn.type = 'button';
+      btn.setAttribute('data-v', v);
+      btn.textContent = LABELS[v];
+      btn.setAttribute('aria-label', LABELS[v] + ' ' + id);
+      btn.setAttribute('aria-pressed', state[id] === v ? 'true' : 'false');
+      btn.addEventListener('click', function () {
+        if (state[id] === v) { delete state[id]; } else { state[id] = v; }
+        Array.prototype.forEach.call(row.querySelectorAll('button'), function (o) {
+          o.setAttribute('aria-pressed', state[id] === o.getAttribute('data-v') ? 'true' : 'false');
+        });
+        node.classList.toggle('done', state[id] === 'pass');
+        save();
+        tally();
+      });
+      row.appendChild(btn);
+    });
+    node.lastElementChild.appendChild(row);
+    if (state[id] === 'pass') { node.classList.add('done'); }
+  });
+
+  document.getElementById('reset').addEventListener('click', function () {
+    if (!window.confirm('Clear every status in this run?')) { return; }
+    state = {};
+    save();
+    Array.prototype.forEach.call(document.querySelectorAll('.status button'), function (b) {
+      b.setAttribute('aria-pressed', 'false');
+    });
+    Array.prototype.forEach.call(document.querySelectorAll('.case'), function (c) {
+      c.classList.remove('done');
+    });
+    tally();
+  });
+
+  tally();
+})();
+</script>

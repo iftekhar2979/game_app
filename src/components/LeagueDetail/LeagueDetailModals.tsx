@@ -28,7 +28,6 @@ import {
   useGetRosterSettingsQuery,
   useUpdateRosterSettingsMutation,
   useUpdateLeagueMutation,
-  useGetScoringSettingsQuery,
   useGetLeagueMembersQuery,
   useRemoveLeagueMemberMutation,
   useUpdateMemberRoleMutation,
@@ -929,144 +928,6 @@ export const RosterSettingsSubModal = ({
   );
 };
 
-const METRIC_LABELS: Record<string, string> = {
-  CHEER_OFFICIAL_SCORE: 'Official score',
-  CHEER_DIVISION_WIN: 'Division win',
-  CHEER_LAST_PLACE: 'Last place',
-  CHEER_HIT_ZERO: 'Hit zero',
-  CHEER_GRAND_CHAMPION: 'Grand champion',
-};
-
-/** CHEER_OFFICIAL_SCORE -> Cheer official score for unknown codes. */
-const humanise = (code: string) =>
-  METRIC_LABELS[code] ||
-  code
-    .toLowerCase()
-    .replace(/_/g, ' ')
-    .replace(/^./, c => c.toUpperCase());
-
-const formatRuleValue = (rule: any) => {
-  if (rule.calculationType === 'multiplier' && rule.multiplier !== null) {
-    return `${rule.multiplier} / unit`;
-  }
-  if (rule.calculationType === 'placement_table') {
-    const count = rule.placementPoints
-      ? Object.keys(rule.placementPoints).length
-      : 0;
-    return count ? `${count} placements` : 'Placement table';
-  }
-  if (rule.points !== null && rule.points !== undefined) {
-    return `${rule.points > 0 ? '+' : ''}${rule.points} pts`;
-  }
-  return '—';
-};
-
-export const ScoringSettingsSubModal = ({
-  isVisible,
-  onClose,
-  leagueId,
-}: any) => {
-  const { data, isLoading, isError, error, refetch } =
-    useGetScoringSettingsQuery(leagueId, {
-      skip: !isVisible || !leagueId,
-    });
-
-  return (
-    <Modal
-      visible={isVisible}
-      transparent={true}
-      animationType="slide"
-      onRequestClose={onClose}
-    >
-      <View className="flex-1 bg-black pt-12 px-5">
-        <View className="flex-row items-center mb-6">
-          <TouchableOpacity
-            onPress={onClose}
-            className="w-10 h-10 border border-[#333] rounded-xl justify-center items-center mr-4"
-          >
-            <ChevronLeft color="#fff" size={24} />
-          </TouchableOpacity>
-          <View className="flex-1">
-            <Text className="text-white text-[20px] font-medium">
-              Scoring settings
-            </Text>
-            {!!data && (
-              <Text className="text-gray-400 text-[12px]">
-                {`${data.name} · v${data.version} · ${data.ruleCount} rules`}
-              </Text>
-            )}
-          </View>
-        </View>
-
-        {isLoading ? (
-          <View className="flex-1 items-center justify-center">
-            <ActivityIndicator size="large" color="#8B3DFF" />
-            <Text className="text-gray-400 text-[13px] mt-3">
-              Loading scoring rules...
-            </Text>
-          </View>
-        ) : isError || !data ? (
-          <View className="flex-1 items-center justify-center px-6">
-            <Text className="text-white text-[15px] font-semibold mb-2">
-              Scoring unavailable
-            </Text>
-            <Text className="text-gray-400 text-[12px] text-center mb-4">
-              {(error as any)?.data?.message ||
-                'Scoring rules could not be loaded.'}
-            </Text>
-            <TouchableOpacity
-              className="bg-[#8B3DFF] px-5 py-2.5 rounded-full"
-              onPress={() => refetch()}
-            >
-              <Text className="text-white text-[13px] font-medium">Retry</Text>
-            </TouchableOpacity>
-          </View>
-        ) : (
-          <>
-            <View className="bg-[#1a1a1a] border border-[#333] rounded-2xl px-4 py-3 mb-4">
-              <Text className="text-gray-400 text-[12px]">
-                {data.readOnlyReason}.
-              </Text>
-            </View>
-
-            <ScrollView showsVerticalScrollIndicator={false} className="flex-1">
-              {data.categories.map((group: any) => (
-                <View key={group.category} className="mb-6">
-                  <Text className="text-[#E0B566] text-[12px] font-bold uppercase tracking-wider mb-3">
-                    {group.category.replace(/_/g, ' ')}
-                  </Text>
-                  {group.rules.map((rule: any, idx: number) => (
-                    <View
-                      key={`${rule.metricCode}-${idx}`}
-                      className="flex-row items-center justify-between border-b border-[#222] pb-3 mb-3"
-                    >
-                      <View className="flex-1 mr-3">
-                        <Text
-                          className="text-white text-[14px]"
-                          numberOfLines={1}
-                        >
-                          {humanise(rule.metricCode)}
-                        </Text>
-                        <Text className="text-gray-600 text-[10px] mt-0.5">
-                          {rule.metricCode}
-                        </Text>
-                      </View>
-                      <Text className="text-[#8B3DFF] text-[13px] font-semibold">
-                        {formatRuleValue(rule)}
-                      </Text>
-                    </View>
-                  ))}
-                </View>
-              ))}
-              <View className="h-8" />
-            </ScrollView>
-          </>
-        )}
-      </View>
-    </Modal>
-  );
-};
-
 /** Shared row for the member-facing screens below. */
 const MemberRow = ({
   member,
@@ -1135,6 +996,7 @@ const useLeagueMembers = (leagueId: string, isVisible: boolean) => {
 
   return { members, isLoading, isError, refetch };
 };
+
 
 export const MemberSettingsSubModal = ({
   isVisible,

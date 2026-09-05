@@ -249,28 +249,15 @@ export interface UpdateLeaguePayload {
   maxTeams?: number;
   status?: LeagueStatusValue;
   draftSettings?: PartialDraftSettings;
+  /**
+   * Roster shape only. Scoring is NOT configurable per league: every value
+   * lives in `utils/cheerScoring` and applies identically everywhere. Do not
+   * re-add scoreBands, bonuses, multipliers or placement tables here.
+   */
   fantasyCheerSettings?: Partial<{
     rosterSize: number;
     starterCount: number;
     regularSeasonPeriods: number;
-    officialScoreMultiplier: number;
-    deductionMultiplier: number;
-    hitZeroBonus: number;
-    advancementBonus: number;
-    championshipBonus: number;
-    placementPoints: Record<string, number>;
-    scoreBands: Array<{ minimum: number; maximum: number; points: number }>;
-    divisionWinBonuses: Array<{
-      minimumOtherTeams: number;
-      maximumOtherTeams: number | null;
-      points: number;
-    }>;
-    lastPlacePenalties: Array<{
-      minimumOtherTeams: number;
-      maximumOtherTeams: number | null;
-      points: number;
-    }>;
-    grandChampionBonus: number;
   }>;
 }
 
@@ -317,28 +304,6 @@ export interface DraftPickRecord {
   division?: string | null;
   country?: string | null;
   pickedAt: string;
-}
-
-export interface ScoringRule {
-  metricCode: string;
-  calculationType: 'fixed' | 'multiplier' | 'placement_table';
-  points: number | null;
-  multiplier: number | null;
-  placementPoints: Record<string, number> | null;
-  minimumValue: number | null;
-  maximumValue: number | null;
-}
-
-export interface ScoringSettings {
-  leagueId: string;
-  scoringRuleSetId: string;
-  name: string;
-  version: number;
-  status: string;
-  categories: { category: string; rules: ScoringRule[] }[];
-  ruleCount: number;
-  editable: boolean;
-  readOnlyReason: string;
 }
 
 export interface JoinLeaguePayload {
@@ -556,13 +521,6 @@ export const leagueApi = baseApi.injectEndpoints({
         return response?.data || response;
       },
       providesTags: (result, error, id) => [{ type: 'League', id }],
-    }),
-    getScoringSettings: builder.query<ScoringSettings, string>({
-      query: leagueId => ({ url: `leagues/${leagueId}/scoring-settings` }),
-      transformResponse: (response: any) => response?.data || response,
-      providesTags: (result, error, leagueId) => [
-        { type: 'League', id: leagueId },
-      ],
     }),
     removeLeagueMember: builder.mutation<
       void,
@@ -808,7 +766,6 @@ export const {
   useGetAthletePositionsQuery,
   useGetSeasonAthleteDetailsQuery,
   useGetLeagueRostersQuery,
-  useGetScoringSettingsQuery,
   useRemoveLeagueMemberMutation,
   useUpdateMemberRoleMutation,
   useGetRosterSettingsQuery,
