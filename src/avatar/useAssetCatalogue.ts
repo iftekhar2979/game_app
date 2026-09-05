@@ -1,8 +1,9 @@
-import { useCallback, useMemo } from 'react';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
 
 import { useGetAvatarAssetsQuery } from '../store/api/avatarAssetsApi';
 import { AssetState, resolveAssetState } from '../store/api/avatarAssetsTransforms';
 import { ArtworkCatalogue } from './assetSource';
+import { describeCatalogueCoverage, formatCoverageWarning } from './catalogueCoverage';
 
 export type { AssetAvailability, AssetState } from '../store/api/avatarAssetsTransforms';
 
@@ -61,6 +62,29 @@ export function useAssetCatalogue(): AssetCatalogue {
   // `AvatarCatalogueAsset` already carries `imageUrl` and `previewUrl`, so the
   // lookup satisfies `ArtworkCatalogue` structurally with no second mapping.
   const artwork: ArtworkCatalogue = useMemo(() => data ?? {}, [data]);
+
+  /**
+   * Say so, loudly and once, when the catalogue does not cover the bundle.
+   *
+   * The registry and the server's seed list live in separate repositories with
+   * nothing keeping them in step, and the failure mode is silent: an unseeded
+   * asset draws fine and simply refuses to be picked. Warning here turns a
+   * confusing afternoon in the picker into a one-line seed fix.
+   *
+   * Development only - this is a message to whoever is adding artwork, and
+   * there is nothing a player could do about it.
+   */
+  const warned = useRef<string | null>(null);
+  useEffect(() => {
+    if (!__DEV__) return;
+
+    const warning = formatCoverageWarning(describeCatalogueCoverage(artwork));
+    if (!warning || warned.current === warning) return;
+
+    warned.current = warning;
+    console.warn(`[avatar] catalogue does not match the bundled registry:
+${warning}`);
+  }, [artwork]);
 
   return useMemo(
     () => ({
