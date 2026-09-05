@@ -1,5 +1,6 @@
+import { ArtworkCatalogue, sourceForAsset, sourceForBase } from './assetSource';
 import { getAssetById, getBaseById, listFor, REGISTRY_VERSION } from './registry';
-import { AVATAR_SLOTS, AvatarBase, AvatarConfig, AvatarLayer, AvatarSlot } from './types';
+import { AssetSource, AVATAR_SLOTS, AvatarBase, AvatarConfig, AvatarLayer, AvatarSlot } from './types';
 
 /**
  * Config ⇄ layers.
@@ -40,27 +41,36 @@ export function defaultConfig(base: AvatarBase): AvatarConfig {
  *
  * Returns `[]` for an unknown base, since without a body there is nothing
  * coherent to draw.
+ *
+ * `catalogue` is optional on purpose. Omitting it resolves purely from the
+ * bundle, which is both the offline path and what keeps this function pure
+ * enough to unit test — passing one only changes *where* each layer's artwork
+ * is fetched from, never which layers a look has.
  */
-export function resolveConfig(config?: AvatarConfig | null): AvatarLayer[] {
+export function resolveConfig(
+  config?: AvatarConfig | null,
+  catalogue?: ArtworkCatalogue,
+): AvatarLayer[] {
   const base = getBaseById(config?.base);
   if (!config || !base) return [];
 
   const layers: AvatarLayer[] = [
-    { slot: 'base', assetId: base.id, source: base.source },
+    { slot: 'base', assetId: base.id, source: sourceForBase(base.id, catalogue) ?? base.source },
   ];
 
   for (const slot of AVATAR_SLOTS) {
     const assetId = config.parts?.[slot];
     if (!assetId) continue;
 
-    const asset = getAssetById(slot, assetId);
-    // Unknown id: the art was removed or renamed. Skip the layer.
-    if (!asset) continue;
+    const source = sourceForAsset(slot, assetId, catalogue);
+    // No artwork anywhere: the part was removed, renamed, or is listed with
+    // nothing uploaded yet. Skip the layer rather than draw a broken image.
+    if (!source) continue;
 
     layers.push({
       slot,
-      assetId: asset.id,
-      source: asset.source,
+      assetId,
+      source,
       ...(slot === 'hair' ? { tint: config.hairColor ?? null } : {}),
     });
   }
@@ -94,8 +104,11 @@ export function normaliseConfig(raw: any): AvatarConfig | null {
 }
 
 /** True when the config still resolves to a drawable avatar. */
-export function isRenderable(config?: AvatarConfig | null): boolean {
-  return resolveConfig(config).length > 0;
+export function isRenderable(
+  config?: AvatarConfig | null,
+  catalogue?: ArtworkCatalogue,
+): boolean {
+  return resolveConfig(config, catalogue).length > 0;
 }
 
 /** Slots the wardrobe lists, including the two that are not part artwork. */
@@ -107,16 +120,18 @@ export interface UsedAsset {
   label: string;
   /** The stored id, kept even when it no longer resolves, so the UI can say so. */
   assetId: string | null;
-  /** Bundled artwork, or null when there is nothing to draw. */
-  source: number | null;
+  /** Resolved artwork, bundled or remote, or null when there is nothing to draw. */
+  source: AssetSource | null;
   /** Hex tint. Only ever set on the `hairColor` row. */
   color?: string | null;
   /**
-   * `ok` — resolved. `retired` — the config names an id the registry no longer
-   * has, so the layer was dropped rather than swapped for different art.
+   * `ok` — resolved. `retired` — the config names an id nothing knows about, so
+   * the layer was dropped rather than swapped for different art. `unavailable`
+   * — the catalogue lists the part but no artwork has been uploaded and none
+   * ships in the bundle, which is a gap to fix rather than a retirement.
    * `none` — the slot was deliberately left empty.
    */
-  status: 'ok' | 'retired' | 'none';
+  status: 'ok' | 'retired' | 'unavailable' | 'none';
 }
 
 const SLOT_LABELS: Record<UsedAssetSlot, string> = {
@@ -158,11 +173,17 @@ export function humaniseAssetId(assetId: string): string {
 /**
  * What a saved look is actually built from.
  *
- * Driven entirely by the stored config and resolved through the registry by
- * stable id, so it lists exactly the parts this avatar uses — never the full
- * catalogue, and never whatever a picker happens to be showing.
+ * Driven entirely by the stored config and resolved by stable id, so it lists
+ * exactly the parts this avatar uses — never the full catalogue, and never
+ * whatever a picker happens to be showing.
+ *
+ * As with `resolveConfig`, `catalogue` only redirects where artwork is fetched
+ * from; the rows themselves come from the saved config either way.
  */
-export function describeUsedAssets(config?: AvatarConfig | null): UsedAsset[] {
+export function describeUsedAssets(
+  config?: AvatarConfig | null,
+  catalogue?: ArtworkCatalogue,
+): UsedAsset[] {
   const base = getBaseById(config?.base);
   if (!config || !base) return [];
 
@@ -172,7 +193,7 @@ export function describeUsedAssets(config?: AvatarConfig | null): UsedAsset[] {
         slot,
         label: SLOT_LABELS.base,
         assetId: base.id,
-        source: base.source,
+        source: sourceForBase(base.id, catalogue) ?? base.source,
         status: 'ok',
       };
     }
@@ -195,13 +216,17 @@ export function describeUsedAssets(config?: AvatarConfig | null): UsedAsset[] {
       return { slot, label: SLOT_LABELS[slot], assetId: null, source: null, status: 'none' };
     }
 
-    const asset = getAssetById(slot, assetId);
+    const source = sourceForAsset(slot, assetId, catalogue);
+    // A part the catalogue knows but cannot draw is a missing upload, not a
+    // retirement — worth telling apart so the wardrobe can say which it is.
+    const isListed = Boolean(catalogue?.[assetId]);
+
     return {
       slot,
       label: SLOT_LABELS[slot],
       assetId,
-      source: asset?.source ?? null,
-      status: asset ? 'ok' : 'retired',
+      source,
+      status: source ? 'ok' : isListed ? 'unavailable' : 'retired',
     };
   });
 }

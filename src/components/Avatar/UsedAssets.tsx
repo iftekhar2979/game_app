@@ -46,10 +46,12 @@ function Thumbnail({ item }: { item: UsedAsset }) {
     );
   }
 
-  if (item.status === 'retired') {
+  if (item.status === 'retired' || item.status === 'unavailable') {
     return (
       <View style={[styles.tile, styles.centred, styles.tileRetired]}>
-        <Text style={styles.tileNote}>Retired</Text>
+        <Text style={styles.tileNote}>
+          {item.status === 'retired' ? 'Retired' : 'Missing'}
+        </Text>
       </View>
     );
   }
@@ -99,7 +101,7 @@ export default function UsedAssets({ items }: { items: UsedAsset[] }) {
             <Thumbnail item={item} />
             <Text style={styles.label}>{item.label}</Text>
             <Text
-              style={[styles.value, item.status === 'retired' && styles.valueRetired]}
+              style={[styles.value, item.status !== 'ok' && styles.valueRetired]}
               numberOfLines={2}
             >
               {item.slot === 'hairColor'
@@ -116,6 +118,15 @@ export default function UsedAssets({ items }: { items: UsedAsset[] }) {
         <Text style={styles.footnote}>
           Retired parts are no longer in the app, so they are left off this avatar rather
           than swapped for something else.
+        </Text>
+      )}
+
+      {/* A different failure worth naming differently: the part still exists,
+          its artwork just has not been uploaded yet. */}
+      {rows.some((item) => item.status === 'unavailable') && (
+        <Text style={styles.footnote}>
+          Some parts of this avatar have no artwork available right now. They are still
+          part of the look and will reappear once their artwork loads.
         </Text>
       )}
     </View>

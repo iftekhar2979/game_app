@@ -8,6 +8,23 @@
 export type AvatarTarget = 'female' | 'male';
 
 /**
+ * Where one layer's artwork comes from.
+ *
+ * A bundled `require()` handle is a number; remote artwork is the `{ uri }`
+ * shape React Native's `<Image source>` already accepts, so widening this costs
+ * the renderers nothing. Bundled stays first-class: it is the fallback whenever
+ * the catalogue is unreachable or an asset has no uploaded artwork yet.
+ */
+export type AssetSource = number | { uri: string };
+
+/** Narrows to the remote arm, which is the only one that can fail to load. */
+export function isRemoteSource(
+  source: AssetSource | null | undefined,
+): source is { uri: string } {
+  return typeof source === 'object' && source !== null && typeof source.uri === 'string';
+}
+
+/**
  * The layers a look is built from, in paint order (base first, hair last).
  * `bodyColor` is a skin overlay that only some bases use.
  */
@@ -21,7 +38,8 @@ export interface AvatarAsset {
   target: AvatarTarget;
   /** Which base categories this part fits. */
   categories: number[];
-  source: number;
+  /** Bundled artwork. Remote artwork overrides this at resolve time. */
+  source: AssetSource;
 }
 
 export interface AvatarBase {
@@ -29,7 +47,8 @@ export interface AvatarBase {
   target: AvatarTarget;
   category: number;
   isFullbody: boolean;
-  source: number;
+  /** Bundled artwork. Remote artwork overrides this at resolve time. */
+  source: AssetSource;
 }
 
 /**
@@ -52,7 +71,7 @@ export interface AvatarConfig {
 export interface AvatarLayer {
   slot: AvatarSlot | 'base' | 'eyes';
   assetId: string;
-  source: number;
+  source: AssetSource;
   /** Only set for the hair layer when the user picked a tint. */
   tint?: string | null;
 }

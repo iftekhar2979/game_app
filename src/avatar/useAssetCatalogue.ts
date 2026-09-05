@@ -2,6 +2,7 @@ import { useCallback, useMemo } from 'react';
 
 import { useGetAvatarAssetsQuery } from '../store/api/avatarAssetsApi';
 import { AssetState, resolveAssetState } from '../store/api/avatarAssetsTransforms';
+import { ArtworkCatalogue } from './assetSource';
 
 export type { AssetAvailability, AssetState } from '../store/api/avatarAssetsTransforms';
 
@@ -19,6 +20,14 @@ export type { AssetAvailability, AssetState } from '../store/api/avatarAssetsTra
 export interface AssetCatalogue {
   /** Selection state for one bundled asset id. */
   stateOf: (assetKey: string | null | undefined) => AssetState;
+  /**
+   * Where artwork comes from, keyed by asset id.
+   *
+   * Empty until the catalogue answers, which is exactly what makes the fallback
+   * correct: every resolver treats an absent row as "draw from the bundle", so
+   * the editor renders identically before the request lands and after it fails.
+   */
+  artwork: ArtworkCatalogue;
   /** True while the first load is in flight. */
   isLoading: boolean;
   /** True when the catalogue could not be fetched. */
@@ -49,13 +58,18 @@ export function useAssetCatalogue(): AssetCatalogue {
     [data, hasData, isError, isLoading],
   );
 
+  // `AvatarCatalogueAsset` already carries `imageUrl` and `previewUrl`, so the
+  // lookup satisfies `ArtworkCatalogue` structurally with no second mapping.
+  const artwork: ArtworkCatalogue = useMemo(() => data ?? {}, [data]);
+
   return useMemo(
     () => ({
       stateOf,
+      artwork,
       isLoading,
       isUnavailable: !isLoading && (isError || !hasData),
       refetch,
     }),
-    [stateOf, isLoading, isError, hasData, refetch],
+    [stateOf, artwork, isLoading, isError, hasData, refetch],
   );
 }
