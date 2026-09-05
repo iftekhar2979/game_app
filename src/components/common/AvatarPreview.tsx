@@ -2,10 +2,11 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Animated, Image, StyleSheet, View } from 'react-native';
 import Svg, { Defs, Filter, FeColorMatrix, Image as SvgImage } from 'react-native-svg';
 
-import { ArtworkCatalogue } from '../../avatar/assetSource';
+import { ArtworkCatalogue, sourceForAsset, sourceForBase } from '../../avatar/assetSource';
+import ArtworkImage from '../Avatar/ArtworkImage';
 import { FULLBODY_STAGE_SCALE, getEyeSource } from '../../avatar/registry';
 import { baseOf, resolveConfig } from '../../avatar/resolveConfig';
-import { AvatarConfig } from '../../avatar/types';
+import { AvatarConfig, AvatarLayer, AvatarSlot } from '../../avatar/types';
 import Avatar from './Avatar';
 
 /**
@@ -122,6 +123,16 @@ export default function AvatarPreview({
   // has moved to S3 draws remotely like every other layer.
   const baseSource = layers.find((layer) => layer.slot === 'base')?.source ?? base.source;
 
+  /**
+   * The bundled copy of a layer, used only if its remote artwork fails.
+   *
+   * Resolving without a catalogue is exactly "whatever ships in the app", so a
+   * failed download falls back to the art this build already has rather than to
+   * a hole in the avatar.
+   */
+  const bundled = (slot: AvatarLayer['slot'], assetId: string) =>
+    slot === 'base' ? sourceForBase(assetId) : sourceForAsset(slot as AvatarSlot, assetId);
+
   return (
     <View style={[styles.stageFrame, framed && styles.framed, { height }]}>
       <Animated.View
@@ -136,15 +147,21 @@ export default function AvatarPreview({
           },
         ]}
       >
-        <Image source={baseSource} style={styles.layer} resizeMode="contain" />
+        <ArtworkImage
+          source={baseSource}
+          fallback={sourceForBase(base.id)}
+          style={styles.layer}
+          resizeMode="contain"
+        />
 
         {/* Skin overlay, where the base uses one. */}
         {bodyLayers
           .filter((layer) => layer.slot === 'bodyColor')
           .map((layer) => (
-            <Image
+            <ArtworkImage
               key={layer.assetId}
               source={layer.source}
+              fallback={bundled(layer.slot, layer.assetId)}
               style={styles.layer}
               resizeMode="contain"
             />
@@ -168,9 +185,10 @@ export default function AvatarPreview({
         {bodyLayers
           .filter((layer) => layer.slot !== 'bodyColor')
           .map((layer) => (
-            <Image
+            <ArtworkImage
               key={layer.assetId}
               source={layer.source}
+              fallback={bundled(layer.slot, layer.assetId)}
               style={styles.layer}
               resizeMode="contain"
             />
@@ -195,7 +213,12 @@ export default function AvatarPreview({
               </Svg>
             </View>
           ) : (
-            <Image source={hairLayer.source} style={styles.layer} resizeMode="contain" />
+            <ArtworkImage
+              source={hairLayer.source}
+              fallback={bundled(hairLayer.slot, hairLayer.assetId)}
+              style={styles.layer}
+              resizeMode="contain"
+            />
           ))}
       </Animated.View>
     </View>

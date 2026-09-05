@@ -29,10 +29,12 @@ import {
   listFor,
 } from '../../avatar/registry';
 import {
-  previewSourceForAsset,
-  sourceForAsset,
-  sourceForBase,
+  ArtworkWithFallback,
+  artworkForAsset,
+  artworkForBase,
+  previewArtworkForAsset,
 } from '../../avatar/assetSource';
+import ArtworkImage from '../../components/Avatar/ArtworkImage';
 import { resolveConfig } from '../../avatar/resolveConfig';
 import { prefetchEditorArtwork, prefetchSources } from '../../avatar/prefetchArtwork';
 import { AvatarAsset, AvatarConfig, AvatarSlot } from '../../avatar/types';
@@ -140,17 +142,24 @@ const GenerateAvatarScreen = () => {
    * because a layer PNG is painted on a full-body canvas and the bases run to
    * half a megabyte each.
    */
-  const layerArtwork = (slot: AvatarSlot, index: number | null) =>
-    sourceForAsset(slot, idAt(slot, index), catalogue.artwork);
+  const layerArtwork = (slot: AvatarSlot, index: number | null): ArtworkWithFallback =>
+    artworkForAsset(slot, idAt(slot, index), catalogue.artwork);
 
-  const tileArtwork = (slot: AvatarSlot, index: number, asset: AvatarAsset) =>
-    previewSourceForAsset(slot, idAt(slot, index), catalogue.artwork) ?? asset.source;
+  const tileArtwork = (
+    slot: AvatarSlot,
+    index: number,
+    asset: AvatarAsset,
+  ): ArtworkWithFallback => {
+    const artwork = previewArtworkForAsset(slot, idAt(slot, index), catalogue.artwork);
+    return { source: artwork.source ?? asset.source, fallback: artwork.fallback ?? asset.source };
+  };
 
   /** The body itself, resolved by the same rule as every other layer. */
-  const baseImage =
-    sourceForBase(activeBase?.id, catalogue.artwork) ??
-    activeBase?.source ??
-    BASES[0].source;
+  const baseArtwork = artworkForBase(activeBase?.id, catalogue.artwork);
+  const baseImage: ArtworkWithFallback = {
+    source: baseArtwork.source ?? activeBase?.source ?? BASES[0].source,
+    fallback: baseArtwork.fallback ?? activeBase?.source ?? BASES[0].source,
+  };
 
   /**
    * Edit mode. Present when the wardrobe reopened a saved look; absent when
@@ -342,12 +351,12 @@ const GenerateAvatarScreen = () => {
    * rendering as a broken image over the body.
    */
   const bodyColorArt = layerArtwork('bodyColor', selectedBodyColor);
-  const halfOutfitArt = isFullbody ? null : layerArtwork('outfit', selectedBody);
-  const halfHairArt = isFullbody ? null : layerArtwork('hair', selectedHair);
-  const fullSkirtArt = isFullbody ? layerArtwork('skirt', selectedFullbodySkirt) : null;
-  const fullShoesArt = isFullbody ? layerArtwork('shoes', selectedShoes) : null;
-  const fullOutfitArt = isFullbody ? layerArtwork('outfit', selectedFullbodyOutfit) : null;
-  const fullHairArt = isFullbody ? layerArtwork('hair', selectedFullbodyHair) : null;
+  const halfOutfitArt = layerArtwork('outfit', isFullbody ? null : selectedBody);
+  const halfHairArt = layerArtwork('hair', isFullbody ? null : selectedHair);
+  const fullSkirtArt = layerArtwork('skirt', isFullbody ? selectedFullbodySkirt : null);
+  const fullShoesArt = layerArtwork('shoes', isFullbody ? selectedShoes : null);
+  const fullOutfitArt = layerArtwork('outfit', isFullbody ? selectedFullbodyOutfit : null);
+  const fullHairArt = layerArtwork('hair', isFullbody ? selectedFullbodyHair : null);
 
   return (
     <View style={[styles.container, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
@@ -399,16 +408,18 @@ const GenerateAvatarScreen = () => {
                 ]}
               >
                 {/* Base Head / Base Body */}
-                <Image
-                  source={baseImage}
+                <ArtworkImage
+                  source={baseImage.source}
+                  fallback={baseImage.fallback}
                   className="absolute w-full h-full"
                   resizeMode="contain"
                 />
 
                 {/* Body Color Layer (Conditional for avatarCategory === 1) */}
-                {avatarCategory === 1 && bodyColorArt && (
-                  <Image
-                    source={bodyColorArt}
+                {avatarCategory === 1 && bodyColorArt.source && (
+                  <ArtworkImage
+                    source={bodyColorArt.source}
+                    fallback={bodyColorArt.fallback}
                     className="absolute w-full h-full"
                     resizeMode="contain"
                   />
@@ -429,15 +440,16 @@ const GenerateAvatarScreen = () => {
                 />
 
                 {/* --- HALF BODY LAYERS --- */}
-                {!isFullbody && halfOutfitArt && (
-                  <Image
-                    source={halfOutfitArt}
+                {!isFullbody && halfOutfitArt.source && (
+                  <ArtworkImage
+                    source={halfOutfitArt.source}
+                    fallback={halfOutfitArt.fallback}
                     className="absolute w-full h-full"
                     resizeMode="contain"
                   />
                 )}
 
-                {!isFullbody && halfHairArt && (
+                {!isFullbody && halfHairArt.source && (
                   <View className="absolute w-full h-full scale-[1.03] top-[-1%]">
                     {selectedHairColor ? (
                       <Svg width="100%" height="100%">
@@ -453,13 +465,14 @@ const GenerateAvatarScreen = () => {
                           width="100%"
                           height="100%"
                           preserveAspectRatio="xMidYMid meet"
-                          href={halfHairArt}
+                          href={halfHairArt.source ?? halfHairArt.fallback}
                           filter="url(#hairColorFilter)"
                         />
                       </Svg>
                     ) : (
-                      <Image
-                        source={halfHairArt}
+                      <ArtworkImage
+                        source={halfHairArt.source}
+                        fallback={halfHairArt.fallback}
                         className="absolute w-full h-full"
                         resizeMode="contain"
                       />
@@ -468,25 +481,28 @@ const GenerateAvatarScreen = () => {
                 )}
 
                 {/* --- FULL BODY LAYERS --- */}
-                {isFullbody && fullSkirtArt && (
-                  <Image
-                    source={fullSkirtArt}
+                {isFullbody && fullSkirtArt.source && (
+                  <ArtworkImage
+                    source={fullSkirtArt.source}
+                    fallback={fullSkirtArt.fallback}
                     className="absolute w-full h-full"
                     resizeMode="contain"
                   />
                 )}
 
-                {isFullbody && fullShoesArt && (
-                  <Image
-                    source={fullShoesArt}
+                {isFullbody && fullShoesArt.source && (
+                  <ArtworkImage
+                    source={fullShoesArt.source}
+                    fallback={fullShoesArt.fallback}
                     className="absolute w-full h-full"
                     resizeMode="contain"
                   />
                 )}
 
-                {isFullbody && fullOutfitArt && (
-                  <Image
-                    source={fullOutfitArt}
+                {isFullbody && fullOutfitArt.source && (
+                  <ArtworkImage
+                    source={fullOutfitArt.source}
+                    fallback={fullOutfitArt.fallback}
                     className="absolute w-full h-full"
                     resizeMode="contain"
                   />
@@ -494,7 +510,7 @@ const GenerateAvatarScreen = () => {
 
 
 
-                {isFullbody && fullHairArt && (
+                {isFullbody && fullHairArt.source && (
                   <View className="absolute w-full h-full">
                     {selectedHairColor ? (
                       <Svg width="100%" height="100%">
@@ -510,13 +526,14 @@ const GenerateAvatarScreen = () => {
                           width="100%"
                           height="100%"
                           preserveAspectRatio="xMidYMid meet"
-                          href={fullHairArt}
+                          href={fullHairArt.source ?? fullHairArt.fallback}
                           filter="url(#fullbodyHairColorFilter)"
                         />
                       </Svg>
                     ) : (
-                      <Image
-                        source={fullHairArt}
+                      <ArtworkImage
+                        source={fullHairArt.source}
+                        fallback={fullHairArt.fallback}
                         className="absolute w-full h-full"
                         resizeMode="contain"
                       />
@@ -584,8 +601,9 @@ const GenerateAvatarScreen = () => {
                     onPress={() => setSelectedHair(index)}
                   >
                     <View className="w-[72px] h-[90px] rounded-xl border border-[#5B1F7D] bg-[#1A0B2E] overflow-hidden justify-end pb-6">
-                      <Image
-                        source={tileArtwork('hair', index, hair)}
+                      <ArtworkImage
+                        source={tileArtwork('hair', index, hair).source}
+                        fallback={tileArtwork('hair', index, hair).fallback}
                         className="w-[180%] h-[180%] absolute top-[-40%] left-[-40%]"
                         resizeMode="cover"
                       />
@@ -627,8 +645,9 @@ const GenerateAvatarScreen = () => {
                     onPress={() => setSelectedBody(index)}
                   >
                     <View className="w-[72px] h-[90px] rounded-xl border border-[#3A144E] bg-black/40 overflow-hidden justify-center items-center pb-4">
-                      <Image
-                        source={tileArtwork('outfit', index, blazer)}
+                      <ArtworkImage
+                        source={tileArtwork('outfit', index, blazer).source}
+                        fallback={tileArtwork('outfit', index, blazer).fallback}
                         className="w-[50%] h-[50%]"
                         resizeMode="contain"
                       />
@@ -665,8 +684,9 @@ const GenerateAvatarScreen = () => {
                       <View
                         className={`w-[72px] h-[90px] rounded-xl border-2 ${selectedBodyColor === index ? 'border-[#B366FF]' : 'border-[#5B1F7D]'} bg-[#1A0B2E] overflow-hidden items-center justify-center`}
                       >
-                        <Image
-                          source={tileArtwork('bodyColor', index, bodyColor)}
+                        <ArtworkImage
+                          source={tileArtwork('bodyColor', index, bodyColor).source}
+                          fallback={tileArtwork('bodyColor', index, bodyColor).fallback}
                           className="w-full h-full"
                           resizeMode="contain"
                         />
@@ -688,7 +708,7 @@ const GenerateAvatarScreen = () => {
                   return (
                     <AssetPickerTile
                       key={`fb-hair-${assetKey ?? index}`}
-                      source={tileArtwork('hair', index, hair)}
+                      source={tileArtwork('hair', index, hair).source}
                       imageClassName="w-[250%] h-[250%] absolute top-[-10%]"
                       state={catalogue.stateOf(assetKey)}
                       isSelected={selectedFullbodyHair === index}
@@ -750,8 +770,9 @@ const GenerateAvatarScreen = () => {
                       <View
                         className={`w-[72px] h-[90px] rounded-xl border-2 ${selectedBodyColor === index ? 'border-[#B366FF]' : 'border-[#5B1F7D]'} bg-[#1A0B2E] overflow-hidden items-center justify-center`}
                       >
-                        <Image
-                          source={tileArtwork('bodyColor', index, bodyColor)}
+                        <ArtworkImage
+                          source={tileArtwork('bodyColor', index, bodyColor).source}
+                          fallback={tileArtwork('bodyColor', index, bodyColor).fallback}
                           className="w-full h-full"
                           resizeMode="contain"
                         />
@@ -770,7 +791,7 @@ const GenerateAvatarScreen = () => {
                   return (
                     <AssetPickerTile
                       key={`fb-skirt-${assetKey ?? index}`}
-                      source={tileArtwork('skirt', index, skirt)}
+                      source={tileArtwork('skirt', index, skirt).source}
                       imageClassName="w-[220%] h-[220%] absolute top-[-40%]"
                       state={catalogue.stateOf(assetKey)}
                       isSelected={selectedFullbodySkirt === index}
@@ -794,7 +815,7 @@ const GenerateAvatarScreen = () => {
                     return (
                       <AssetPickerTile
                         key={`fb-outfit-${assetKey ?? index}`}
-                        source={tileArtwork('outfit', index, outfit)}
+                        source={tileArtwork('outfit', index, outfit).source}
                         imageClassName="w-[220%] h-[220%] absolute top-[-25%]"
                         state={catalogue.stateOf(assetKey)}
                         isSelected={selectedFullbodyOutfit === index}
@@ -819,7 +840,7 @@ const GenerateAvatarScreen = () => {
                     return (
                       <AssetPickerTile
                         key={`fb-shoe-${assetKey ?? index}`}
-                        source={tileArtwork('shoes', index, shoe)}
+                        source={tileArtwork('shoes', index, shoe).source}
                         imageClassName="w-[280%] h-[280%] absolute bottom-[0%]"
                         state={catalogue.stateOf(assetKey)}
                         isSelected={selectedShoes === index}

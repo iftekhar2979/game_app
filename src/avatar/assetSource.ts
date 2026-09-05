@@ -81,6 +81,56 @@ export function previewSourceForAsset(
   );
 }
 
+/**
+ * The artwork for a layer, paired with the bundled copy to fall back on.
+ *
+ * Remote artwork can fail in ways a `require()` handle never could - a 404, a
+ * timeout, a dead connection - and React Native answers all of them by drawing
+ * nothing. Handing both to the renderer is what lets a failed download degrade
+ * to the bundled art instead of to a hole in the avatar.
+ *
+ * `fallback` is null for artwork uploaded after the app shipped, which has no
+ * bundled counterpart. Such a layer is skipped rather than drawn broken.
+ */
+export interface ArtworkWithFallback {
+  source: AssetSource | null;
+  fallback: AssetSource | null;
+}
+
+export function artworkForAsset(
+  slot: AvatarSlot,
+  assetId?: string | null,
+  catalogue?: ArtworkCatalogue,
+): ArtworkWithFallback {
+  return {
+    source: sourceForAsset(slot, assetId, catalogue),
+    // Resolving with no catalogue is exactly "the bundled copy, if any".
+    fallback: sourceForAsset(slot, assetId),
+  };
+}
+
+export function artworkForBase(
+  baseId?: string | null,
+  catalogue?: ArtworkCatalogue,
+): ArtworkWithFallback {
+  return {
+    source: sourceForBase(baseId, catalogue),
+    fallback: sourceForBase(baseId),
+  };
+}
+
+/** As `artworkForAsset`, but preferring the small preview for picker tiles. */
+export function previewArtworkForAsset(
+  slot: AvatarSlot,
+  assetId?: string | null,
+  catalogue?: ArtworkCatalogue,
+): ArtworkWithFallback {
+  return {
+    source: previewSourceForAsset(slot, assetId, catalogue),
+    fallback: sourceForAsset(slot, assetId),
+  };
+}
+
 /** True when this asset would draw from the network rather than the bundle. */
 export function isRemotelyServed(
   slot: AvatarSlot,
