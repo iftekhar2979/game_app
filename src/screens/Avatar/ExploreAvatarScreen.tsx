@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { View, Text, TouchableOpacity, Image, StyleSheet, Dimensions, ScrollView } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Dimensions, ScrollView } from 'react-native';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { ChevronLeft, Edit2 } from 'lucide-react-native';
@@ -7,7 +7,8 @@ import { RootStackParamList } from '../../../App';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useDispatch } from 'react-redux';
 import { authService } from '../../services/authService';
-import { ArtworkCatalogue, sourceForAsset, sourceForBase } from '../../avatar/assetSource';
+import { ArtworkCatalogue, artworkForAsset, artworkForBase } from '../../avatar/assetSource';
+import ArtworkImage from '../../components/Avatar/ArtworkImage';
 import { BASES, listFor } from '../../avatar/registry';
 import { AvatarBase, AvatarSlot } from '../../avatar/types';
 import { useAssetCatalogue } from '../../avatar/useAssetCatalogue';
@@ -72,7 +73,7 @@ const ExploreAvatarScreen = () => {
     catalogue: ArtworkCatalogue,
   ) => {
     const { base } = card;
-    const bodyArt = sourceForBase(base.id, catalogue) ?? base.source;
+    const bodyArt = artworkForBase(base.id, catalogue);
 
     return (
       <TouchableOpacity
@@ -95,8 +96,9 @@ const ExploreAvatarScreen = () => {
         }
       >
         <View className="flex-1 rounded-2xl border-2 border-[#5B1F7D] overflow-hidden bg-[#1A0B2E]">
-          <Image
-            source={bodyArt}
+          <ArtworkImage
+            source={bodyArt.source ?? base.source}
+            fallback={base.source}
             className={
               base.isFullbody
                 ? 'absolute w-full h-full scale-[2.6] mt-4'
@@ -107,14 +109,15 @@ const ExploreAvatarScreen = () => {
 
           {base.isFullbody &&
             card.parts.map(({ slot, assetId }) => {
-              const art = sourceForAsset(slot, assetId, catalogue);
-              // A slot with no artwork is simply not layered on.
-              if (!art) return null;
+              const art = artworkForAsset(slot, assetId, catalogue);
+              // A slot with no artwork anywhere is simply not layered on.
+              if (!art.source && !art.fallback) return null;
 
               return (
-                <Image
+                <ArtworkImage
                   key={slot}
-                  source={art}
+                  source={art.source}
+                  fallback={art.fallback}
                   className="absolute w-full h-full scale-[2.6] mt-4"
                   resizeMode="contain"
                 />
