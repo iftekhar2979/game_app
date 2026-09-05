@@ -1,7 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 
-import { ASSETS, BASES, listFor } from '../src/avatar/registry';
+import { ASSETS, BASES } from '../src/avatar/registry';
 import { resolveConfig, normaliseConfig } from '../src/avatar/resolveConfig';
 import {
   AVATAR_SLOTS,
@@ -152,60 +152,47 @@ describe('step 24/25 — deactivating an asset', () => {
   });
 });
 
-describe('editor picker order must match the registry', () => {
+describe('the editor screens draw from the registry, not their own copies', () => {
   /**
-   * GenerateAvatarScreen still keeps its own copies of the asset lists and
-   * stores the picker *index*, which `idAt()` maps back to an id through
-   * `listFor()`. That mapping is only correct while both orders agree, so
-   * reordering one list alone would silently save the wrong artwork.
+   * These two screens used to keep private copies of every asset list - the
+   * hair and outfit lists twice over in `GenerateAvatarScreen`, as separate
+   * half-body and full-body arrays. The registry owned the *ids* while the
+   * screens owned the *artwork*, and a test had to pin the two orders together
+   * because `idAt()` maps a picker index back to an id through `listFor()`.
+   *
+   * That duplication is gone, and this replaces the order check that guarded
+   * it. The invariant now is simpler and stricter: a screen that reaches for a
+   * bundled PNG directly cannot show uploaded artwork no matter what the
+   * catalogue says, so it must not reach for one at all.
    */
-  const lines = fs
-    .readFileSync(
-      path.join(__dirname, '../src/screens/Avatar/GenerateAvatarScreen.tsx'),
+  const screens = ['GenerateAvatarScreen', 'ExploreAvatarScreen'] as const;
+
+  const sourceOf = (screen: string) =>
+    fs.readFileSync(
+      path.join(__dirname, `../src/screens/Avatar/${screen}.tsx`),
       'utf8',
-    )
-    .split('\n');
+    );
 
-  /** Entries of one `const NAME: AvatarAsset[] = [ ... ];` block, in order. */
-  function localOrder(name: string, target: string, category: number): string[] {
-    const start = lines.findIndex((l) => l.startsWith('const ' + name));
-    if (start < 0) throw new Error('could not find ' + name);
+  it.each(screens)('%s requires no avatar artwork of its own', (screen) => {
+    const requires = sourceOf(screen).match(/require\(['"][^'"]*assets\/images\/avatar[^'"]*['"]\)/g);
 
-    const out: string[] = [];
-    for (let i = start + 1; i < lines.length && !lines[i].startsWith('];'); i++) {
-      const line = lines[i];
-      const stem = line.match(/([\w ().\[\]-]+)\.png'\)/);
-      const tgt = line.match(/target:\s*'(\w+)'/);
-      const cats = line.match(/avatarCategories:\s*\[([\d,\s]+)\]/);
-      if (!stem || !tgt || !cats) continue;
+    expect(requires ?? []).toEqual([]);
+  });
 
-      const categories = cats[1].split(',').map((n) => Number(n.trim()));
-      if (tgt[1] === target && categories.includes(category)) out.push(stem[1]);
+  it.each(screens)('%s resolves artwork through the shared resolver', (screen) => {
+    expect(sourceOf(screen)).toMatch(/from '\.\.\/\.\.\/avatar\/assetSource'/);
+  });
+
+  /**
+   * `idAt` still maps a picker index to an id through `listFor`, so the lists
+   * the pickers render must be the very same lists - not a filtered copy that
+   * happens to agree today.
+   */
+  it('GenerateAvatarScreen builds every picker list with listFor', () => {
+    const source = sourceOf('GenerateAvatarScreen');
+
+    for (const slot of ['hair', 'outfit', 'skirt', 'shoes', 'bodyColor']) {
+      expect(source).toContain(`listFor('${slot}', target, avatarCategory)`);
     }
-    return out;
-  }
-
-  const cases: Array<[string, AvatarSlot, 'female' | 'male', number]> = [
-    ['ALL_FULLBODY_HAIR', 'hair', 'female', 4],
-    ['ALL_FULLBODY_HAIR', 'hair', 'male', 1],
-    ['ALL_FULLBODY_HAIR', 'hair', 'male', 2],
-    ['ALL_FULLBODY_OUTFITS', 'outfit', 'female', 4],
-    ['ALL_FULLBODY_OUTFITS', 'outfit', 'male', 1],
-    ['ALL_FULLBODY_OUTFITS', 'outfit', 'male', 2],
-    ['ALL_FULLBODY_SKIRTS', 'skirt', 'female', 4],
-    ['ALL_FULLBODY_SKIRTS', 'skirt', 'male', 1],
-    ['ALL_FULLBODY_SKIRTS', 'skirt', 'male', 2],
-    ['ALL_SHOES', 'shoes', 'female', 4],
-    ['ALL_BODY_COLORS', 'bodyColor', 'male', 1],
-  ];
-
-  // Registry ids are the artwork file stems, so an id doubles as its stem.
-  it.each(cases)(
-    '%s is index-aligned with listFor(%s, %s, %i)',
-    (arrayName, slot, target, category) => {
-      expect(localOrder(arrayName, target, category).map((s) => s.toLowerCase())).toEqual(
-        listFor(slot, target, category).map((a) => a.id.toLowerCase()),
-      );
-    },
-  );
+  });
 });

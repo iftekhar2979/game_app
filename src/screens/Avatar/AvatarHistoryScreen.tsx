@@ -136,7 +136,6 @@ export default function AvatarHistoryScreen() {
     }
 
     navigation.navigate('GenerateAvatar', {
-      baseImage: base.source,
       isFullbody: base.isFullbody,
       target: base.target,
       avatarCategory: base.category,

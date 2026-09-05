@@ -69,7 +69,9 @@ export type RootStackParamList = {
   // `config` puts the editor in edit mode: the pickers open on that saved look
   // instead of on the first option in every slot. Absent means create mode.
   GenerateAvatar: {
-    baseImage: any;
+    // No `baseImage`: the editor resolves the body from `target` +
+    // `avatarCategory` through the registry and catalogue, so passing a
+    // bundled `require()` handle here would pin it to the bundle.
     isFullbody?: boolean;
     target?: 'female' | 'male';
     avatarCategory?: number;
