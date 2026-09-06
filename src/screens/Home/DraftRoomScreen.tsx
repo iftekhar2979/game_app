@@ -438,20 +438,33 @@ export default function DraftRoomScreen() {
   }, [availableCheerTeams]);
 
   const [setPlayerModalVisible, setSetPlayerModalVisible] = useState(false);
+  /** Auction nomination only; snake picks let the server choose the division. */
   const [pendingAssignment, setPendingAssignment] = useState<{
     player: any;
-    mode: 'snake' | 'auction';
     divisions: Array<{ id: string; code: string; name: string }>;
   } | null>(null);
   const [isDraftStarted, setIsDraftStarted] = useState(false);
 
-  const openDivisionPicker = (player: any, mode: 'snake' | 'auction') => {
+  /**
+   * Divisions this team could occupy given the league roster template. Only a
+   * pre-flight check now: it turns "your roster has no slot for this team" into
+   * an immediate message instead of a round trip that fails.
+   */
+  const rosterDivisionsFor = (player: any) => {
     const allowedCodes = new Set(
-      (rosterSettings?.divisionRules || []).map(rule => rule.divisionCode.toUpperCase()),
+      (rosterSettings?.divisionRules || []).map(rule =>
+        rule.divisionCode.toUpperCase(),
+      ),
     );
-    const divisions = (player.eligibleDivisions || []).filter(
-      (division: any) => division.id && allowedCodes.has(String(division.code).toUpperCase()),
+    return (player.eligibleDivisions || []).filter(
+      (division: any) =>
+        division.id && allowedCodes.has(String(division.code).toUpperCase()),
     );
+  };
+
+  /** Auction nominations still name the division - it is fixed on the turn. */
+  const openDivisionPicker = (player: any) => {
+    const divisions = rosterDivisionsFor(player);
     if (!divisions.length) {
       showToast.error(
         'No valid roster division',
@@ -459,29 +472,32 @@ export default function DraftRoomScreen() {
       );
       return;
     }
-    setPendingAssignment({ player, mode, divisions });
+    setPendingAssignment({ player, divisions });
   };
 
   const confirmDivisionAssignment = async (assignedDivisionId: string) => {
     const pending = pendingAssignment;
     if (!pending) return;
     setPendingAssignment(null);
-    if (pending.mode === 'auction') {
-      await handleAuctionNomination(pending.player, assignedDivisionId);
-      return;
-    }
+    await handleAuctionNomination(pending.player, assignedDivisionId);
+  };
+
+  const draftSelectedTeam = async (player: any) => {
     try {
-      await draftCheerTeam({
+      // No division is sent: the server assigns the one that keeps the rest of
+      // the roster fillable, and tells us which it chose.
+      const result: any = await draftCheerTeam({
         leagueId,
-        seasonCheerTeamId: String(
-          pending.player.seasonCheerTeamId || pending.player.id,
-        ),
-        assignedDivisionId,
+        seasonCheerTeamId: String(player.seasonCheerTeamId || player.id),
       }).unwrap();
       setSetPlayerModalVisible(false);
+      const divisionName =
+        result?.division?.name || result?.division?.code || null;
       showToast.success(
         'Draft Pick Success!',
-        `${pending.player.name} was drafted to your team.`,
+        divisionName
+          ? `${player.name} was drafted to your ${divisionName} slot.`
+          : `${player.name} was drafted to your team.`,
       );
       if (refetchAvailableAthletes) refetchAvailableAthletes();
     } catch (err: any) {
@@ -490,6 +506,24 @@ export default function DraftRoomScreen() {
         err?.data?.message || err?.message || 'Failed to draft cheer team.',
       );
     }
+  };
+
+  const confirmDraft = (player: any) => {
+    if (!rosterDivisionsFor(player).length) {
+      showToast.error(
+        'No valid roster division',
+        'This Cheer Team is not eligible for an available slot division in the League roster template.',
+      );
+      return;
+    }
+    Alert.alert(
+      'Draft this team?',
+      `${player.name} will be added to your fantasy roster.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Draft', onPress: () => draftSelectedTeam(player) },
+      ],
+    );
   };
 
   useEffect(() => {
@@ -868,7 +902,7 @@ export default function DraftRoomScreen() {
                 disabled={isDrafting}
                 onPress={async () => {
                   if (isAuctionDraft) {
-                    openDivisionPicker(player, 'auction');
+                    openDivisionPicker(player);
                     return;
                   }
 
@@ -933,7 +967,7 @@ export default function DraftRoomScreen() {
                     );
                     return;
                   }
-                  openDivisionPicker(player, 'snake');
+                  confirmDraft(player);
                 }}
               >
                 <View className="flex-row items-center flex-1 mr-3">
@@ -1005,7 +1039,7 @@ export default function DraftRoomScreen() {
                   disabled={isDrafting || (isSnakeDraft && !isMyTurn)}
                   onPress={async () => {
                     if (isAuctionDraft) {
-                      openDivisionPicker(player, 'auction');
+                      openDivisionPicker(player);
                       return;
                     }
 
@@ -1070,7 +1104,7 @@ export default function DraftRoomScreen() {
                       );
                       return;
                     }
-                    openDivisionPicker(player, 'snake');
+                    confirmDraft(player);
                   }}
                 >
                   <View className="flex-row items-center flex-1 mr-2">
@@ -1110,10 +1144,11 @@ export default function DraftRoomScreen() {
         <View className="flex-1 bg-black/80 justify-center px-6">
           <View className="bg-[#1a1a1a] border border-[#333] rounded-3xl p-5">
             <Text className="text-white text-[18px] font-bold mb-2">
-              Assign roster division
+              Nominate for which division?
             </Text>
             <Text className="text-gray-400 text-[13px] mb-5">
-              Choose the valid roster-template division for {pendingAssignment?.player?.name}.
+              {pendingAssignment?.player?.name} is nominated for one division,
+              and the winning bidder rosters it there.
             </Text>
             {pendingAssignment?.divisions.map(division => (
               <TouchableOpacity
