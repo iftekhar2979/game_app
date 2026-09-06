@@ -11,7 +11,7 @@ import {
   NativeScrollEvent,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Bell, CalendarDays, PlusSquare, Trophy } from 'lucide-react-native';
+import { Bell, CalendarDays, PlusSquare, Trophy, Zap } from 'lucide-react-native';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../../../App';
@@ -520,6 +520,24 @@ export default function HomeScreen() {
             </TouchableOpacity>
           )}
         </View>
+
+        {/* Daily Fantasy - the only entry point into the DFS contest screens */}
+        <TouchableOpacity
+          style={styles.dfsCard}
+          activeOpacity={0.85}
+          onPress={() => navigation.navigate('DfsContests')}
+        >
+          <View style={styles.dfsIcon}>
+            <Zap color="#B98AFF" size={23} />
+          </View>
+          <View style={styles.dfsText}>
+            <Text style={styles.dfsTitle}>Daily Fantasy</Text>
+            <Text style={styles.dfsSubtitle}>
+              Draft a one-competition lineup by division
+            </Text>
+          </View>
+          <Text style={styles.dfsAction}>Play →</Text>
+        </TouchableOpacity>
 
         {/* Dashboard Cards (Only shown if user has joined at least one league) */}
         {myLeagues.length > 0 && (
