@@ -34,14 +34,13 @@ import {
 } from '../../store/api/leagueApi';
 import {
   useAddFantasyCheerFreeAgentMutation,
+  useGetFantasyCheerRosterQuery,
   useReleaseFantasyCheerTeamMutation,
   useUpdateFantasyCheerLineupMutation,
 } from '../../store/api/cheerApi';
 import type { LeagueStatusValue } from '../../store/api/leagueApi';
 import { showToast } from '../../utils/toast';
-import {
-  CHEER_DIVISIONS,
-} from '../../utils/cheerScoring';
+import { resolveDivisionOptions } from './divisionCapacity';
 
 export interface LeagueSettingsModalProps {
   isVisible: boolean;
@@ -1361,32 +1360,37 @@ export const PlayerDetailModal = ({
     skip: !isVisible || !leagueId,
   });
   const [assignedDivisionId, setAssignedDivisionId] = useState<string | null>(null);
-  const divisionOptions = useMemo(() => {
-    const allowed = new Set(
-      (rosterSettings?.divisionRules || []).map(rule => rule.divisionCode.toUpperCase()),
+  // Occupancy comes from the viewer's own roster: a division rule is an exact
+  // allocation, so a slot already filled is not a legal target even for a team
+  // that qualifies for it. Releasing frees it here as soon as this reloads.
+  const { data: myRoster } = useGetFantasyCheerRosterQuery(
+    { leagueId, fantasyTeamId: userTeamId ?? '' },
+    { skip: !isVisible || !leagueId || !userTeamId },
+  );
+  const { selectable: divisionOptions, full: fullDivisions, blockedReason } =
+    useMemo(
+      () =>
+        resolveDivisionOptions({
+          eligibleDivisionIds: selectedPlayer?.eligibleDivisionIds,
+          divisionRules: rosterSettings?.divisionRules,
+          rosterEntries: myRoster?.players,
+        }),
+      [rosterSettings?.divisionRules, selectedPlayer, myRoster?.players],
     );
-    return (selectedPlayer?.eligibleDivisionIds || [])
-      .map((division: any) => {
-        const fallback = CHEER_DIVISIONS.find(
-          option => option.id === division || option.code === division,
-        );
-        return {
-          id: String(typeof division === 'object' ? division._id || division.id : division),
-          code: String(
-            (typeof division === 'object' ? division.code : fallback?.code) || '',
-          ).toUpperCase(),
-          name:
-            (typeof division === 'object'
-              ? division.name || division.code
-              : fallback?.name) || 'Cheer division',
-        };
-      })
-      .filter((division: any) => division.id && allowed.has(division.code));
-  }, [rosterSettings?.divisionRules, selectedPlayer]);
 
   useEffect(() => {
     setAssignedDivisionId(null);
   }, [seasonCheerTeamId, isVisible]);
+
+  // The roster can change under an open modal - another add, or a release
+  // elsewhere - so a division that filled up must not stay selected and be
+  // submitted into a rejection.
+  useEffect(() => {
+    if (!assignedDivisionId) return;
+    if (!divisionOptions.some(division => division.id === assignedDivisionId)) {
+      setAssignedDivisionId(null);
+    }
+  }, [assignedDivisionId, divisionOptions]);
 
   const handleAddTeam = async () => {
     if (!leagueId || !userTeamId) {
@@ -1522,7 +1526,7 @@ export const PlayerDetailModal = ({
             </Text>
             {divisionOptions.length ? (
               <View className="flex-row flex-wrap mb-4">
-                {divisionOptions.map((division: any) => (
+                {divisionOptions.map(division => (
                   <TouchableOpacity
                     key={division.id}
                     onPress={() => setAssignedDivisionId(division.id)}
@@ -1535,14 +1539,38 @@ export const PlayerDetailModal = ({
                     <Text className="text-white text-[12px] font-semibold">
                       {division.name}
                     </Text>
+                    {division.exactTeamCount > 1 ? (
+                      <Text className="text-gray-400 text-[10px] mt-0.5">
+                        {`${division.remaining} of ${division.exactTeamCount} open`}
+                      </Text>
+                    ) : null}
                   </TouchableOpacity>
                 ))}
               </View>
             ) : (
               <Text className="text-red-400 text-[12px] mb-4">
-                This team has no eligible division in the League roster template.
+                {blockedReason}
               </Text>
             )}
+            {/* Shown greyed rather than hidden: a manager needs to see which of
+                their own slots is in the way of the team they just picked. */}
+            {fullDivisions.length ? (
+              <View className="flex-row flex-wrap mb-4">
+                {fullDivisions.map(division => (
+                  <View
+                    key={division.id}
+                    className="rounded-xl border border-[#333] bg-[#1b1b1b] px-3 py-2 mr-2 mb-2"
+                  >
+                    <Text className="text-gray-500 text-[12px] font-semibold">
+                      {division.name}
+                    </Text>
+                    <Text className="text-gray-600 text-[10px] mt-0.5">
+                      Slot full
+                    </Text>
+                  </View>
+                ))}
+              </View>
+            ) : null}
             <Text className="text-white text-[15px] font-bold mb-2">
               Fantasy scoring
             </Text>
@@ -1882,17 +1910,34 @@ export const RosterPlayerActionModal = ({
 
   // selectedRosterItem is a flattened real-team ownership from the roster endpoint.
   const player = selectedRosterItem || {};
-  const playerName = player.name || 'Cheer Team';
+  const squadName = player.name || player.teamName || 'Cheer Team';
+  const orgName = player.organizationName || player.realTeam || null;
+  const isOrgInName =
+    orgName && squadName.toLowerCase().includes(orgName.toLowerCase());
+  const displayTeamName = isOrgInName ? squadName : squadName;
+  const displayOrgName = isOrgInName ? null : orgName;
+
   const divisionName =
+    player.divisionName ||
+    player.assignedDivisionName ||
     player.division ||
-    player.assignedPosition ||
-    player.positionCode ||
-    'Division unavailable';
-  const countryName =
+    player.assignedPosition;
+  const divisionCode =
+    player.divisionCode ||
+    player.assignedDivisionCode ||
+    (player.positionCode && player.positionCode !== 'CHEER'
+      ? player.positionCode
+      : null);
+  const divisionDisplay =
+    divisionName || divisionCode || 'Division unavailable';
+
+  const location =
+    player.location ||
     player.country ||
-    player.realTeam ||
-    player.nflTeam ||
-    'Country unavailable';
+    player.organizationLocation ||
+    null;
+
+  const value = player.value ?? player.openingValue ?? null;
   const avatarUri = player.photoUrl;
 
   const isStarter = player.lineupStatus === 'starter';
@@ -1917,7 +1962,7 @@ export const RosterPlayerActionModal = ({
 
       showToast.success(
         'Lineup Updated!',
-        `${playerName} moved to ${newStatus.toUpperCase()}!`,
+        `${displayTeamName} moved to ${newStatus.toUpperCase()}!`,
       );
       if (onSuccess) onSuccess();
       onClose();
@@ -1930,8 +1975,8 @@ export const RosterPlayerActionModal = ({
 
   const handleConfirmDrop = () => {
     Alert.alert(
-      `Drop ${playerName}?`,
-      `Are you sure you want to release ${playerName}? It will return to the available cheer-team pool.`,
+      `Drop ${displayTeamName}?`,
+      `Are you sure you want to release ${displayTeamName}? It will return to the available cheer-team pool.`,
       [
         { text: 'Cancel', style: 'cancel' },
         {
@@ -1954,7 +1999,7 @@ export const RosterPlayerActionModal = ({
 
               showToast.success(
                 'Team Released',
-                `${playerName} returned to the available pool.`,
+                `${displayTeamName} returned to the available pool.`,
               );
               if (onSuccess) onSuccess();
               onClose();
@@ -1988,42 +2033,86 @@ export const RosterPlayerActionModal = ({
           className="w-full bg-[#1e1e1e] rounded-[24px] border border-[#333] p-6 shadow-xl"
         >
           {/* Cheer team information */}
-          <View className="flex-row items-center mb-6 pb-4 border-b border-[#333]">
-            {avatarUri ? (
-              <Image
-                source={{ uri: avatarUri }}
-                className="w-14 h-14 rounded-full mr-4 bg-[#333] border border-[#444]"
-              />
-            ) : (
-              <View className="w-14 h-14 rounded-full mr-4 bg-[#333] border border-[#444] justify-center items-center">
-                <User color="#888" size={24} />
-              </View>
-            )}
-            <View className="flex-1">
-              <Text
-                className="text-white text-[18px] font-bold"
-                numberOfLines={1}
-              >
-                {playerName}
-              </Text>
-              <Text className="text-gray-400 text-[13px]">{`${countryName} • ${divisionName}`}</Text>
-              <View className="flex-row items-center mt-1.5">
-                <View
-                  className={`px-2.5 py-0.5 rounded-full border ${
-                    isStarter
-                      ? 'bg-emerald-950/80 border-emerald-500/50'
-                      : 'bg-[#2b2b2b] border-[#444]'
-                  }`}
+          <View className="mb-5 pb-4 border-b border-[#333]">
+            <View className="flex-row items-center mb-3">
+              {avatarUri ? (
+                <Image
+                  source={{ uri: avatarUri }}
+                  className="w-16 h-16 rounded-2xl mr-4 bg-[#333] border border-[#444]"
+                  resizeMode="cover"
+                />
+              ) : (
+                <View className="w-16 h-16 rounded-2xl mr-4 bg-[#262626] border border-[#444] justify-center items-center">
+                  <User color="#888" size={28} />
+                </View>
+              )}
+              <View className="flex-1">
+                <Text
+                  className="text-white text-[19px] font-bold"
+                  numberOfLines={1}
                 >
-                  <Text
-                    className={`${
-                      isStarter ? 'text-emerald-400' : 'text-gray-300'
-                    } text-[11px] font-semibold`}
-                  >
-                    {isStarter ? 'STARTER' : 'BENCH'}
+                  {displayTeamName}
+                </Text>
+                {displayOrgName ? (
+                  <Text className="text-[#E0B566] text-[13px] font-semibold mt-0.5">
+                    {displayOrgName}
+                  </Text>
+                ) : null}
+                {location ? (
+                  <Text className="text-gray-400 text-[11px] mt-0.5">
+                    {location}
+                  </Text>
+                ) : null}
+              </View>
+            </View>
+
+            {/* Badges row */}
+            <View className="flex-row items-center flex-wrap gap-2 mt-1">
+              <View className="bg-[#8B3DFF]/20 border border-[#8B3DFF]/50 px-3 py-1 rounded-lg">
+                <Text className="text-[#D6B8FF] text-[11px] font-bold">
+                  {divisionDisplay}
+                </Text>
+              </View>
+
+              {player.divisionLevel ? (
+                <View className="bg-[#2a2a2a] border border-[#444] px-2.5 py-1 rounded-lg">
+                  <Text className="text-gray-300 text-[11px] font-medium">
+                    {player.divisionLevel}
                   </Text>
                 </View>
+              ) : null}
+
+              {player.divisionAgeGroup ? (
+                <View className="bg-[#2a2a2a] border border-[#444] px-2.5 py-1 rounded-lg">
+                  <Text className="text-gray-300 text-[11px] font-medium">
+                    {player.divisionAgeGroup}
+                  </Text>
+                </View>
+              ) : null}
+
+              <View
+                className={`px-3 py-1 rounded-lg border ${
+                  isStarter
+                    ? 'bg-emerald-950/80 border-emerald-500/50'
+                    : 'bg-[#2b2b2b] border-[#444]'
+                }`}
+              >
+                <Text
+                  className={`${
+                    isStarter ? 'text-emerald-400' : 'text-gray-300'
+                  } text-[11px] font-bold`}
+                >
+                  {isStarter ? 'STARTER' : 'BENCH'}
+                </Text>
               </View>
+
+              {value !== null && value !== undefined ? (
+                <View className="bg-[#FFB84D]/15 border border-[#FFB84D]/40 px-2.5 py-1 rounded-lg">
+                  <Text className="text-[#FFB84D] text-[11px] font-bold">
+                    {`Value: $${value}`}
+                  </Text>
+                </View>
+              ) : null}
             </View>
           </View>
 
