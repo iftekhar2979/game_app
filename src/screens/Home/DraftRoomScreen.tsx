@@ -269,9 +269,36 @@ export default function DraftRoomScreen() {
           refetchAvailableAthletes();
         }
 
-        // Pick rows still come from the server: the broadcast pick does not
-        // carry the resolved team and division names the cards render.
-        if (refetchDraftPicks) refetchDraftPicks();
+        // A pick carrying everything the cards render can be appended
+        // directly. Anything less and we ask the server, so an older build or
+        // a failed lookup still fills the board rather than showing a gap.
+        const pick = data.pick;
+        const canAppendPick =
+          pick &&
+          typeof pick.pickNumber === 'number' &&
+          typeof pick.round === 'number' &&
+          (pick.cheerTeamName || pick.playerName);
+
+        if (canAppendPick) {
+          dispatch(
+            leagueApi.util.updateQueryData(
+              'getDraftPicks',
+              leagueId,
+              picks => {
+                // The drafter already refetched, and a reconnect can replay an
+                // event, so the pick number decides identity rather than order.
+                if (picks.some(row => row.pickNumber === pick.pickNumber)) {
+                  return picks;
+                }
+                return [...picks, pick].sort(
+                  (a, b) => a.pickNumber - b.pickNumber,
+                );
+              },
+            ),
+          );
+        } else if (refetchDraftPicks) {
+          refetchDraftPicks();
+        }
       };
 
       socket.on('playerAcquired', handlePlayerAcquired);
