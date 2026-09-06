@@ -205,12 +205,15 @@ export default function FantasyLeagueScreen() {
   useEffect(() => {
     try {
       const socket = getSocket();
-      const handleGlobalTeamJoined = () => {
+      // This list shows leagues the viewer has not joined, so it cannot listen
+      // inside a league room. leagueCapacityChanged is the app-wide signal for
+      // exactly that: ids only, no join payload.
+      const handleCapacityChanged = () => {
         refetch();
       };
-      socket.on('teamJoined', handleGlobalTeamJoined);
+      socket.on('leagueCapacityChanged', handleCapacityChanged);
       return () => {
-        socket.off('teamJoined', handleGlobalTeamJoined);
+        socket.off('leagueCapacityChanged', handleCapacityChanged);
       };
     } catch {
       // ignore
