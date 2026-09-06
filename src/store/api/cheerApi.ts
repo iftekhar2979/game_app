@@ -58,7 +58,16 @@ export const cheerApi = baseApi.injectEndpoints({
     }),
     draftCheerTeam: builder.mutation<
       any,
-      { leagueId: string; seasonCheerTeamId: string; assignedDivisionId: string }
+      {
+        leagueId: string;
+        seasonCheerTeamId: string;
+        /**
+         * Omit to let the server choose the roster division. It picks the
+         * division that would otherwise be hardest to fill, so a manager cannot
+         * strand a slot by spending a multi-division team on the wrong one.
+         */
+        assignedDivisionId?: string;
+      }
     >({
       query: ({ leagueId, ...body }) => ({
         url: `leagues/${leagueId}/draft/cheer-team-picks`,
