@@ -297,18 +297,30 @@ export interface DraftBoardSlot {
   fantasyTeamId: string | null;
 }
 
+/**
+ * One completed pick as `GET leagues/:id/draft/picks` returns it.
+ *
+ * `teamName` is the *fantasy* team that made the pick. The real-world team it
+ * took is `cheerTeamName`. Legacy athlete leagues send `playerName` and friends
+ * instead, so those stay optional rather than being assumed present.
+ */
 export interface DraftPickRecord {
   pickNumber: number;
   round: number;
   fantasyTeamId: string;
   teamName: string | null;
-  seasonAthleteId: string;
-  playerName: string;
-  positionCode: string | null;
-  nflTeam: string | null;
-  division?: string | null;
-  country?: string | null;
   pickedAt: string;
+  // Fantasy-cheer picks
+  seasonCheerTeamId?: string;
+  cheerTeamName?: string;
+  organizationName?: string | null;
+  assignedDivisionCode?: string | null;
+  assignedDivisionName?: string | null;
+  // Legacy athlete picks
+  seasonAthleteId?: string;
+  playerName?: string;
+  positionCode?: string | null;
+  nflTeam?: string | null;
 }
 
 export interface JoinLeaguePayload {

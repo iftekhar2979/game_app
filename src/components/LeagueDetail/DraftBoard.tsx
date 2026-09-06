@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react';
 import { View, Text, ScrollView } from 'react-native';
 import type { DraftPickRecord, DraftState } from '../../store/api/leagueApi';
+import { describeDraftPick } from './draftPickDisplay';
 
 const COL_WIDTH = 116;
 
@@ -122,18 +123,13 @@ export const DraftBoard = ({
                             className="text-white text-[12px] font-semibold"
                             numberOfLines={1}
                           >
-                            {pick.playerName}
+                            {describeDraftPick(pick).name}
                           </Text>
                           <Text
                             className="text-gray-500 text-[10px]"
                             numberOfLines={1}
                           >
-                            {[
-                              pick.country || pick.nflTeam,
-                              pick.division || pick.positionCode,
-                            ]
-                              .filter(Boolean)
-                              .join(' • ') || '—'}
+                            {describeDraftPick(pick).detail || '—'}
                           </Text>
                         </>
                       ) : isOnClock ? (
@@ -185,15 +181,10 @@ export const DraftPickFeed = ({
               className="text-white text-[13px] font-medium"
               numberOfLines={1}
             >
-              {pick.playerName}
+              {describeDraftPick(pick).name}
             </Text>
             <Text className="text-gray-500 text-[11px]" numberOfLines={1}>
-              {[
-                pick.country || pick.nflTeam,
-                pick.division || pick.positionCode,
-              ]
-                .filter(Boolean)
-                .join(' • ')}
+              {describeDraftPick(pick).detail}
             </Text>
           </View>
           <Text
@@ -252,18 +243,20 @@ export const MyDraftedStrip = ({
                 className="text-white text-[12px] font-semibold"
                 numberOfLines={1}
               >
-                {pick.playerName}
+                {describeDraftPick(pick).name}
               </Text>
+              {pick.assignedDivisionName || pick.assignedDivisionCode ? (
+                <View className="self-start bg-[#8B3DFF]/15 border border-[#8B3DFF]/40 rounded-md px-1.5 py-0.5 mt-1">
+                  <Text className="text-[#B98AFF] text-[9px] font-bold" numberOfLines={1}>
+                    {pick.assignedDivisionName || pick.assignedDivisionCode}
+                  </Text>
+                </View>
+              ) : null}
               <Text
-                className="text-gray-500 text-[10px] mt-0.5"
+                className="text-gray-500 text-[10px] mt-1"
                 numberOfLines={1}
               >
-                {[
-                  pick.country || pick.nflTeam,
-                  pick.division || pick.positionCode,
-                ]
-                  .filter(Boolean)
-                  .join(' • ') || '—'}
+                {pick.organizationName || pick.nflTeam || '—'}
               </Text>
               <Text className="text-gray-700 text-[9px] mt-1">{`R${pick.round} · #${pick.pickNumber}`}</Text>
             </View>
