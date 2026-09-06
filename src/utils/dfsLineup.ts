@@ -202,12 +202,24 @@ export const getDfsErrorMessage = (
   return message || fallback;
 };
 
+/** Total lineup spots a contest asks an entrant to fill. */
+export const countDfsLineupSpots = (contest: DfsContest): number =>
+  (contest.lineupSlots ?? []).reduce(
+    (total, slot) => total + Number(slot.count ?? 0),
+    0,
+  );
+
 export const getContestJoinMessage = (
   contest: DfsContest,
   hasEntry = false,
   now = Date.now(),
 ): string | undefined => {
   if (hasEntry) return undefined;
+  // A contest published without lineup slots cannot be entered by anyone. Say
+  // so, rather than leaving an empty lineup behind a disabled submit button.
+  if (countDfsLineupSpots(contest) < 1) {
+    return 'This contest has no lineup spots set up yet.';
+  }
   if (contest.type !== 'free' || contest.entryFee > 0) {
     return 'Paid contests are not available yet.';
   }
