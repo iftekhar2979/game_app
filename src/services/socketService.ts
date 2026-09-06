@@ -119,6 +119,51 @@ export const getSocket = (): Socket => {
   return socketInstance;
 };
 
+/** The slice of a socket the resync subscription needs, so it can be tested. */
+export interface ResyncSocket {
+  connected: boolean;
+  on: (event: string, handler: () => void) => void;
+  off: (event: string, handler: () => void) => void;
+}
+
+/**
+ * Calls `onResync` when the socket comes back after a gap.
+ *
+ * Events emitted while a client is offline are gone - Socket.IO replays
+ * nothing - so a reconnect is the one moment a screen must re-read whatever
+ * the socket had been keeping live. Subscribing while already disconnected
+ * counts as a gap too, since events may have been missed before we listened.
+ *
+ * Nothing fires for a socket that never dropped, so a healthy session costs no
+ * requests at all.
+ */
+export const subscribeToResync = (
+  socket: ResyncSocket,
+  onResync: () => void,
+): (() => void) => {
+  let missedEvents = !socket.connected;
+
+  const handleDisconnect = () => {
+    missedEvents = true;
+  };
+  const handleConnect = () => {
+    if (!missedEvents) return;
+    missedEvents = false;
+    onResync();
+  };
+
+  socket.on('connect', handleConnect);
+  socket.on('disconnect', handleDisconnect);
+  return () => {
+    socket.off('connect', handleConnect);
+    socket.off('disconnect', handleDisconnect);
+  };
+};
+
+/** subscribeToResync bound to the shared app socket. */
+export const onSocketResync = (onResync: () => void): (() => void) =>
+  subscribeToResync(getSocket() as unknown as ResyncSocket, onResync);
+
 export const joinLeagueRoom = (leagueId: string) => {
   if (!leagueId) return;
   const s = getSocket();
