@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
   View,
   Text,
@@ -52,6 +52,7 @@ import {
   DraftPickFeed,
   MyDraftedStrip,
 } from '../../components/LeagueDetail/DraftBoard';
+import { describeMyTurnNotice } from '../../components/LeagueDetail/draftTurnNotice';
 import { CHEER_DIVISIONS } from '../../utils/cheerScoring';
 
 type NavigationProp = NativeStackNavigationProp<
@@ -207,6 +208,31 @@ export default function DraftRoomScreen() {
     null;
   const userTeamId = resolvedTeamId || reduxActiveTeamId;
 
+  // The socket handler is subscribed once, so it reads the team through a ref
+  // rather than re-subscribing every time the id resolves.
+  const userTeamIdRef = useRef<string | undefined>(undefined);
+  useEffect(() => {
+    userTeamIdRef.current = userTeamId ? String(userTeamId) : undefined;
+  }, [userTeamId]);
+  /** Pick number this client has already been told is its turn. */
+  const notifiedPickRef = useRef<number | null>(null);
+
+  // Backstop for a turn that arrives without an event: opening the room already
+  // on the clock, or a reconnect resync covering a broadcast missed while
+  // offline. The socket path announces first and records the pick number, so
+  // this cannot double up - it only speaks when nothing else did.
+  useEffect(() => {
+    const notice = describeMyTurnNotice({
+      draft: draftState,
+      pick: null,
+      myTeamId: userTeamId ? String(userTeamId) : null,
+      lastNotifiedPick: notifiedPickRef.current,
+    });
+    if (!notice) return;
+    notifiedPickRef.current = notice.pickNumber;
+    showToast.info(notice.title, notice.message);
+  }, [draftState, userTeamId]);
+
   // Only a resolved fantasy team id is worth caching.
   useEffect(() => {
     if (leagueId && resolvedTeamId && resolvedTeamId !== reduxActiveTeamId) {
@@ -244,6 +270,20 @@ export default function DraftRoomScreen() {
           );
         } else if (refetchDraftState) {
           refetchDraftState();
+        }
+
+        // Being handed the clock is the one thing a manager must not miss, and
+        // the broadcast already says who is up - so it is announced from the
+        // event rather than inferred from a later render.
+        const notice = describeMyTurnNotice({
+          draft: data.draft,
+          pick: data.pick,
+          myTeamId: userTeamIdRef.current,
+          lastNotifiedPick: notifiedPickRef.current,
+        });
+        if (notice) {
+          notifiedPickRef.current = notice.pickNumber;
+          showToast.info(notice.title, notice.message);
         }
 
         // Dropping the drafted team from the cached pool beats refetching the
