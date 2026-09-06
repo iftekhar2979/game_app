@@ -44,6 +44,7 @@ import {
   getSocket,
   joinLeagueRoom,
   leaveLeagueRoom,
+  onSocketResync,
 } from '../../services/socketService';
 import { showToast } from '../../utils/toast';
 import {
@@ -91,18 +92,13 @@ export default function DraftRoomScreen() {
     useDraftCheerTeamMutation();
   /** The row awaiting a server response, so only that card shows a spinner. */
   const [pendingTeamId, setPendingTeamId] = useState<string | null>(null);
-  // Mirrors the draft status so polling can follow it. Sockets carry picks, but
-  // a dropped connection or a missed event would otherwise leave a manager
-  // staring at a stale board; this is the safety net, not the primary channel.
-  const [isDraftLive, setIsDraftLive] = useState(false);
+  // No polling. The socket carries the board, and the only gap it cannot cover
+  // is a dropped connection - which is handled once on reconnect below, rather
+  // than by every manager re-asking on a timer for the whole draft.
   const { data: draftState, refetch: refetchDraftState } =
     useGetDraftStateQuery(leagueId, {
       skip: isMockId,
-      pollingInterval: isDraftLive ? 15000 : 0,
     });
-  useEffect(() => {
-    setIsDraftLive(draftState?.status === 'active');
-  }, [draftState?.status]);
   const [startDraft, { isLoading: isStartingDraft }] = useStartDraftMutation();
   const { data: draftPicks, refetch: refetchDraftPicks } =
     useGetDraftPicksQuery(leagueId, {
@@ -301,9 +297,18 @@ export default function DraftRoomScreen() {
         }
       };
 
+      // Anything broadcast while this client was offline is gone for good, so
+      // the board is re-read once on the way back rather than polled for.
+      const stopResync = onSocketResync(() => {
+        if (refetchDraftState) refetchDraftState();
+        if (refetchDraftPicks) refetchDraftPicks();
+        if (refetchAvailableAthletes) refetchAvailableAthletes();
+      });
+
       socket.on('playerAcquired', handlePlayerAcquired);
       socket.on('draftUpdated', handleDraftUpdated);
       return () => {
+        stopResync();
         socket.off('playerAcquired', handlePlayerAcquired);
         socket.off('draftUpdated', handleDraftUpdated);
         leaveLeagueRoom(leagueId);
