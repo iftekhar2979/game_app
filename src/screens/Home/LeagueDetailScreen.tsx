@@ -533,23 +533,27 @@ export default function LeagueDetailScreen() {
     });
   }, [apiMembersData, currentUserId]);
 
-  const userTeamId =
+  // Authoritative sources first, cache last. This id is shared with the draft
+  // room through Redux, so a membership _id must never reach it: membership and
+  // fantasy team are different entities, and the draft compares turns against
+  // the fantasy team id.
+  const resolvedTeamId =
     myRoster?.team?._id ||
-    reduxActiveTeamId ||
+    callerInfo?.team?._id ||
+    callerInfo?.team?.id ||
     rosterTeam?._id ||
     rosterTeam?.id ||
     userTeamObj?.team?._id ||
     userTeamObj?.team?.id ||
-    userTeamObj?._id ||
-    callerInfo?.team?._id ||
-    callerInfo?.team?.id;
+    null;
+  const userTeamId = resolvedTeamId || reduxActiveTeamId;
 
-  // Persist user team ID to Redux global state
+  // Only a resolved fantasy team id is worth caching.
   useEffect(() => {
-    if (leagueId && userTeamId && userTeamId !== reduxActiveTeamId) {
-      dispatch(setActiveTeam({ leagueId, teamId: String(userTeamId) }));
+    if (leagueId && resolvedTeamId && resolvedTeamId !== reduxActiveTeamId) {
+      dispatch(setActiveTeam({ leagueId, teamId: String(resolvedTeamId) }));
     }
-  }, [leagueId, userTeamId, reduxActiveTeamId, dispatch]);
+  }, [leagueId, resolvedTeamId, reduxActiveTeamId, dispatch]);
 
   // Pull down to re-read everything this screen shows. Runs the refetches in
   // parallel and settles even if one of them rejects, so a single failing query

@@ -182,22 +182,29 @@ export default function DraftRoomScreen() {
     });
   }, [apiMembersData, currentUserId]);
 
-  const userTeamId =
-    reduxActiveTeamId ||
+  // Authoritative sources first, cache last. caller.team is resolved by ownerId
+  // on the server, so it is the id the draft compares turns against; the Redux
+  // value only covers the window before those queries land.
+  //
+  // A membership _id is never used here. It is a different entity from the
+  // fantasy team, so it can never equal draftState.currentTeam.fantasyTeamId -
+  // caching one used to leave the manager permanently stuck on "Not your turn".
+  const resolvedTeamId =
     callerInfo?.team?._id ||
     callerInfo?.team?.id ||
     rosterTeam?._id ||
     rosterTeam?.id ||
     userTeamObj?.team?._id ||
     userTeamObj?.team?.id ||
-    userTeamObj?._id;
+    null;
+  const userTeamId = resolvedTeamId || reduxActiveTeamId;
 
-  // Persist user team ID to Redux global state
+  // Only a resolved fantasy team id is worth caching.
   useEffect(() => {
-    if (leagueId && userTeamId && userTeamId !== reduxActiveTeamId) {
-      dispatch(setActiveTeam({ leagueId, teamId: String(userTeamId) }));
+    if (leagueId && resolvedTeamId && resolvedTeamId !== reduxActiveTeamId) {
+      dispatch(setActiveTeam({ leagueId, teamId: String(resolvedTeamId) }));
     }
-  }, [leagueId, userTeamId, reduxActiveTeamId, dispatch]);
+  }, [leagueId, resolvedTeamId, reduxActiveTeamId, dispatch]);
 
   // Real-time playerAcquired socket listener
   useEffect(() => {
