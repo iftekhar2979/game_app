@@ -53,6 +53,7 @@ import {
   MyDraftedStrip,
 } from '../../components/LeagueDetail/DraftBoard';
 import { describeMyTurnNotice } from '../../components/LeagueDetail/draftTurnNotice';
+import { shouldLeaveDraftRoomForPlay } from '../../components/LeagueDetail/draftCompletion';
 import { CHEER_DIVISIONS } from '../../utils/cheerScoring';
 
 type NavigationProp = NativeStackNavigationProp<
@@ -216,6 +217,39 @@ export default function DraftRoomScreen() {
   }, [userTeamId]);
   /** Pick number this client has already been told is its turn. */
   const notifiedPickRef = useRef<number | null>(null);
+
+  // Hand the room over to league play the moment the final pick lands. The
+  // draft room has nothing left to offer once the board is full, and the socket
+  // delivers the completed state to everyone, so every manager moves - not just
+  // whoever made the last pick.
+  //
+  // Only a draft seen running in this session redirects. Opening a room whose
+  // draft finished long ago keeps the "this draft has finished" note instead of
+  // bouncing straight back out.
+  const sawDraftRunningRef = useRef(false);
+  const hasLeftForPlayRef = useRef(false);
+  useEffect(() => {
+    if (isMockId) return;
+    if (draftState?.status === 'active') {
+      sawDraftRunningRef.current = true;
+      return;
+    }
+    if (
+      !shouldLeaveDraftRoomForPlay({
+        status: draftState?.status,
+        sawDraftRunning: sawDraftRunningRef.current,
+        alreadyLeft: hasLeftForPlayRef.current,
+      })
+    ) {
+      return;
+    }
+    hasLeftForPlayRef.current = true;
+    // The league flips to active server-side on the final pick, and no mutation
+    // ran here for anyone but the last drafter, so their cached league is stale.
+    dispatch(leagueApi.util.invalidateTags([{ type: 'League', id: leagueId }]));
+    showToast.success('Draft complete', 'Your roster is set. On to matchups.');
+    navigation.replace('LeagueDetail', { leagueId, initialTab: 'Matchup' });
+  }, [draftState?.status, isMockId, leagueId, dispatch, navigation]);
 
   // Backstop for a turn that arrives without an event: opening the room already
   // on the clock, or a reconnect resync covering a broadcast missed while

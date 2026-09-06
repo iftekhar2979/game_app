@@ -85,7 +85,11 @@ export type RootStackParamList = {
   DfsContestDetail: { contestId: string };
   DfsLineup: { contestId: string };
   CreateLeague: undefined;
-  LeagueDetail: { leagueId: string };
+  LeagueDetail: {
+    leagueId: string;
+    /** Tab to open on. Used when the draft finishes and hands over to play. */
+    initialTab?: 'Matchup' | 'Draft' | 'Team' | 'Players' | 'League' | 'Scoring';
+  };
   LeagueChat: { leagueId: string; leagueName?: string };
   DraftRoom: { leagueId: string };
   TeamRoster: { leagueId: string; teamId: string; teamName?: string };

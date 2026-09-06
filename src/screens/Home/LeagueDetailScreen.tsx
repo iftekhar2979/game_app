@@ -432,9 +432,11 @@ export default function LeagueDetailScreen() {
     currentLeagueStatus === 'active' ||
     league?.status === 'Play' ||
     league?.status === 'active';
+  // An explicit tab wins over the status guess: a manager arriving straight
+  // from a finished draft may still hold a cached league that says "draft".
   const [activeTab, setActiveTab] = useState<
     'Matchup' | 'Draft' | 'Team' | 'Players' | 'League' | 'Scoring'
-  >(isPlayMode ? 'Matchup' : 'Draft');
+  >(route.params?.initialTab ?? (isPlayMode ? 'Matchup' : 'Draft'));
 
   const [isUserJoined, setIsUserJoined] = useState(false);
   const [isJoinModalVisible, setIsJoinModalVisible] = useState(false);
