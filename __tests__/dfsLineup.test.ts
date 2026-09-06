@@ -7,7 +7,7 @@ import {
   hydrateDfsLineup,
   validateDfsLineup,
 } from '../src/utils/dfsLineup';
-import type { DfsContest, DfsSlateAthlete } from '../src/store/api/dfsApi';
+import type { DfsContest, DfsSlateTeam } from '../src/store/api/dfsApi';
 
 const contest: DfsContest = {
   title: 'Starter Contest',
@@ -15,68 +15,80 @@ const contest: DfsContest = {
   entryFee: 0,
   maxEntrants: 10,
   entrantCount: 1,
-  lineupSlots: [{ slot: 'BASE', positionCodes: ['BASE'], count: 2 }],
+  lineupSlots: [
+    { slot: 'DIVISION_1', divisionCodes: ['SMALL_COED'], count: 2 },
+  ],
   salaryCap: 200,
   lockTime: '2099-01-01T00:00:00.000Z',
   status: 'open',
 };
 
-const athletes: DfsSlateAthlete[] = [
-  { seasonAthleteId: 'one', salary: 80, projectedPoints: 10, isLocked: false },
-  { seasonAthleteId: 'two', salary: 100, projectedPoints: 8, isLocked: false },
+const teams: DfsSlateTeam[] = [
+  {
+    seasonCheerTeamId: 'one',
+    salary: 80,
+    projectedPoints: 10,
+    isLocked: false,
+  },
+  {
+    seasonCheerTeamId: 'two',
+    salary: 100,
+    projectedPoints: 8,
+    isLocked: false,
+  },
 ];
 
 describe('DFS lineup helpers', () => {
   it('expands configured slot counts and hydrates an existing complete lineup', () => {
     const slots = expandDfsSlots(contest.lineupSlots);
     const assignments = hydrateDfsLineup(slots, [
-      { slot: 'BASE', seasonAthleteId: 'one' },
-      { slot: 'BASE', seasonAthleteId: 'two' },
+      { slot: 'DIVISION_1', seasonCheerTeamId: 'one' },
+      { slot: 'DIVISION_1', seasonCheerTeamId: 'two' },
     ]);
 
-    expect(slots.map(slot => slot.key)).toEqual(['BASE-1', 'BASE-2']);
-    expect(assignments).toEqual({ 'BASE-1': 'one', 'BASE-2': 'two' });
+    expect(slots.map(slot => slot.key)).toEqual(['DIVISION_1-1', 'DIVISION_1-2']);
+    expect(assignments).toEqual({ 'DIVISION_1-1': 'one', 'DIVISION_1-2': 'two' });
   });
 
-  it('builds a request containing only slot and seasonAthleteId', () => {
+  it('builds a request containing only slot and seasonCheerTeamId', () => {
     const slots = expandDfsSlots(contest.lineupSlots);
     expect(
-      buildDfsLineupPayload(slots, { 'BASE-1': 'one', 'BASE-2': 'two' }),
+      buildDfsLineupPayload(slots, { 'DIVISION_1-1': 'one', 'DIVISION_1-2': 'two' }),
     ).toEqual([
-      { slot: 'BASE', seasonAthleteId: 'one' },
-      { slot: 'BASE', seasonAthleteId: 'two' },
+      { slot: 'DIVISION_1', seasonCheerTeamId: 'one' },
+      { slot: 'DIVISION_1', seasonCheerTeamId: 'two' },
     ]);
   });
 
   it('uses slate salaries for the running total', () => {
-    expect(calculateDfsSalary({ a: 'one', b: 'two' }, athletes)).toBe(180);
+    expect(calculateDfsSalary({ a: 'one', b: 'two' }, teams)).toBe(180);
   });
 
   it('rejects incomplete, duplicate, locked, and over-cap lineups', () => {
     const slots = expandDfsSlots(contest.lineupSlots);
     expect(
-      validateDfsLineup(contest, slots, { 'BASE-1': 'one' }, athletes),
+      validateDfsLineup(contest, slots, { 'DIVISION_1-1': 'one' }, teams),
     ).toBe('Please fill all lineup spots.');
     expect(
       validateDfsLineup(
         contest,
         slots,
-        { 'BASE-1': 'one', 'BASE-2': 'one' },
-        athletes,
+        { 'DIVISION_1-1': 'one', 'DIVISION_1-2': 'one' },
+        teams,
       ),
-    ).toBe('You have selected the same player twice.');
+    ).toBe('You have selected the same cheer team twice.');
     expect(
-      validateDfsLineup(contest, slots, { 'BASE-1': 'one', 'BASE-2': 'two' }, [
-        { ...athletes[0], isLocked: true },
-        athletes[1],
+      validateDfsLineup(contest, slots, { 'DIVISION_1-1': 'one', 'DIVISION_1-2': 'two' }, [
+        { ...teams[0], isLocked: true },
+        teams[1],
       ]),
-    ).toBe('This player is locked.');
+    ).toBe('This cheer team is locked.');
     expect(
       validateDfsLineup(
         { ...contest, salaryCap: 150 },
         slots,
-        { 'BASE-1': 'one', 'BASE-2': 'two' },
-        athletes,
+        { 'DIVISION_1-1': 'one', 'DIVISION_1-2': 'two' },
+        teams,
       ),
     ).toBe('Your lineup is over the salary limit.');
   });

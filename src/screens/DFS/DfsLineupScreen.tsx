@@ -16,7 +16,7 @@ import { Check, ChevronLeft, Lock, Plus, X } from 'lucide-react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../../../App';
 import {
-  DfsSlateAthlete,
+  DfsSlateTeam,
   useCreateDfsEntryMutation,
   useGetContestSlateQuery,
   useGetDfsContestQuery,
@@ -29,13 +29,13 @@ import {
   DfsLineupAssignments,
   expandDfsSlots,
   getContestJoinMessage,
-  getDfsAthleteName,
-  getDfsAthletePositionCodes,
+  getDfsTeamName,
+  getDfsTeamDivisionCodes,
   getDfsErrorMessage,
   getEntityId,
-  getSlateAthleteId,
+  getSlateTeamId,
   hydrateDfsLineup,
-  isDfsAthleteCompatible,
+  isDfsTeamCompatible,
   isDfsEntryMissing,
   validateDfsLineup,
 } from '../../utils/dfsLineup';
@@ -43,11 +43,11 @@ import { showToast } from '../../utils/toast';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'DfsLineup'>;
 
-const getAthletePhoto = (slateAthlete: DfsSlateAthlete): string | undefined => {
-  const seasonAthlete = slateAthlete.seasonAthleteId;
-  if (typeof seasonAthlete === 'string') return undefined;
-  const athlete = seasonAthlete.athleteId;
-  return typeof athlete === 'object' ? athlete?.photoUrl : undefined;
+const getTeamLogo = (slateTeam: DfsSlateTeam): string | undefined => {
+  const seasonCheerTeam = slateTeam.seasonCheerTeamId;
+  if (typeof seasonCheerTeam === 'string') return undefined;
+  const organization = seasonCheerTeam.organizationId;
+  return typeof organization === 'object' ? organization?.logoUrl : undefined;
 };
 
 export default function DfsLineupScreen({ navigation, route }: Props) {
@@ -64,8 +64,8 @@ export default function DfsLineupScreen({ navigation, route }: Props) {
 
   const contest = contestQuery.data;
   const slateAthletes = useMemo(
-    () => slateQuery.data?.athleteSlates ?? [],
-    [slateQuery.data?.athleteSlates],
+    () => slateQuery.data?.teamSlates ?? [],
+    [slateQuery.data?.teamSlates],
   );
   const slots = useMemo(
     () => expandDfsSlots(contest?.lineupSlots ?? []),
@@ -93,7 +93,7 @@ export default function DfsLineupScreen({ navigation, route }: Props) {
   const athletesById = useMemo(
     () =>
       new Map(
-        slateAthletes.map(athlete => [getSlateAthleteId(athlete), athlete]),
+        slateAthletes.map(athlete => [getSlateTeamId(athlete), athlete]),
       ),
     [slateAthletes],
   );
@@ -345,14 +345,14 @@ export default function DfsLineupScreen({ navigation, route }: Props) {
             >
               <View className="flex-row items-center">
                 <View className="w-12 h-12 rounded-2xl bg-[#28202f] items-center justify-center mr-3 overflow-hidden">
-                  {athlete && getAthletePhoto(athlete) ? (
+                  {athlete && getTeamLogo(athlete) ? (
                     <Image
-                      source={{ uri: getAthletePhoto(athlete) }}
+                      source={{ uri: getTeamLogo(athlete) }}
                       className="w-12 h-12"
                     />
                   ) : athlete ? (
                     <Text className="text-[#E0B566] text-lg font-extrabold">
-                      {getDfsAthleteName(athlete).slice(0, 1).toUpperCase()}
+                      {getDfsTeamName(athlete).slice(0, 1).toUpperCase()}
                     </Text>
                   ) : (
                     <Plus color="#777" size={22} />
@@ -367,7 +367,7 @@ export default function DfsLineupScreen({ navigation, route }: Props) {
                     numberOfLines={1}
                   >
                     {athlete
-                      ? getDfsAthleteName(athlete)
+                      ? getDfsTeamName(athlete)
                       : 'Tap to choose a player'}
                   </Text>
                   {athlete ? (
@@ -375,9 +375,9 @@ export default function DfsLineupScreen({ navigation, route }: Props) {
                       Salary {athlete.salary} · Projected{' '}
                       {athlete.projectedPoints ?? 0}
                     </Text>
-                  ) : slot.positionCodes.length ? (
+                  ) : slot.divisionCodes.length ? (
                     <Text className="text-gray-500 text-xs mt-1">
-                      {slot.positionCodes.join(' / ')}
+                      {slot.divisionCodes.join(' / ')}
                     </Text>
                   ) : null}
                 </View>
@@ -457,7 +457,7 @@ export default function DfsLineupScreen({ navigation, route }: Props) {
 
             <FlatList
               data={slateAthletes}
-              keyExtractor={getSlateAthleteId}
+              keyExtractor={getSlateTeamId}
               contentContainerStyle={styles.playerList}
               refreshControl={
                 <RefreshControl
@@ -474,18 +474,18 @@ export default function DfsLineupScreen({ navigation, route }: Props) {
                 </Text>
               }
               renderItem={({ item }) => {
-                const athleteId = getSlateAthleteId(item);
+                const athleteId = getSlateTeamId(item);
                 const isCurrent = activeSlotKey
                   ? assignments[activeSlotKey] === athleteId
                   : false;
                 const selectedElsewhere =
                   selectedIds.has(athleteId) && !isCurrent;
                 const incompatible = activeSlot
-                  ? !isDfsAthleteCompatible(activeSlot, item)
+                  ? !isDfsTeamCompatible(activeSlot, item)
                   : false;
                 const disabled =
                   item.isLocked || selectedElsewhere || incompatible;
-                const positionCodes = getDfsAthletePositionCodes(item);
+                const divisionCodes = getDfsTeamDivisionCodes(item);
 
                 return (
                   <TouchableOpacity
@@ -500,14 +500,14 @@ export default function DfsLineupScreen({ navigation, route }: Props) {
                     onPress={() => chooseAthlete(athleteId)}
                   >
                     <View className="w-12 h-12 rounded-full bg-[#28202f] items-center justify-center mr-3 overflow-hidden">
-                      {getAthletePhoto(item) ? (
+                      {getTeamLogo(item) ? (
                         <Image
-                          source={{ uri: getAthletePhoto(item) }}
+                          source={{ uri: getTeamLogo(item) }}
                           className="w-12 h-12"
                         />
                       ) : (
                         <Text className="text-[#E0B566] text-lg font-extrabold">
-                          {getDfsAthleteName(item).slice(0, 1).toUpperCase()}
+                          {getDfsTeamName(item).slice(0, 1).toUpperCase()}
                         </Text>
                       )}
                     </View>
@@ -516,15 +516,15 @@ export default function DfsLineupScreen({ navigation, route }: Props) {
                         className="text-white text-base font-bold"
                         numberOfLines={1}
                       >
-                        {getDfsAthleteName(item)}
+                        {getDfsTeamName(item)}
                       </Text>
                       <Text className="text-gray-400 text-xs mt-1">
                         Salary {item.salary} · Projected{' '}
                         {item.projectedPoints ?? 0}
                       </Text>
-                      {positionCodes.length ? (
+                      {divisionCodes.length ? (
                         <Text className="text-[#E0B566] text-[10px] mt-1">
-                          {positionCodes.join(' / ')}
+                          {divisionCodes.join(' / ')}
                         </Text>
                       ) : null}
                       {item.isLocked ? (

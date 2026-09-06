@@ -3,13 +3,13 @@ import type {
   DfsEntryLineupItem,
   DfsLineupPayloadItem,
   DfsLineupSlotConfig,
-  DfsSlateAthlete,
+  DfsSlateTeam,
 } from '../store/api/dfsApi';
 
 export interface ExpandedDfsSlot {
   key: string;
   slot: string;
-  positionCodes: string[];
+  divisionCodes: string[];
 }
 
 export type DfsLineupAssignments = Record<string, string | undefined>;
@@ -28,7 +28,7 @@ export const expandDfsSlots = (
     Array.from({ length: config.count }, (_, index) => ({
       key: `${config.slot}-${index + 1}`,
       slot: config.slot,
-      positionCodes: config.positionCodes ?? [],
+      divisionCodes: config.divisionCodes ?? [],
     })),
   );
 
@@ -41,15 +41,15 @@ export const hydrateDfsLineup = (
     const matchIndex = remaining.findIndex(item => item.slot === slot.slot);
     if (matchIndex >= 0) {
       assignments[slot.key] = getEntityId(
-        remaining.splice(matchIndex, 1)[0].seasonAthleteId,
+        remaining.splice(matchIndex, 1)[0].seasonCheerTeamId,
       );
     }
     return assignments;
   }, {});
 };
 
-export const getSlateAthleteId = (athlete: DfsSlateAthlete): string =>
-  getEntityId(athlete.seasonAthleteId);
+export const getSlateTeamId = (team: DfsSlateTeam): string =>
+  getEntityId(team.seasonCheerTeamId);
 
 export const buildDfsLineupPayload = (
   slots: ExpandedDfsSlot[],
@@ -59,61 +59,66 @@ export const buildDfsLineupPayload = (
     .filter(slot => Boolean(assignments[slot.key]))
     .map(slot => ({
       slot: slot.slot,
-      seasonAthleteId: assignments[slot.key] as string,
+      seasonCheerTeamId: assignments[slot.key] as string,
     }));
 
 export const calculateDfsSalary = (
   assignments: DfsLineupAssignments,
-  slateAthletes: DfsSlateAthlete[] = [],
+  slateTeams: DfsSlateTeam[] = [],
 ): number => {
   const salaries = new Map(
-    slateAthletes.map(athlete => [getSlateAthleteId(athlete), athlete.salary]),
+    slateTeams.map(team => [getSlateTeamId(team), team.salary]),
   );
   return Object.values(assignments).reduce(
-    (total, athleteId) =>
-      total + (athleteId ? salaries.get(athleteId) ?? 0 : 0),
+    (total, teamId) =>
+      total + (teamId ? salaries.get(teamId) ?? 0 : 0),
     0,
   );
 };
 
-export const getDfsAthleteName = (athlete: DfsSlateAthlete): string => {
-  const seasonAthlete = athlete.seasonAthleteId;
-  if (typeof seasonAthlete === 'string') return 'Player';
-  const globalAthlete = seasonAthlete.athleteId;
-  if (!globalAthlete || typeof globalAthlete === 'string') return 'Player';
-  return (
-    globalAthlete.displayName ||
-    [globalAthlete.firstName, globalAthlete.lastName]
-      .filter(Boolean)
-      .join(' ') ||
-    'Player'
-  );
+export const getDfsTeamName = (team: DfsSlateTeam): string => {
+  const seasonCheerTeam = team.seasonCheerTeamId;
+  if (typeof seasonCheerTeam === 'string') return 'Cheer team';
+  if (seasonCheerTeam.teamName) return seasonCheerTeam.teamName;
+  const cheerTeam = seasonCheerTeam.cheerTeamId;
+  if (cheerTeam && typeof cheerTeam === 'object' && cheerTeam.name) {
+    return cheerTeam.name;
+  }
+  return 'Cheer team';
 };
 
-export const getDfsAthletePositionCodes = (
-  athlete: DfsSlateAthlete,
-): string[] => {
-  const seasonAthlete = athlete.seasonAthleteId;
-  if (typeof seasonAthlete === 'string') return [];
-  return (seasonAthlete.eligiblePositionIds ?? [])
-    .map(position => (typeof position === 'string' ? '' : position.code ?? ''))
-    .filter(Boolean);
+export const getDfsTeamOrganization = (
+  team: DfsSlateTeam,
+): string | undefined => {
+  const seasonCheerTeam = team.seasonCheerTeamId;
+  if (typeof seasonCheerTeam === 'string') return undefined;
+  const organization = seasonCheerTeam.organizationId;
+  return typeof organization === 'object' ? organization.name : undefined;
 };
 
-export const isDfsAthleteCompatible = (
+export const getDfsTeamDivisionCodes = (team: DfsSlateTeam): string[] => {
+  const seasonCheerTeam = team.seasonCheerTeamId;
+  if (typeof seasonCheerTeam === 'string') return [];
+  return (seasonCheerTeam.eligibleDivisionIds ?? [])
+    .map(division => (typeof division === 'string' ? '' : division.code ?? ''))
+    .filter(Boolean)
+    .map(code => code.toUpperCase());
+};
+
+export const isDfsTeamCompatible = (
   slot: ExpandedDfsSlot,
-  athlete: DfsSlateAthlete,
+  team: DfsSlateTeam,
 ): boolean => {
-  const athleteCodes = getDfsAthletePositionCodes(athlete);
-  if (athleteCodes.length === 0 || slot.positionCodes.length === 0) return true;
-  return slot.positionCodes.some(code => athleteCodes.includes(code));
+  const teamCodes = getDfsTeamDivisionCodes(team);
+  if (teamCodes.length === 0 || slot.divisionCodes.length === 0) return true;
+  return slot.divisionCodes.some(code => teamCodes.includes(code));
 };
 
 export const validateDfsLineup = (
   contest: DfsContest,
   slots: ExpandedDfsSlot[],
   assignments: DfsLineupAssignments,
-  slateAthletes: DfsSlateAthlete[],
+  slateTeams: DfsSlateTeam[],
 ): string | undefined => {
   if (slots.some(slot => !assignments[slot.key])) {
     return 'Please fill all lineup spots.';
@@ -121,22 +126,22 @@ export const validateDfsLineup = (
 
   const selectedIds = slots.map(slot => assignments[slot.key] as string);
   if (new Set(selectedIds).size !== selectedIds.length) {
-    return 'You have selected the same player twice.';
+    return 'You have selected the same cheer team twice.';
   }
 
-  const athletesById = new Map(
-    slateAthletes.map(athlete => [getSlateAthleteId(athlete), athlete]),
+  const teamsById = new Map(
+    slateTeams.map(team => [getSlateTeamId(team), team]),
   );
   for (const slot of slots) {
-    const athlete = athletesById.get(assignments[slot.key] as string);
-    if (!athlete) return 'One of your players is no longer available.';
-    if (athlete.isLocked) return 'This player is locked.';
-    if (!isDfsAthleteCompatible(slot, athlete)) {
-      return `Choose a player who can fill the ${slot.slot} spot.`;
+    const team = teamsById.get(assignments[slot.key] as string);
+    if (!team) return 'One of your cheer teams is no longer available.';
+    if (team.isLocked) return 'This cheer team is locked.';
+    if (!isDfsTeamCompatible(slot, team)) {
+      return `Choose a cheer team that can fill the ${slot.slot} spot.`;
     }
   }
 
-  if (calculateDfsSalary(assignments, slateAthletes) > contest.salaryCap) {
+  if (calculateDfsSalary(assignments, slateTeams) > contest.salaryCap) {
     return 'Your lineup is over the salary limit.';
   }
 
@@ -170,10 +175,10 @@ export const getDfsErrorMessage = (
     return 'This contest is full.';
   }
   if (
-    normalized.includes('locked player') ||
-    normalized.includes('player is locked')
+    normalized.includes('locked slate') ||
+    normalized.includes('cheer teams cannot be selected')
   ) {
-    return 'This player is locked.';
+    return 'This cheer team is locked.';
   }
   if (
     normalized.includes('lock time') ||
