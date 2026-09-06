@@ -16,8 +16,10 @@ import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../../../App';
 import { useSelector, useDispatch } from 'react-redux';
-import { RootState } from '../../store';
+import { RootState, AppDispatch } from '../../store';
 import { setActiveTeam } from '../../store/slices/leagueSlice';
+import { leagueApi } from '../../store/api/leagueApi';
+import { cheerApi } from '../../store/api/cheerApi';
 import {
   useGetLeagueDetailsQuery,
   useGetLeagueMembersQuery,
@@ -65,7 +67,7 @@ const MOCK_USERS = [
 ];
 
 export default function DraftRoomScreen() {
-  const dispatch = useDispatch();
+  const dispatch = useDispatch<AppDispatch>();
   const navigation = useNavigation<NavigationProp>();
   const route = useRoute<RouteProps>();
   const leagueId = route.params?.leagueId;
@@ -229,13 +231,47 @@ export default function DraftRoomScreen() {
         }
       };
 
-      // The server is the source of truth for whose turn it is; just re-read it.
+      // The event already carries everything the board needs, so it is applied
+      // to the cache rather than used as a doorbell to re-request it. Every
+      // manager in the room used to fire three requests per pick, and the
+      // draft state in that payload is byte-for-byte what GET /draft returns.
       const handleDraftUpdated = (data: any) => {
-        if (data && String(data.leagueId) === String(leagueId)) {
-          if (refetchDraftState) refetchDraftState();
-          if (refetchDraftPicks) refetchDraftPicks();
-          if (refetchAvailableAthletes) refetchAvailableAthletes();
+        if (!data || String(data.leagueId) !== String(leagueId)) return;
+
+        if (data.draft) {
+          dispatch(
+            leagueApi.util.upsertQueryData(
+              'getDraftState',
+              leagueId,
+              data.draft,
+            ),
+          );
+        } else if (refetchDraftState) {
+          refetchDraftState();
         }
+
+        // Dropping the drafted team from the cached pool beats refetching the
+        // whole populated list to remove one row - it is the heaviest request
+        // on this screen.
+        const takenTeamId = data.pick?.seasonCheerTeamId;
+        if (takenTeamId) {
+          dispatch(
+            cheerApi.util.updateQueryData(
+              'getAvailableCheerTeams',
+              leagueId,
+              teams =>
+                teams.filter(
+                  team => String(team._id) !== String(takenTeamId),
+                ),
+            ),
+          );
+        } else if (refetchAvailableAthletes) {
+          refetchAvailableAthletes();
+        }
+
+        // Pick rows still come from the server: the broadcast pick does not
+        // carry the resolved team and division names the cards render.
+        if (refetchDraftPicks) refetchDraftPicks();
       };
 
       socket.on('playerAcquired', handlePlayerAcquired);
@@ -251,6 +287,7 @@ export default function DraftRoomScreen() {
   }, [
     leagueId,
     isMockId,
+    dispatch,
     refetchAvailableAthletes,
     refetchDraftState,
     refetchDraftPicks,
