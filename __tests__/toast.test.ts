@@ -1,4 +1,4 @@
-import { formatToastMessage } from '../src/utils/toast';
+import { formatToastMessage, showToast, toastEmitter } from '../src/utils/toast';
 
 describe('formatToastMessage', () => {
   it('passes a plain string through', () => {
@@ -30,5 +30,45 @@ describe('formatToastMessage', () => {
   it('still humanises ISO timestamps and LOCKED prefixes', () => {
     expect(formatToastMessage('LOCKED: try later')).toBe('Locked: try later');
     expect(formatToastMessage('starts 2026-09-01T00:00:00Z')).not.toContain('T00:00:00Z');
+  });
+});
+
+describe('toastEmitter subscriptions', () => {
+  it('delivers to a listener that subscribed after another one', () => {
+    const first = jest.fn();
+    const second = jest.fn();
+    const stopFirst = toastEmitter.subscribe(first);
+    const stopSecond = toastEmitter.subscribe(second);
+
+    showToast.error('Draft Error', 'Cheer team is already owned');
+
+    expect(second).toHaveBeenCalledTimes(1);
+    stopFirst();
+    stopSecond();
+  });
+
+  // The regression: unsubscribing used to clear the single listener field, so
+  // one container unmounting silenced every toast for the one still mounted.
+  it('keeps delivering after an unrelated listener unsubscribes', () => {
+    const surviving = jest.fn();
+    const stopSurviving = toastEmitter.subscribe(surviving);
+    const stopTransient = toastEmitter.subscribe(jest.fn());
+
+    stopTransient();
+    showToast.error('Draft Error', 'Not your turn');
+
+    expect(surviving).toHaveBeenCalledWith(
+      expect.objectContaining({ type: 'error', title: 'Draft Error' }),
+    );
+    stopSurviving();
+  });
+
+  it('stops delivering to a listener that unsubscribed', () => {
+    const listener = jest.fn();
+    toastEmitter.subscribe(listener)();
+
+    showToast.success('Drafted');
+
+    expect(listener).not.toHaveBeenCalled();
   });
 });

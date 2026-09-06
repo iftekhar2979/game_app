@@ -52,12 +52,16 @@ export function formatToastMessage(message?: unknown): string | undefined {
 type ToastListener = (options: ToastOptions) => void;
 
 class ToastEmitter {
-  private listener: ToastListener | null = null;
+  // A set rather than one slot: a single listener meant a second subscriber
+  // silently replaced the first, and unsubscribing cleared the field outright,
+  // so whichever container unmounted last killed toasts for the one still
+  // mounted. Each unsubscribe now removes only its own listener.
+  private listeners = new Set<ToastListener>();
 
   subscribe(listener: ToastListener) {
-    this.listener = listener;
+    this.listeners.add(listener);
     return () => {
-      this.listener = null;
+      this.listeners.delete(listener);
     };
   }
 
@@ -66,9 +70,7 @@ class ToastEmitter {
       ...options,
       message: formatToastMessage(options.message),
     };
-    if (this.listener) {
-      this.listener(formattedOptions);
-    }
+    this.listeners.forEach(listener => listener(formattedOptions));
   }
 }
 
