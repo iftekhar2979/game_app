@@ -281,6 +281,11 @@ export interface DraftState {
   totalPicks: number;
   totalRounds: number;
   startedAt?: string | null;
+  /**
+   * When the current pick's clock runs out. Advisory: the server still accepts
+   * a late pick, because nothing advances a lapsed clock on its own.
+   */
+  currentPickEndsAt?: string | null;
   completedAt?: string | null;
   /** Every slot with its owning team, resolved server-side. */
   board: DraftBoardSlot[];

@@ -87,10 +87,20 @@ export default function DraftRoomScreen() {
   );
   const [draftCheerTeam, { isLoading: isDrafting }] =
     useDraftCheerTeamMutation();
+  /** The row awaiting a server response, so only that card shows a spinner. */
+  const [pendingTeamId, setPendingTeamId] = useState<string | null>(null);
+  // Mirrors the draft status so polling can follow it. Sockets carry picks, but
+  // a dropped connection or a missed event would otherwise leave a manager
+  // staring at a stale board; this is the safety net, not the primary channel.
+  const [isDraftLive, setIsDraftLive] = useState(false);
   const { data: draftState, refetch: refetchDraftState } =
     useGetDraftStateQuery(leagueId, {
       skip: isMockId,
+      pollingInterval: isDraftLive ? 15000 : 0,
     });
+  useEffect(() => {
+    setIsDraftLive(draftState?.status === 'active');
+  }, [draftState?.status]);
   const [startDraft, { isLoading: isStartingDraft }] = useStartDraftMutation();
   const { data: draftPicks, refetch: refetchDraftPicks } =
     useGetDraftPicksQuery(leagueId, {
@@ -254,6 +264,28 @@ export default function DraftRoomScreen() {
     (isDraftRunning &&
       !!userTeamId &&
       String(draftState?.currentTeam?.fantasyTeamId) === String(userTeamId));
+
+  // Local ticking clock for the pick countdown. The deadline itself comes from
+  // the server; only the "how long left" reading is computed here.
+  const pickEndsAt = draftState?.currentPickEndsAt;
+  const [nowTs, setNowTs] = useState(() => Date.now());
+  useEffect(() => {
+    if (!isDraftRunning || !pickEndsAt) return;
+    setNowTs(Date.now());
+    const id = setInterval(() => setNowTs(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, [isDraftRunning, pickEndsAt]);
+
+  const secondsRemaining = useMemo(() => {
+    if (!pickEndsAt) return null;
+    const remaining = new Date(pickEndsAt).getTime() - nowTs;
+    return Number.isFinite(remaining) ? Math.max(0, Math.ceil(remaining / 1000)) : null;
+  }, [pickEndsAt, nowTs]);
+
+  const formattedCountdown =
+    secondsRemaining === null
+      ? null
+      : `${Math.floor(secondsRemaining / 60)}:${String(secondsRemaining % 60).padStart(2, '0')}`;
 
   const handleStartDraft = async () => {
     try {
@@ -490,6 +522,7 @@ export default function DraftRoomScreen() {
   };
 
   const draftSelectedTeam = async (player: any) => {
+    setPendingTeamId(String(player.id));
     try {
       // No division is sent: the server assigns the one that keeps the rest of
       // the roster fillable, and tells us which it chose.
@@ -512,6 +545,8 @@ export default function DraftRoomScreen() {
         'Draft Error',
         err?.data?.message || err?.message || 'Failed to draft cheer team.',
       );
+    } finally {
+      setPendingTeamId(null);
     }
   };
 
@@ -722,9 +757,41 @@ export default function DraftRoomScreen() {
 
             {isDraftRunning ? (
               <>
-                <Text className="text-gray-400 text-[12px]">
-                  {`Round ${draftState?.currentRound} of ${draftState?.totalRounds} • Pick ${draftState?.currentPick} of ${draftState?.totalPicks}`}
-                </Text>
+                <View className="flex-row items-center justify-between">
+                  <Text className="text-gray-400 text-[12px] flex-1 mr-2">
+                    {`Round ${draftState?.currentRound} of ${draftState?.totalRounds} • Pick ${draftState?.currentPick} of ${draftState?.totalPicks}`}
+                  </Text>
+                  {formattedCountdown ? (
+                    <View
+                      className={`px-2.5 py-1 rounded-full border ${
+                        secondsRemaining === 0
+                          ? 'bg-[#2b1f1f] border-[#7a3b3b]'
+                          : secondsRemaining !== null && secondsRemaining <= 10
+                          ? 'bg-[#2b241a] border-[#E0B566]'
+                          : 'bg-[#1a1a1a] border-[#333]'
+                      }`}
+                    >
+                      <Text
+                        className={`text-[12px] font-bold ${
+                          secondsRemaining === 0
+                            ? 'text-red-300'
+                            : secondsRemaining !== null && secondsRemaining <= 10
+                            ? 'text-[#E0B566]'
+                            : 'text-gray-300'
+                        }`}
+                      >
+                        {secondsRemaining === 0
+                          ? 'Time up'
+                          : `${formattedCountdown} left`}
+                      </Text>
+                    </View>
+                  ) : null}
+                </View>
+                {secondsRemaining === 0 ? (
+                  <Text className="text-gray-500 text-[11px] mt-1.5">
+                    The clock has run out, but picks are still accepted.
+                  </Text>
+                ) : null}
                 <View className="flex-row items-center mt-2.5 pt-2.5 border-t border-[#222]">
                   <View className="flex-1">
                     <Text className="text-gray-500 text-[10px] uppercase font-bold">
@@ -994,10 +1061,14 @@ export default function DraftRoomScreen() {
                     </Text>
                   </View>
                 </View>
-                <View className="bg-[#8B3DFF]/20 px-3 py-1.5 rounded-xl border border-[#8B3DFF]/40">
-                  <Text className="text-[#8B3DFF] text-[13px] font-bold">
-                    {isAuctionDraft ? 'Nominate' : 'Draft'}
-                  </Text>
+                <View className="bg-[#8B3DFF]/20 px-3 py-1.5 rounded-xl border border-[#8B3DFF]/40 min-w-[74px] items-center">
+                  {pendingTeamId === String(player.id) ? (
+                    <ActivityIndicator size="small" color="#8B3DFF" />
+                  ) : (
+                    <Text className="text-[#8B3DFF] text-[13px] font-bold">
+                      {isAuctionDraft ? 'Nominate' : 'Draft'}
+                    </Text>
+                  )}
                 </View>
               </TouchableOpacity>
             ))
@@ -1043,7 +1114,10 @@ export default function DraftRoomScreen() {
                   key={`${player.id}-${idx}`}
                   className="flex-row items-center justify-between bg-[#242424] border border-[#333] p-3.5 rounded-2xl mb-3"
                   activeOpacity={0.7}
-                  disabled={isDrafting || (isSnakeDraft && !isMyTurn)}
+                  // Only a request in flight disables the row. Disabling it for
+                  // "not your turn" made the tap do nothing at all, with no
+                  // explanation - the handler below says why instead.
+                  disabled={isDrafting}
                   onPress={async () => {
                     if (isAuctionDraft) {
                       openDivisionPicker(player);
@@ -1131,10 +1205,24 @@ export default function DraftRoomScreen() {
                       </Text>
                     </View>
                   </View>
-                  <View className="bg-[#8B3DFF] px-4 py-2 rounded-xl">
-                    <Text className="text-white text-[13px] font-bold">
-                      {isAuctionDraft ? 'Nominate' : 'Pick'}
-                    </Text>
+                  <View
+                    className={`px-4 py-2 rounded-xl min-w-[76px] items-center ${
+                      isSnakeDraft && !isMyTurn ? 'bg-[#3a3a3a]' : 'bg-[#8B3DFF]'
+                    }`}
+                  >
+                    {pendingTeamId === String(player.id) ? (
+                      <ActivityIndicator size="small" color="#fff" />
+                    ) : (
+                      <Text
+                        className={`text-[13px] font-bold ${
+                          isSnakeDraft && !isMyTurn
+                            ? 'text-gray-400'
+                            : 'text-white'
+                        }`}
+                      >
+                        {isAuctionDraft ? 'Nominate' : 'Pick'}
+                      </Text>
+                    )}
                   </View>
                 </TouchableOpacity>
               ))}
