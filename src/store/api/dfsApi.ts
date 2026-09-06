@@ -10,7 +10,8 @@ export type DfsContestStatus =
 
 export interface DfsLineupSlotConfig {
   slot: string;
-  positionCodes: string[];
+  /** Cheer division codes eligible for this slot (matches CheerDivision.code). */
+  divisionCodes: string[];
   count: number;
 }
 
@@ -26,7 +27,7 @@ export interface DfsContest {
   salaryCap: number;
   lockTime: string;
   status: DfsContestStatus;
-  eventId?:
+  competitionId?:
     | string
     | {
         id?: string;
@@ -39,28 +40,29 @@ export interface DfsContest {
       };
 }
 
-export interface DfsSeasonAthlete {
+export interface DfsSeasonCheerTeam {
   id?: string;
   _id?: string;
-  athleteId?:
+  teamName?: string;
+  cheerTeamId?: string | { id?: string; _id?: string; name?: string };
+  eligibleDivisionIds?: Array<
+    string | { id?: string; _id?: string; code?: string; name?: string }
+  >;
+  organizationId?:
     | string
     | {
         id?: string;
         _id?: string;
-        displayName?: string;
-        firstName?: string;
-        lastName?: string;
-        photoUrl?: string;
-        status?: string;
+        name?: string;
+        shortName?: string;
+        logoUrl?: string;
+        country?: string;
+        location?: string;
       };
-  eligiblePositionIds?: Array<
-    string | { id?: string; _id?: string; code?: string; name?: string }
-  >;
-  organizationId?: string | { id?: string; _id?: string; name?: string };
 }
 
-export interface DfsSlateAthlete {
-  seasonAthleteId: string | DfsSeasonAthlete;
+export interface DfsSlateTeam {
+  seasonCheerTeamId: string | DfsSeasonCheerTeam;
   salary: number;
   projectedPoints: number;
   isLocked: boolean;
@@ -70,12 +72,12 @@ export interface DfsSlate {
   id?: string;
   _id?: string;
   contestId: string;
-  athleteSlates: DfsSlateAthlete[];
+  teamSlates: DfsSlateTeam[];
 }
 
 export interface DfsLineupPayloadItem {
   slot: string;
-  seasonAthleteId: string;
+  seasonCheerTeamId: string;
 }
 
 export interface DfsEntryLineupItem extends DfsLineupPayloadItem {

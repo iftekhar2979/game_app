@@ -89,8 +89,8 @@ export default function DfsContestDetailScreen({ navigation, route }: Props) {
   const hasEntry = Boolean(entryQuery.data);
   const entryLoadFailed = Boolean(entryQuery.error && !entryMissing);
   const joinMessage = getContestJoinMessage(contest, hasEntry);
-  const event =
-    typeof contest.eventId === 'object' ? contest.eventId : undefined;
+  const competition =
+    typeof contest.competitionId === 'object' ? contest.competitionId : undefined;
   const slotCount = contest.lineupSlots.reduce(
     (total, slot) => total + slot.count,
     0,
@@ -133,8 +133,8 @@ export default function DfsContestDetailScreen({ navigation, route }: Props) {
           <Text className="text-white text-2xl font-extrabold mt-2">
             {contest.title}
           </Text>
-          {event?.name ? (
-            <Text className="text-gray-300 text-sm mt-2">{event.name}</Text>
+          {competition?.name ? (
+            <Text className="text-gray-300 text-sm mt-2">{competition.name}</Text>
           ) : null}
         </View>
 
