@@ -590,6 +590,19 @@ export default function DraftRoomScreen() {
     await handleAuctionNomination(pending.player, assignedDivisionId);
   };
 
+  /**
+   * Reports a draft outcome once the team picker is closed.
+   *
+   * Toasts render in their own Modal, and React Native does not reliably
+   * present one Modal over another - the toast flashes and disappears instead
+   * of holding. Both outcomes close the picker first, which also means a failed
+   * pick reopens against a freshly broadcast pool rather than a stale list.
+   */
+  const reportDraftOutcome = (report: () => void) => {
+    setSetPlayerModalVisible(false);
+    requestAnimationFrame(report);
+  };
+
   const draftSelectedTeam = async (player: any) => {
     setPendingTeamId(String(player.id));
     try {
@@ -599,20 +612,23 @@ export default function DraftRoomScreen() {
         leagueId,
         seasonCheerTeamId: String(player.seasonCheerTeamId || player.id),
       }).unwrap();
-      setSetPlayerModalVisible(false);
       const divisionName =
         result?.division?.name || result?.division?.code || null;
-      showToast.success(
-        'Draft Pick Success!',
-        divisionName
-          ? `${player.name} was drafted to your ${divisionName} slot.`
-          : `${player.name} was drafted to your team.`,
+      reportDraftOutcome(() =>
+        showToast.success(
+          'Draft Pick Success!',
+          divisionName
+            ? `${player.name} was drafted to your ${divisionName} slot.`
+            : `${player.name} was drafted to your team.`,
+        ),
       );
-      if (refetchAvailableAthletes) refetchAvailableAthletes();
+      // The pool is corrected by the draftUpdated broadcast, so no refetch.
     } catch (err: any) {
-      showToast.error(
-        'Draft Error',
-        err?.data?.message || err?.message || 'Failed to draft cheer team.',
+      reportDraftOutcome(() =>
+        showToast.error(
+          'Draft Error',
+          err?.data?.message || err?.message || 'Failed to draft cheer team.',
+        ),
       );
     } finally {
       setPendingTeamId(null);
