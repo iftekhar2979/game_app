@@ -398,13 +398,21 @@ export default function DfsLineupScreen({ navigation, route }: Props) {
           );
         })}
 
-        {slateAthletes.length === 0 ? (
+        {slots.length === 0 ? (
+          <View className="bg-[#121212] border border-[#333] rounded-2xl p-5 items-center">
+            <Text className="text-white font-bold">No lineup spots yet</Text>
+            <Text className="text-gray-400 text-xs text-center mt-2">
+              This contest has not been given any division slots to fill, so
+              there is nothing to draft into. Check back once it is set up.
+            </Text>
+          </View>
+        ) : slateAthletes.length === 0 ? (
           <View className="bg-[#121212] border border-[#333] rounded-2xl p-5 items-center">
             <Text className="text-white font-bold">
-              No players available yet
+              No cheer teams available yet
             </Text>
             <Text className="text-gray-400 text-xs text-center mt-2">
-              Please check back after the player pool is ready.
+              Please check back after the team pool is ready.
             </Text>
           </View>
         ) : null}
