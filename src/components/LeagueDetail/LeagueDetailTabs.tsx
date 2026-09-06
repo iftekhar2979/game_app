@@ -146,14 +146,115 @@ export const MatchupTab = ({
     );
   }
 
-  const { myTeam, opponent, result } = matchupData;
+  const {
+    myTeam,
+    opponent,
+    result,
+    status: matchupStatus,
+    isByeWeek,
+  } = matchupData;
 
-  const resultColor =
-    result?.status === 'winning'
-      ? 'text-emerald-400 border-emerald-400/40 bg-emerald-400/10'
-      : result?.status === 'losing'
-      ? 'text-rose-400 border-rose-400/40 bg-rose-400/10'
-      : 'text-amber-400 border-amber-400/40 bg-amber-400/10';
+  const getMatchupBadge = () => {
+    if (isByeWeek) {
+      return {
+        label: 'BYE WEEK',
+        containerClass: 'border-[#E0B566]/50 bg-[#E0B566]/15',
+        textClass: 'text-[#E0B566]',
+      };
+    }
+
+    const gameStatus = String(matchupStatus || '').toLowerCase();
+    const resStatus = String(result?.status || '').toLowerCase();
+
+    if (gameStatus === 'final') {
+      if (resStatus === 'winning') {
+        return {
+          label: 'FINAL • WON',
+          containerClass: 'border-emerald-400/50 bg-emerald-400/15',
+          textClass: 'text-emerald-400',
+        };
+      }
+      if (resStatus === 'losing') {
+        return {
+          label: 'FINAL • LOST',
+          containerClass: 'border-rose-400/50 bg-rose-400/15',
+          textClass: 'text-rose-400',
+        };
+      }
+      if (resStatus === 'tie') {
+        return {
+          label: 'FINAL • TIED',
+          containerClass: 'border-amber-400/50 bg-amber-400/15',
+          textClass: 'text-amber-400',
+        };
+      }
+      return {
+        label: 'FINAL',
+        containerClass: 'border-gray-500/50 bg-gray-500/15',
+        textClass: 'text-gray-300',
+      };
+    }
+
+    if (gameStatus === 'live') {
+      if (resStatus === 'winning') {
+        return {
+          label: 'LIVE • WINNING',
+          containerClass: 'border-emerald-400/50 bg-emerald-400/15',
+          textClass: 'text-emerald-400',
+        };
+      }
+      if (resStatus === 'losing') {
+        return {
+          label: 'LIVE • LOSING',
+          containerClass: 'border-rose-400/50 bg-rose-400/15',
+          textClass: 'text-rose-400',
+        };
+      }
+      if (resStatus === 'tie') {
+        return {
+          label: 'LIVE • TIED',
+          containerClass: 'border-amber-400/50 bg-amber-400/15',
+          textClass: 'text-amber-400',
+        };
+      }
+      return {
+        label: 'LIVE',
+        containerClass: 'border-emerald-400/50 bg-emerald-400/15',
+        textClass: 'text-emerald-400',
+      };
+    }
+
+    // Default / upcoming / pending
+    if (resStatus === 'winning') {
+      return {
+        label: 'WINNING',
+        containerClass: 'border-emerald-400/50 bg-emerald-400/15',
+        textClass: 'text-emerald-400',
+      };
+    }
+    if (resStatus === 'losing') {
+      return {
+        label: 'LOSING',
+        containerClass: 'border-rose-400/50 bg-rose-400/15',
+        textClass: 'text-rose-400',
+      };
+    }
+    if (resStatus === 'tie') {
+      return {
+        label: 'TIED',
+        containerClass: 'border-amber-400/50 bg-amber-400/15',
+        textClass: 'text-amber-400',
+      };
+    }
+
+    return {
+      label: 'UPCOMING',
+      containerClass: 'border-[#E0B566]/50 bg-[#E0B566]/15',
+      textClass: 'text-[#E0B566]',
+    };
+  };
+
+  const matchupBadge = getMatchupBadge();
 
   return (
     <View className="mb-4 mt-2">
@@ -163,9 +264,13 @@ export const MatchupTab = ({
           <Text className="text-white text-[18px] font-semibold mr-2">
             {activeWeekStr}
           </Text>
-          <View className={`px-2.5 py-0.5 rounded-full border ${resultColor}`}>
-            <Text className="text-[10px] font-bold uppercase">
-              {formatGameStatus(result?.status)}
+          <View
+            className={`px-2.5 py-0.5 rounded-full border ${matchupBadge.containerClass}`}
+          >
+            <Text
+              className={`text-[10px] font-bold uppercase tracking-wider ${matchupBadge.textClass}`}
+            >
+              {matchupBadge.label}
             </Text>
           </View>
         </View>
@@ -261,48 +366,75 @@ export const MatchupTab = ({
         </Text>
         <View className="bg-[#121212] border border-[#222] rounded-[20px] p-3">
           {myTeam?.starters?.length > 0 ? (
-            myTeam.starters.map((starter: any, idx: number) => (
-              <View
-                key={`${starter.seasonAthleteId || 'starter'}-${idx}`}
-                className="flex-row items-center justify-between border-b border-[#222] py-2.5 last:border-b-0 px-1"
-              >
-                <View className="flex-row items-center flex-1">
-                  <Image
-                    source={{
-                      uri:
-                        starter.photoUrl || 'https://i.pravatar.cc/150?img=11',
-                    }}
-                    className="w-9 h-9 rounded-full bg-[#222] mr-3"
-                  />
-                  <View className="flex-1">
-                    <Text
-                      className="text-white text-[13px] font-semibold"
-                      numberOfLines={1}
-                    >
-                      {starter.name}
+            myTeam.starters.map((starter: any, idx: number) => {
+              const squadName =
+                starter.name || starter.teamName || 'Cheer Team';
+              const orgName =
+                starter.organizationName || starter.realTeam || null;
+              const isOrgInName =
+                orgName &&
+                squadName.toLowerCase().includes(orgName.toLowerCase());
+              const displayTeamName = isOrgInName ? squadName : squadName;
+              const displayOrgName = isOrgInName ? null : orgName;
+
+              const divisionName =
+                starter.divisionName ||
+                starter.assignedDivisionName ||
+                starter.division ||
+                starter.assignedPosition;
+              const divisionCode =
+                starter.divisionCode ||
+                starter.assignedDivisionCode ||
+                (starter.positionCode && starter.positionCode !== 'CHEER'
+                  ? starter.positionCode
+                  : null);
+              const divisionDisplay = divisionName || divisionCode || null;
+
+              const location = starter.location || starter.country || null;
+              const subtitle = [displayOrgName, divisionDisplay, location]
+                .filter(Boolean)
+                .join(' • ');
+
+              return (
+                <View
+                  key={`${starter.seasonAthleteId || 'starter'}-${idx}`}
+                  className="flex-row items-center justify-between border-b border-[#222] py-2.5 last:border-b-0 px-1"
+                >
+                  <View className="flex-row items-center flex-1">
+                    <Image
+                      source={{
+                        uri:
+                          starter.photoUrl ||
+                          'https://i.pravatar.cc/150?img=11',
+                      }}
+                      className="w-10 h-10 rounded-2xl bg-[#222] mr-3"
+                    />
+                    <View className="flex-1">
+                      <Text
+                        className="text-white text-[13px] font-bold"
+                        numberOfLines={1}
+                      >
+                        {displayTeamName}
+                      </Text>
+                      <Text
+                        className="text-gray-400 text-[11px] mt-0.5"
+                        numberOfLines={1}
+                      >
+                        {subtitle || 'Cheer Team'}
+                      </Text>
+                    </View>
+                  </View>
+                  <View className="items-end ml-2">
+                    <Text className="text-[#E0B566] text-[13px] font-bold">
+                      {formatFantasyPoints(starter.fantasyPoints)}
                     </Text>
-                    <Text className="text-gray-400 text-[10px]">
-                      {[
-                        starter.country || starter.realTeam,
-                        starter.division ||
-                          starter.assignedPosition ||
-                          starter.positionCode,
-                      ]
-                        .filter(Boolean)
-                        .join(' • ') || 'Team details unavailable'}
+                    <Text className="text-gray-500 text-[9px] uppercase">
+                      {formatGameStatus(starter.gameStatus)}
                     </Text>
                   </View>
                 </View>
-                <View className="items-end ml-2">
-                  <Text className="text-[#E0B566] text-[13px] font-bold">
-                    {formatFantasyPoints(starter.fantasyPoints)}
-                  </Text>
-                  <Text className="text-gray-500 text-[9px] uppercase">
-                    {formatGameStatus(starter.gameStatus)}
-                  </Text>
-                </View>
-              </View>
-            ))
+              );
+            })
           ) : (
             <Text className="text-gray-500 text-[12px] p-2 text-center">
               No starting teams assigned yet.
@@ -321,48 +453,75 @@ export const MatchupTab = ({
         </Text>
         <View className="bg-[#121212] border border-[#222] rounded-[20px] p-3">
           {opponent?.starters?.length > 0 ? (
-            opponent.starters.map((starter: any, idx: number) => (
-              <View
-                key={`${starter.seasonAthleteId || 'opp-starter'}-${idx}`}
-                className="flex-row items-center justify-between border-b border-[#222] py-2.5 last:border-b-0 px-1"
-              >
-                <View className="flex-row items-center flex-1">
-                  <Image
-                    source={{
-                      uri:
-                        starter.photoUrl || 'https://i.pravatar.cc/150?img=12',
-                    }}
-                    className="w-9 h-9 rounded-full bg-[#222] mr-3"
-                  />
-                  <View className="flex-1">
-                    <Text
-                      className="text-white text-[13px] font-semibold"
-                      numberOfLines={1}
-                    >
-                      {starter.name}
+            opponent.starters.map((starter: any, idx: number) => {
+              const squadName =
+                starter.name || starter.teamName || 'Cheer Team';
+              const orgName =
+                starter.organizationName || starter.realTeam || null;
+              const isOrgInName =
+                orgName &&
+                squadName.toLowerCase().includes(orgName.toLowerCase());
+              const displayTeamName = isOrgInName ? squadName : squadName;
+              const displayOrgName = isOrgInName ? null : orgName;
+
+              const divisionName =
+                starter.divisionName ||
+                starter.assignedDivisionName ||
+                starter.division ||
+                starter.assignedPosition;
+              const divisionCode =
+                starter.divisionCode ||
+                starter.assignedDivisionCode ||
+                (starter.positionCode && starter.positionCode !== 'CHEER'
+                  ? starter.positionCode
+                  : null);
+              const divisionDisplay = divisionName || divisionCode || null;
+
+              const location = starter.location || starter.country || null;
+              const subtitle = [displayOrgName, divisionDisplay, location]
+                .filter(Boolean)
+                .join(' • ');
+
+              return (
+                <View
+                  key={`${starter.seasonAthleteId || 'opp-starter'}-${idx}`}
+                  className="flex-row items-center justify-between border-b border-[#222] py-2.5 last:border-b-0 px-1"
+                >
+                  <View className="flex-row items-center flex-1">
+                    <Image
+                      source={{
+                        uri:
+                          starter.photoUrl ||
+                          'https://i.pravatar.cc/150?img=12',
+                      }}
+                      className="w-10 h-10 rounded-2xl bg-[#222] mr-3"
+                    />
+                    <View className="flex-1">
+                      <Text
+                        className="text-white text-[13px] font-bold"
+                        numberOfLines={1}
+                      >
+                        {displayTeamName}
+                      </Text>
+                      <Text
+                        className="text-gray-400 text-[11px] mt-0.5"
+                        numberOfLines={1}
+                      >
+                        {subtitle || 'Cheer Team'}
+                      </Text>
+                    </View>
+                  </View>
+                  <View className="items-end ml-2">
+                    <Text className="text-gray-300 text-[13px] font-bold">
+                      {formatFantasyPoints(starter.fantasyPoints)}
                     </Text>
-                    <Text className="text-gray-400 text-[10px]">
-                      {[
-                        starter.country || starter.realTeam,
-                        starter.division ||
-                          starter.assignedPosition ||
-                          starter.positionCode,
-                      ]
-                        .filter(Boolean)
-                        .join(' • ') || 'Team details unavailable'}
+                    <Text className="text-gray-500 text-[9px] uppercase">
+                      {formatGameStatus(starter.gameStatus)}
                     </Text>
                   </View>
                 </View>
-                <View className="items-end ml-2">
-                  <Text className="text-gray-300 text-[13px] font-bold">
-                    {formatFantasyPoints(starter.fantasyPoints)}
-                  </Text>
-                  <Text className="text-gray-500 text-[9px] uppercase">
-                    {formatGameStatus(starter.gameStatus)}
-                  </Text>
-                </View>
-              </View>
-            ))
+              );
+            })
           ) : (
             <Text className="text-gray-500 text-[12px] p-2 text-center">
               No starting teams assigned yet.
