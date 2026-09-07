@@ -853,15 +853,26 @@ export const DraftTab = ({
             </View>
           ) : null}
 
+          {/* Nothing can be done in the room until the scheduled time passes -
+              the server refuses to start the draft before it - so the button
+              waits with the countdown rather than opening an inert room. */}
           <TouchableOpacity
-            className="bg-[#8B3DFF]  rounded-full h-[52px] justify-center items-center"
+            className={`${
+              hasCountdown ? 'bg-[#8B3DFF]/40' : 'bg-[#8B3DFF]'
+            } rounded-full h-[52px] justify-center items-center`}
             activeOpacity={0.9}
+            disabled={hasCountdown}
+            accessibilityState={{ disabled: hasCountdown }}
             onPress={() =>
               navigation.navigate('DraftRoom', { leagueId: league?.id })
             }
           >
-            <Text className="text-white text-[16px] font-bold ">
-              Draftroom
+            <Text
+              className={`${
+                hasCountdown ? 'text-white/50' : 'text-white'
+              } text-[16px] font-bold`}
+            >
+              {hasCountdown ? 'Draftroom opens at draft time' : 'Draftroom'}
             </Text>
           </TouchableOpacity>
         </View>
