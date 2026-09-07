@@ -168,6 +168,12 @@ export interface PurchaseFailure {
   detail?: string;
   /** `info` for outcomes that are not really errors, such as already owning it. */
   tone: 'error' | 'info';
+  /**
+   * The failure is a shortfall the user can fix by topping up, so the caller
+   * should offer the coin store rather than only saying no. Told apart from
+   * every other 400 because those cannot be resolved by buying coins.
+   */
+  canTopUp?: boolean;
 }
 
 /**
@@ -192,8 +198,9 @@ export function describePurchaseError(error: any): PurchaseFailure {
   if (status === 400 && /coins/i.test(detail ?? '')) {
     return {
       title: 'Not enough coins',
-      detail: 'Top up from your profile to unlock this.',
+      detail: 'Buy more coins to unlock this.',
       tone: 'error',
+      canTopUp: true,
     };
   }
 
