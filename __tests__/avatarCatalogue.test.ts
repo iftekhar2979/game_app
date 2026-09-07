@@ -243,6 +243,29 @@ describe('purchase failures', () => {
     expect(failure).toMatchObject({ title: 'Not enough coins', tone: 'error' });
   });
 
+  // A shortfall is the one failure the user can fix on the spot, so it is the
+  // only one that should send them to the coin store.
+  it('marks a shortfall as fixable by topping up', () => {
+    const failure = describePurchaseError({ status: 400, data: { message: 'Not enough coins' } });
+
+    expect(failure.canTopUp).toBe(true);
+  });
+
+  it('does not offer a top-up for failures coins cannot fix', () => {
+    const retired = describePurchaseError({
+      status: 400,
+      data: { message: 'That asset is no longer available' },
+    });
+    const owned = describePurchaseError({ status: 409, data: { message: 'You already own it' } });
+    const expired = describePurchaseError({ status: 401 });
+    const unknown = describePurchaseError({ status: 500 });
+
+    expect(retired.canTopUp).toBeFalsy();
+    expect(owned.canTopUp).toBeFalsy();
+    expect(expired.canTopUp).toBeFalsy();
+    expect(unknown.canTopUp).toBeFalsy();
+  });
+
   it('treats already-owned as information, not an error', () => {
     const failure = describePurchaseError({
       status: 409,

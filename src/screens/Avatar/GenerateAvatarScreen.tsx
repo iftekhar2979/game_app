@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, TouchableOpacity, Image, StyleSheet, ScrollView, Dimensions, Animated } from 'react-native';
+import { View, Text, TouchableOpacity, Image, StyleSheet, ScrollView, Dimensions, Animated, Alert } from 'react-native';
 import Svg, { Defs, LinearGradient, Stop, Rect, Filter, FeColorMatrix, Image as SvgImage } from 'react-native-svg';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -15,6 +15,7 @@ import { usePurchaseAvatarAssetMutation } from '../../store/api/avatarAssetsApi'
 import { describePurchaseError } from '../../store/api/avatarAssetsTransforms';
 import { useAssetCatalogue } from '../../avatar/useAssetCatalogue';
 import AssetPickerTile from '../../components/Avatar/AssetPickerTile';
+import NoneOptionTile from '../../components/Avatar/NoneOptionTile';
 import { uploadImage } from '../../services/mediaUpload';
 import { authStorage } from '../../services/authStorage';
 import { authService } from '../../services/authService';
@@ -188,7 +189,19 @@ const GenerateAvatarScreen = () => {
       showToast.success('Unlocked', 'You can use it now.');
     } catch (error: any) {
       const failure = describePurchaseError(error);
-      showToast[failure.tone](failure.title, failure.detail);
+      if (failure.canTopUp) {
+        // A shortfall is the one failure the user can act on immediately, so
+        // offer the coin store instead of leaving them to find it themselves.
+        Alert.alert(failure.title, failure.detail, [
+          { text: 'Not now', style: 'cancel' },
+          {
+            text: 'Buy coins',
+            onPress: () => navigation.navigate('CoinStore'),
+          },
+        ]);
+      } else {
+        showToast[failure.tone](failure.title, failure.detail);
+      }
     } finally {
       setPurchasingKey(null);
     }
@@ -648,39 +661,32 @@ const GenerateAvatarScreen = () => {
             {/* Body Color (Half Body) */}
             {BODY_COLORS.length > 0 && (
               <View className="mb-6">
-                <Text className="text-white text-base font-medium px-6 mb-4">Body color</Text>
+                <Text className="text-white text-base font-medium px-6 mb-4">Skin tone</Text>
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 24 }}>
-                  {BODY_COLORS.map((bodyColor, index) => (
-                    <TouchableOpacity
-                      key={`half-body-color-${index}`}
-                      activeOpacity={0.8}
-                      className="mr-3 items-center"
-                      onPress={() => {
-                        // A real catalogue asset, so the same rules apply here
-                        // as in the part pickers.
-                        const assetKey = idAt('bodyColor', index);
-                        const state = catalogue.stateOf(assetKey);
-                        if (state.isSelectable) {
-                          setSelectedBodyColor(selectedBodyColor === index ? null : index);
-                        } else if (state.availability === 'locked') {
-                          handlePurchase('bodyColor', index);
-                        } else {
-                          explainBlocked('bodyColor', index);
-                        }
-                      }}
-                    >
-                      <View
-                        className={`w-[72px] h-[90px] rounded-xl border-2 ${selectedBodyColor === index ? 'border-[#B366FF]' : 'border-[#5B1F7D]'} bg-[#1A0B2E] overflow-hidden items-center justify-center`}
-                      >
-                        <ArtworkImage
-                          source={tileArtwork('bodyColor', index, bodyColor).source}
-                          fallback={tileArtwork('bodyColor', index, bodyColor).fallback}
-                          className="w-full h-full"
-                          resizeMode="contain"
-                        />
-                      </View>
-                    </TouchableOpacity>
-                  ))}
+                  {/* Clearing a tone is a choice of its own, not a second tap
+                      on the one you already picked. */}
+                  <NoneOptionTile
+                    isSelected={selectedBodyColor === null}
+                    onSelect={() => setSelectedBodyColor(null)}
+                    accessibilityLabel="No skin tone overlay"
+                  />
+                  {BODY_COLORS.map((bodyColor, index) => {
+                    const assetKey = idAt('bodyColor', index);
+                    return (
+                      <AssetPickerTile
+                        key={`fb-body-color-${assetKey ?? index}`}
+                        source={tileArtwork('bodyColor', index, bodyColor).source}
+                        imageClassName="w-full h-full"
+                        state={catalogue.stateOf(assetKey)}
+                        isSelected={selectedBodyColor === index}
+                        onSelect={() => setSelectedBodyColor(index)}
+                        onPurchase={() => handlePurchase('bodyColor', index)}
+                        onBlocked={() => explainBlocked('bodyColor', index)}
+                        isPurchasing={purchasingKey !== null && purchasingKey === assetKey}
+                        accessibilityLabel="Skin tone"
+                      />
+                    );
+                  })}
                 </ScrollView>
               </View>
             )}
@@ -731,42 +737,35 @@ const GenerateAvatarScreen = () => {
               </ScrollView>
             </View>
 
-            {/* Body Color (Full Body) */}
+            {/* Skin tone (Full Body) */}
             {BODY_COLORS.length > 0 && (
               <View className="mb-6">
-                <Text className="text-white text-base font-medium px-6 mb-4">Body color</Text>
+                <Text className="text-white text-base font-medium px-6 mb-4">Skin tone</Text>
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 24 }}>
-                  {BODY_COLORS.map((bodyColor, index) => (
-                    <TouchableOpacity
-                      key={`fb-body-color-${index}`}
-                      activeOpacity={0.8}
-                      className="mr-3 items-center"
-                      onPress={() => {
-                        // A real catalogue asset, so the same rules apply here
-                        // as in the part pickers.
-                        const assetKey = idAt('bodyColor', index);
-                        const state = catalogue.stateOf(assetKey);
-                        if (state.isSelectable) {
-                          setSelectedBodyColor(selectedBodyColor === index ? null : index);
-                        } else if (state.availability === 'locked') {
-                          handlePurchase('bodyColor', index);
-                        } else {
-                          explainBlocked('bodyColor', index);
-                        }
-                      }}
-                    >
-                      <View
-                        className={`w-[72px] h-[90px] rounded-xl border-2 ${selectedBodyColor === index ? 'border-[#B366FF]' : 'border-[#5B1F7D]'} bg-[#1A0B2E] overflow-hidden items-center justify-center`}
-                      >
-                        <ArtworkImage
-                          source={tileArtwork('bodyColor', index, bodyColor).source}
-                          fallback={tileArtwork('bodyColor', index, bodyColor).fallback}
-                          className="w-full h-full"
-                          resizeMode="contain"
-                        />
-                      </View>
-                    </TouchableOpacity>
-                  ))}
+                  {/* Clearing a tone is a choice of its own, not a second tap
+                      on the one you already picked. */}
+                  <NoneOptionTile
+                    isSelected={selectedBodyColor === null}
+                    onSelect={() => setSelectedBodyColor(null)}
+                    accessibilityLabel="No skin tone overlay"
+                  />
+                  {BODY_COLORS.map((bodyColor, index) => {
+                    const assetKey = idAt('bodyColor', index);
+                    return (
+                      <AssetPickerTile
+                        key={`fb-body-color-${assetKey ?? index}`}
+                        source={tileArtwork('bodyColor', index, bodyColor).source}
+                        imageClassName="w-full h-full"
+                        state={catalogue.stateOf(assetKey)}
+                        isSelected={selectedBodyColor === index}
+                        onSelect={() => setSelectedBodyColor(index)}
+                        onPurchase={() => handlePurchase('bodyColor', index)}
+                        onBlocked={() => explainBlocked('bodyColor', index)}
+                        isPurchasing={purchasingKey !== null && purchasingKey === assetKey}
+                        accessibilityLabel="Skin tone"
+                      />
+                    );
+                  })}
                 </ScrollView>
               </View>
             )}
