@@ -1378,8 +1378,12 @@ export const PlayerDetailModal = ({
       [rosterSettings?.divisionRules, selectedPlayer, myRoster?.players],
     );
 
+  /** Inline failure text, so a retry is possible without leaving the modal. */
+  const [addError, setAddError] = useState<string | null>(null);
+
   useEffect(() => {
     setAssignedDivisionId(null);
+    setAddError(null);
   }, [seasonCheerTeamId, isVisible]);
 
   // The roster can change under an open modal - another add, or a release
@@ -1392,20 +1396,22 @@ export const PlayerDetailModal = ({
     }
   }, [assignedDivisionId, divisionOptions]);
 
+  // Failures are reported inside the modal, not through the root toast. The
+  // toast is an overlay at the app root, so it cannot paint above this Modal -
+  // a failure sent there would simply not be seen. Inline also keeps the
+  // manager on the team they were trying to add, ready to retry.
   const handleAddTeam = async () => {
+    setAddError(null);
     if (!leagueId || !userTeamId) {
-      showToast.error(
-        'Team Not Found',
-        'Your fantasy team was not found in this league.',
-      );
+      setAddError('Your fantasy team was not found in this league.');
       return;
     }
     if (!seasonCheerTeamId) {
-      showToast.error('Invalid Selection', 'Invalid cheer team selected.');
+      setAddError('This cheer team could not be identified.');
       return;
     }
     if (!assignedDivisionId) {
-      showToast.error('Division Required', 'Choose a valid roster division first.');
+      setAddError('Choose a roster division first.');
       return;
     }
     try {
@@ -1415,16 +1421,18 @@ export const PlayerDetailModal = ({
         seasonCheerTeamId: String(seasonCheerTeamId),
         assignedDivisionId,
       }).unwrap();
+      // Close first: the toast is an overlay and would be hidden behind this
+      // modal otherwise.
+      if (onAddSuccess) onAddSuccess();
+      onClose();
       showToast.success(
         'Cheer Team Added',
         `${teamName} was added to your fantasy roster.`,
       );
-      if (onAddSuccess) onAddSuccess();
-      onClose();
     } catch (err: any) {
-      const msg =
-        err?.data?.message || err?.message || 'Failed to add this cheer team.';
-      showToast.error('Add Team Failed', msg);
+      setAddError(
+        err?.data?.message || err?.message || 'Failed to add this cheer team.',
+      );
     }
   };
 
@@ -1521,6 +1529,19 @@ export const PlayerDetailModal = ({
             </View>
           </View>
           <View className="p-5">
+            {addError ? (
+              <View
+                accessibilityRole="alert"
+                className="rounded-xl border border-[#FF4D4D]/50 bg-[#FF4D4D]/10 p-3 mb-4"
+              >
+                <Text className="text-[#FF8A8A] text-[12px] font-semibold mb-0.5">
+                  Could not add this team
+                </Text>
+                <Text className="text-[#F3C8C8] text-[12px] leading-4">
+                  {addError}
+                </Text>
+              </View>
+            ) : null}
             <Text className="text-white text-[15px] font-bold mb-2">
               Assign roster division
             </Text>
@@ -1529,7 +1550,12 @@ export const PlayerDetailModal = ({
                 {divisionOptions.map(division => (
                   <TouchableOpacity
                     key={division.id}
-                    onPress={() => setAssignedDivisionId(division.id)}
+                    onPress={() => {
+                      // Changing the choice is the start of a retry, so the
+                      // previous failure should not linger next to it.
+                      setAddError(null);
+                      setAssignedDivisionId(division.id);
+                    }}
                     className={`rounded-xl border px-3 py-2 mr-2 mb-2 ${
                       assignedDivisionId === division.id
                         ? 'border-[#8B3DFF] bg-[#8B3DFF]/20'
