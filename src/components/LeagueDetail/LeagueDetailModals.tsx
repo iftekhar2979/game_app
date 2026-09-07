@@ -20,6 +20,7 @@ import {
   Minus,
   Lock,
   Unlock,
+  Trophy,
   ShieldAlert,
   Calendar,
 } from 'lucide-react-native';
@@ -41,6 +42,9 @@ import {
 import type { LeagueStatusValue } from '../../store/api/leagueApi';
 import { showToast } from '../../utils/toast';
 import { resolveDivisionOptions } from './divisionCapacity';
+import { launchImageLibrary } from 'react-native-image-picker';
+import { useLazyGetPreSignedUrlQuery } from '../../store/api/usersApi';
+import { uploadImage } from '../../services/mediaUpload';
 
 export interface LeagueSettingsModalProps {
   isVisible: boolean;
@@ -214,12 +218,18 @@ export const LeagueSettingsSubModal = ({
   canEdit,
 }: any) => {
   const [updateLeague, { isLoading: isSaving }] = useUpdateLeagueMutation();
+  const [getPreSignedUrl] = useLazyGetPreSignedUrlQuery();
 
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [maxTeams, setMaxTeams] = useState('');
   const [status, setStatus] = useState<LeagueStatusValue | ''>('');
   const [isStatusPickerOpen, setIsStatusPickerOpen] = useState(false);
+  /** Local preview of a newly picked logo, before it is uploaded. */
+  const [logoPreviewUri, setLogoPreviewUri] = useState<string | null>(null);
+  /** The S3 object key to persist. Null means "logo unchanged". */
+  const [logoKey, setLogoKey] = useState<string | null>(null);
+  const [isUploadingLogo, setIsUploadingLogo] = useState(false);
 
   // The parent rebuilds `league` on every render and re-renders once a second for
   // the draft countdown, so this must not depend on the league object itself —
@@ -236,7 +246,50 @@ export const LeagueSettingsSubModal = ({
     setMaxTeams(String(current.maxTeams ?? ''));
     setStatus((current.rawStatus || current.status || '') as LeagueStatusValue);
     setIsStatusPickerOpen(false);
+    setLogoPreviewUri(null);
+    setLogoKey(null);
   }, [isVisible]);
+
+  /**
+   * Picks a logo and uploads it immediately, keeping only the object key.
+   *
+   * The key is what gets persisted: the server re-signs it for viewing on every
+   * read, and a signed URL would expire. Uploading on pick rather than on save
+   * means the slow part is done before the manager commits.
+   */
+  const handlePickLogo = async () => {
+    if (!editable) return;
+    try {
+      const result = await launchImageLibrary({
+        mediaType: 'photo',
+        quality: 0.8,
+        selectionLimit: 1,
+      });
+      if (result.didCancel || !result.assets?.length) return;
+
+      const asset = result.assets[0];
+      if (!asset.uri) return;
+
+      setIsUploadingLogo(true);
+      setLogoPreviewUri(asset.uri);
+      const key = await uploadImage(
+        { uri: asset.uri, fileName: asset.fileName, type: asset.type },
+        getPreSignedUrl as any,
+        0,
+        'League_Logos',
+      );
+      setLogoKey(key);
+    } catch (err: any) {
+      setLogoPreviewUri(null);
+      setLogoKey(null);
+      showToast.error(
+        'Logo upload failed',
+        err?.message || 'The image could not be uploaded.',
+      );
+    } finally {
+      setIsUploadingLogo(false);
+    }
+  };
 
   const isTerminal = status === 'completed' || status === 'cancelled';
   const currentStatus = (league?.rawStatus || league?.status || '') as string;
@@ -259,7 +312,8 @@ export const LeagueSettingsSubModal = ({
     (name !== (league.name || '') ||
       description !== (league.description || '') ||
       parsedMaxTeams !== league.maxTeams ||
-      status !== currentStatus);
+      status !== currentStatus ||
+      !!logoKey);
 
   const handleSave = async () => {
     if (!name.trim()) {
@@ -282,6 +336,9 @@ export const LeagueSettingsSubModal = ({
         description: description.trim(),
         maxTeams: parsedMaxTeams,
         ...(status ? { status: status as LeagueStatusValue } : {}),
+        // Only sent when a new logo was uploaded, so saving other settings
+        // never clears the existing one.
+        ...(logoKey ? { logoUrl: logoKey } : {}),
       }).unwrap();
 
       showToast.success('League updated', `Settings saved for ${name.trim()}.`);
@@ -327,6 +384,59 @@ export const LeagueSettingsSubModal = ({
         )}
 
         <ScrollView showsVerticalScrollIndicator={false} className="flex-1">
+          <SettingsField label="League logo">
+            <View className="flex-row items-center">
+              <View className="w-16 h-16 rounded-2xl border border-[#8B3DFF] bg-black overflow-hidden justify-center items-center mr-4">
+                {logoPreviewUri || league?.logoUri || league?.logoUrl ? (
+                  <Image
+                    source={{
+                      uri:
+                        logoPreviewUri || league?.logoUri || league?.logoUrl,
+                    }}
+                    className="w-full h-full"
+                    resizeMode="cover"
+                  />
+                ) : (
+                  <Trophy color="#8B3DFF" size={22} />
+                )}
+                {isUploadingLogo ? (
+                  <View className="absolute inset-0 bg-black/60 justify-center items-center">
+                    <ActivityIndicator size="small" color="#fff" />
+                  </View>
+                ) : null}
+              </View>
+              <View className="flex-1">
+                <TouchableOpacity
+                  disabled={!editable || isUploadingLogo}
+                  onPress={handlePickLogo}
+                  className={`rounded-full px-4 py-2.5 items-center border ${
+                    editable && !isUploadingLogo
+                      ? 'border-[#8B3DFF] bg-[#8B3DFF]/15'
+                      : 'border-[#333] bg-[#1b1b1b]'
+                  }`}
+                >
+                  <Text
+                    className={`text-[12px] font-bold ${
+                      editable && !isUploadingLogo
+                        ? 'text-[#B98AFF]'
+                        : 'text-gray-500'
+                    }`}
+                  >
+                    {isUploadingLogo
+                      ? 'Uploading...'
+                      : logoKey
+                      ? 'Logo ready - save to apply'
+                      : 'Change logo'}
+                  </Text>
+                </TouchableOpacity>
+                {!editable ? (
+                  <Text className="text-gray-600 text-[10px] mt-1.5">
+                    Only the commissioner can change the logo.
+                  </Text>
+                ) : null}
+              </View>
+            </View>
+          </SettingsField>
           <SettingsField label="League name">
             <TextInput
               className="border border-[#8B3DFF] rounded-[16px] px-4 h-[56px] text-white text-[14px]"
