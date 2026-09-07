@@ -81,7 +81,7 @@ import {
 import { CHEER_DIVISIONS } from '../../utils/cheerScoring';
 import {
   isAuctionDraftPhaseStatus,
-  mayCountdownEndEnterPlayMode,
+  isPlayModeStatus,
 } from '../../components/LeagueDetail/auctionLifecycle';
 import { useGetLeagueChatUnreadQuery } from '../../store/api/leagueChatApi';
 import {
@@ -435,10 +435,7 @@ export default function LeagueDetailScreen() {
   } | null>(null);
   const [isDraftStarted, setIsDraftStarted] = useState(false);
   const isPlayMode =
-    currentLeagueStatus === 'Play' ||
-    currentLeagueStatus === 'active' ||
-    league?.status === 'Play' ||
-    league?.status === 'active';
+    isPlayModeStatus(currentLeagueStatus) || isPlayModeStatus(league?.status);
   // An explicit tab wins over the status guess: a manager arriving straight
   // from a finished draft may still hold a cached league that says "draft".
   const [activeTab, setActiveTab] = useState<
@@ -459,9 +456,8 @@ export default function LeagueDetailScreen() {
     if (league?.status) {
       setCurrentLeagueStatus(league.status);
       const isPlay =
-        league.status === 'Play' ||
-        league.status === 'active' ||
-        (league as any).rawStatus === 'active';
+        isPlayModeStatus(league.status) ||
+        isPlayModeStatus((league as any).rawStatus);
       if (isPlay) {
         setActiveTab(prev => (prev === 'Draft' ? 'Matchup' : prev));
       }
@@ -938,9 +934,6 @@ export default function LeagueDetailScreen() {
     }
   };
 
-  // Auction leagues are excluded below; see mayCountdownEndEnterPlayMode.
-  const countdownMayEnterPlayMode = mayCountdownEndEnterPlayMode(league);
-
   useEffect(() => {
     const rawTarget =
       league?.draftStartsAt ||
@@ -959,19 +952,12 @@ export default function LeagueDetailScreen() {
       const diff = targetTime - Date.now();
       if (diff <= 0) {
         setTimeLeft({ days: 0, hours: 0, minutes: 0, seconds: 0 });
+        // Reaching draftStartsAt means the draft may now START - for every
+        // draft type. It says nothing about the draft having finished, so no
+        // status is derived here. Play mode arrives only when the server
+        // reports 'active', which it does once the draft or auction completes
+        // and every roster is full. See the effect on league.status.
         setIsDraftStarted(true);
-        // Reaching draftStartsAt means the draft may now START. For an auction
-        // that is emphatically not completion - the server keeps the league at
-        // auction_active until every roster is full - so the screen must not
-        // promote itself to play mode. Snake leagues keep their existing
-        // behaviour.
-        if (
-          countdownMayEnterPlayMode &&
-          currentLeagueStatus !== 'Play'
-        ) {
-          setCurrentLeagueStatus('Play');
-          setActiveTab('Matchup');
-        }
         return;
       }
 
@@ -992,8 +978,6 @@ export default function LeagueDetailScreen() {
     league?.draftStartsAt,
     league?.settings?.draftSettings?.draftStartsAt,
     league?.draftDate,
-    currentLeagueStatus,
-    countdownMayEnterPlayMode,
   ]);
 
   return (
