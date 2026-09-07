@@ -28,15 +28,18 @@ import {
 
 import {
   useGetCurrentMatchupQuery,
+  useGetLeagueMembersQuery,
   useGetLeagueStandingsQuery,
   useGetMatchupHistoryQuery,
 } from '../../store/api/leagueApi';
 import { ActivityIndicator } from 'react-native';
 import { RosterSections } from './RosterPlayerRow';
 import {
+  buildTeamAvatarLookup,
   formatFantasyPoints,
   formatGameStatus,
   formatMatchupScore,
+  resolveTeamAvatarUri,
 } from './matchupDisplay';
 export { ScoringRulesTab } from '../Scoring/FixedScoringRules';
 
@@ -77,6 +80,16 @@ export const MatchupTab = ({
   } = useGetCurrentMatchupQuery(
     { leagueId, week: selectedWeekNum },
     { skip: !leagueId || leagueId.startsWith('mock-') },
+  );
+
+  // Shares the cache entry the league screen already populates, so this costs
+  // no extra request in practice.
+  const { data: membersData } = useGetLeagueMembersQuery(leagueId, {
+    skip: !leagueId || leagueId.startsWith('mock-'),
+  });
+  const teamAvatars = React.useMemo(
+    () => buildTeamAvatarLookup(membersData),
+    [membersData],
   );
 
   if ((isLoading || isFetching) && !matchupData) {
@@ -291,9 +304,9 @@ export const MatchupTab = ({
         <View className="flex-row">
           {/* Left Team (My Team) */}
           <View className="flex-1 border border-[#222] rounded-[20px] bg-[#141414] p-4 mr-0.5 items-center">
-            {myTeam?.avatarUri ? (
+            {resolveTeamAvatarUri(myTeam, teamAvatars) ? (
               <Image
-                source={{ uri: myTeam.avatarUri }}
+                source={{ uri: resolveTeamAvatarUri(myTeam, teamAvatars) }}
                 className="w-12 h-12 rounded-full mb-2 bg-[#222]"
               />
             ) : (
@@ -321,9 +334,9 @@ export const MatchupTab = ({
 
           {/* Right Team (Opponent) */}
           <View className="flex-1 border border-[#222] rounded-[20px] bg-[#141414] p-4 ml-0.5 items-center">
-            {opponent?.avatarUri ? (
+            {resolveTeamAvatarUri(opponent, teamAvatars) ? (
               <Image
-                source={{ uri: opponent.avatarUri }}
+                source={{ uri: resolveTeamAvatarUri(opponent, teamAvatars) }}
                 className="w-12 h-12 rounded-full mb-2 bg-[#222]"
               />
             ) : (
