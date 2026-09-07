@@ -76,3 +76,7 @@ yarn-error.log
 branch_structure.json
 temp_auto_push.bat
 temp_interactive_push.bat
+
+# Device logs captured while debugging (2.6MB+, never a build input)
+zn5-log.txt
+*-log.txt

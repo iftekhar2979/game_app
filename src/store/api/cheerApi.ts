@@ -282,6 +282,16 @@ export const cheerApi = baseApi.injectEndpoints({
       transformResponse: unwrap,
       invalidatesTags: ['Draft'],
     }),
+    // Commissioner-only. The server refuses a non-creator, a league that is
+    // not running its auction, and an open nomination with live bids.
+    skipCheerNomination: builder.mutation<any, string>({
+      query: leagueId => ({
+        url: `leagues/${leagueId}/auction/nominations/skip`,
+        method: 'POST',
+      }),
+      transformResponse: unwrap,
+      invalidatesTags: ['Draft'],
+    }),
     bidOnCheerTeam: builder.mutation<
       any,
       { leagueId: string; turnId: string; requestId: string; amount: number }
@@ -317,6 +327,7 @@ export const cheerApi = baseApi.injectEndpoints({
 });
 
 export const {
+  useSkipCheerNominationMutation,
   useGetAvailableCheerTeamsQuery,
   useDraftCheerTeamMutation,
   useGetFantasyCheerRosterQuery,
