@@ -209,9 +209,13 @@ export default function ProfileScreen() {
             <ArrowRight color="#999" size={14} />
           </TouchableOpacity>
 
+          {/* Tapping a balance should show the wallet behind it; buying more is
+              one tap further in, from the wallet's own CTA. */}
           <TouchableOpacity
             className="flex-row items-center border border-[#FFB84D] rounded-full px-4 py-1.5 mb-8"
-            onPress={() => navigation.navigate('CoinStore')}
+            accessibilityRole="button"
+            accessibilityLabel="Open wallet"
+            onPress={() => navigation.navigate('Wallet')}
           >
             <Text className="text-[14px] mr-1">🪙</Text>
             <Text className="text-gray-300 text-[14px] font-medium mr-2">
