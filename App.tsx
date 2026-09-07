@@ -32,6 +32,7 @@ import ProfileScreen from './src/screens/Profile/ProfileScreen';
 import { Provider, useDispatch, useSelector } from 'react-redux';
 import { store, RootState } from './src/store';
 import CoinStoreScreen from './src/screens/Profile/CoinStoreScreen';
+import WalletScreen from './src/screens/Profile/WalletScreen';
 import AllPostsScreen from './src/screens/Profile/AllPostsScreen';
 import EditProfileScreen from './src/screens/Profile/EditProfileScreen';
 import SettingsScreen from './src/screens/Profile/SettingsScreen';
@@ -98,6 +99,7 @@ export type RootStackParamList = {
   PostDetails: { postId: string };
   Profile: undefined;
   CoinStore: undefined;
+  Wallet: undefined;
   AllPosts: undefined;
   EditProfile: undefined;
   Settings: undefined;
@@ -228,6 +230,7 @@ function AppContent() {
             <Stack.Screen name="PostDetails" component={PostDetailsScreen} />
             <Stack.Screen name="Profile" component={ProfileScreen} />
             <Stack.Screen name="CoinStore" component={CoinStoreScreen} />
+            <Stack.Screen name="Wallet" component={WalletScreen} />
             <Stack.Screen name="AllPosts" component={AllPostsScreen} />
             <Stack.Screen name="EditProfile" component={EditProfileScreen} />
             <Stack.Screen name="Settings" component={SettingsScreen} />
