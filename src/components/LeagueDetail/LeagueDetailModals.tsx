@@ -42,6 +42,10 @@ import {
 import type { LeagueStatusValue } from '../../store/api/leagueApi';
 import { showToast } from '../../utils/toast';
 import { resolveDivisionOptions } from './divisionCapacity';
+import {
+  describeDraftStartsAtProblem,
+  describeSaveError,
+} from './draftSettingsForm';
 import { launchImageLibrary } from 'react-native-image-picker';
 import { useLazyGetPreSignedUrlQuery } from '../../store/api/usersApi';
 import { uploadImage } from '../../services/mediaUpload';
@@ -606,6 +610,9 @@ export const DraftSettingsSubModal = ({
   const [pickSeconds, setPickSeconds] = useState('');
   const [draftStartsAt, setDraftStartsAt] = useState<Date | null>(null);
   const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
+  // Shown in the modal itself. A toast cannot be seen from here - this screen
+  // is a Modal, its own native window, and toasts render at the app root.
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   // Seed on open only — see the note in LeagueSettingsSubModal.
   const leagueRef = useRef(league);
@@ -623,6 +630,7 @@ export const DraftSettingsSubModal = ({
     setPickSeconds(String(d.pickDurationSeconds ?? ''));
     setDraftStartsAt(d.draftStartsAt ? new Date(d.draftStartsAt) : null);
     setIsDatePickerOpen(false);
+    setSaveError(null);
   }, [isVisible]);
 
   const currentStatus = (league?.rawStatus || league?.status || '') as string;
@@ -649,15 +657,11 @@ export const DraftSettingsSubModal = ({
     const increment = parseInt(bidIncrement, 10);
 
     if (isAuction && [budget, bid, increment].some(n => Number.isNaN(n) || n < 1)) {
-      showToast.error(
-        'Invalid amounts',
-        'Budget, minimum bid and increment must be at least 1.',
-      );
+      setSaveError('Budget, minimum bid and increment must be at least 1.');
       return;
     }
     if (isAuction && (bid > budget || increment > budget)) {
-      showToast.error(
-        'Invalid amounts',
+      setSaveError(
         'Minimum bid and increment cannot exceed the starting budget.',
       );
       return;
@@ -667,6 +671,18 @@ export const DraftSettingsSubModal = ({
     // being asked to set, but leaves an existing one alone.
     const dateChanged = (draftStartsAt?.getTime() ?? null) !== originalDate;
 
+    // Caught here rather than at the server, whose 400 would land on a screen
+    // that cannot show a toast.
+    const dateProblem = describeDraftStartsAtProblem(
+      draftStartsAt,
+      originalDate,
+    );
+    if (dateProblem) {
+      setSaveError(dateProblem);
+      return;
+    }
+
+    setSaveError(null);
     try {
       await updateLeague({
         id: leagueId,
@@ -696,20 +712,14 @@ export const DraftSettingsSubModal = ({
         },
       }).unwrap();
 
+      // Close first, so the success toast is not painted behind this modal.
+      onClose();
       showToast.success(
         'Draft settings saved',
         `${isAuction ? 'Auction' : 'Snake'} draft rules updated for this league.`,
       );
-      onClose();
     } catch (err: any) {
-      const msg =
-        err?.data?.message ||
-        err?.message ||
-        'Failed to update draft settings.';
-      showToast.error(
-        'Update Failed',
-        Array.isArray(msg) ? msg.join('\n') : msg,
-      );
+      setSaveError(describeSaveError(err));
     }
   };
 
@@ -821,6 +831,20 @@ export const DraftSettingsSubModal = ({
               start.
             </Text>
           </View>
+
+          {saveError ? (
+            <View
+              accessibilityRole="alert"
+              className="rounded-xl border border-[#FF4D4D]/50 bg-[#FF4D4D]/10 p-3 mb-6"
+            >
+              <Text className="text-[#FF8A8A] text-[12px] font-semibold mb-0.5">
+                Could not save draft settings
+              </Text>
+              <Text className="text-[#F3C8C8] text-[12px] leading-4">
+                {saveError}
+              </Text>
+            </View>
+          ) : null}
         </ScrollView>
 
         {editable && (
@@ -850,9 +874,11 @@ export const DraftSettingsSubModal = ({
           date={draftStartsAt || new Date()}
           mode="datetime"
           theme="dark"
+          minimumDate={new Date()}
           onConfirm={date => {
             setIsDatePickerOpen(false);
             setDraftStartsAt(date);
+            setSaveError(null);
           }}
           onCancel={() => setIsDatePickerOpen(false)}
         />
