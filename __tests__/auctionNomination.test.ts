@@ -67,10 +67,15 @@ describe('skip mirrors the server guards', () => {
     expect(result.skipBlockedReason).toMatch(/commissioner/i);
   });
 
-  it('is blocked while a nomination is open, so live bids are not discarded', () => {
-    const result = view({ auction: { currentTurnId: 'turn-1' } });
+  it('is blocked while bidding is still running, so live bids are not discarded', () => {
+    const result = view({
+      auction: {
+        currentTurnId: 'turn-1',
+        currentTurn: { biddingEndsAt: new Date(NOW + 30_000) },
+      },
+    });
     expect(result.canSkip).toBe(false);
-    expect(result.skipBlockedReason).toMatch(/finalize/i);
+    expect(result.skipBlockedReason).toMatch(/bidding/i);
   });
 
   it('is blocked when the auction is not running', () => {
@@ -89,5 +94,32 @@ describe('skip mirrors the server guards', () => {
 
   it('does not block on an unknown league status', () => {
     expect(view({ leagueStatus: undefined }).canSkip).toBe(true);
+  });
+});
+
+describe('live bidding versus a turn nobody finalised', () => {
+  const live = { currentTurnId: 't1', currentTurn: { biddingEndsAt: new Date(NOW + 30_000) } };
+  const ended = { currentTurnId: 't1', currentTurn: { biddingEndsAt: new Date(NOW - 1) } };
+
+  it('treats a turn still taking bids as live', () => {
+    expect(view({ auction: live }).isBiddingLive).toBe(true);
+    expect(view({ auction: live }).canSkip).toBe(false);
+  });
+
+  // The blocker that stopped the auction recovering from the app: a turn whose
+  // bidding had closed was treated exactly like one still running.
+  it('does not treat a concluded turn as live', () => {
+    expect(view({ auction: ended }).isBiddingLive).toBe(false);
+    expect(view({ auction: ended }).canSkip).toBe(true);
+  });
+
+  it('has no live bidding when no turn is open', () => {
+    expect(view().isBiddingLive).toBe(false);
+  });
+
+  // A missing deadline must never let the app cut real bidding short.
+  it('errs towards live when the deadline is unreadable', () => {
+    expect(view({ auction: { currentTurnId: 't1', currentTurn: {} } }).isBiddingLive).toBe(true);
+    expect(view({ auction: { currentTurnId: 't1' } }).isBiddingLive).toBe(true);
   });
 });

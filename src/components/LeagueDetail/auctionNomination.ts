@@ -13,6 +13,12 @@ export interface AuctionTurnView {
   isMyTurn: boolean;
   /** The deadline has passed; the next nomination attempt forfeits this turn. */
   isExpired: boolean;
+  /**
+   * A turn is open and still taking bids. Only this blocks a new nomination -
+   * a turn whose bidding has closed is settled by the server on the next
+   * nomination or skip.
+   */
+  isBiddingLive: boolean;
   /** Whether to render the commissioner's skip control. */
   canSkip: boolean;
   /** Why skip is unavailable, for a disabled control's hint. */
@@ -48,6 +54,14 @@ export function resolveAuctionTurn({
     : NaN;
   const isExpired = Number.isFinite(endsAt) && endsAt <= now;
 
+  const biddingEndsAt = auction?.currentTurn?.biddingEndsAt
+    ? new Date(auction.currentTurn.biddingEndsAt).getTime()
+    : NaN;
+  // An open turn with no readable deadline is treated as live, so a missing
+  // field never lets the app cut real bidding short.
+  const isBiddingLive = !!auction?.currentTurnId &&
+    (!Number.isFinite(biddingEndsAt) || biddingEndsAt > now);
+
   // Mirrors the server's own guards on the skip endpoint, so the button is
   // never offered for a request that is certain to be refused.
   let skipBlockedReason: string | null = null;
@@ -57,10 +71,10 @@ export function resolveAuctionTurn({
     skipBlockedReason = 'The auction is not running.';
   } else if (leagueStatus && leagueStatus !== 'auction_active') {
     skipBlockedReason = 'The league is not in its auction phase.';
-  } else if (auction?.currentTurnId) {
-    // Live bids are attached to an open turn; it must be finalised, not
-    // stepped over.
-    skipBlockedReason = 'Finalize the open nomination first.';
+  } else if (isBiddingLive) {
+    // Only live bidding blocks the skip. A turn whose bidding has closed is
+    // settled by the server first, matching settleStaleTurn.
+    skipBlockedReason = 'Wait for the current bidding to end.';
   } else if (!order.length) {
     skipBlockedReason = 'This auction has no nomination order.';
   }
@@ -69,6 +83,7 @@ export function resolveAuctionTurn({
     onClockTeamId,
     isMyTurn: !!onClockTeamId && !!myTeamId && String(myTeamId) === onClockTeamId,
     isExpired,
+    isBiddingLive,
     canSkip: skipBlockedReason === null,
     skipBlockedReason,
   };
