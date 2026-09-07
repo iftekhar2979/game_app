@@ -7,18 +7,56 @@ import {
   Modal,
   Image,
   ActivityIndicator,
-  Linking,
   Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ChevronLeft, RefreshCw } from 'lucide-react-native';
 import { useNavigation } from '@react-navigation/native';
 import Svg, { Path } from 'react-native-svg';
+import { initStripe, useStripe } from '@stripe/stripe-react-native';
 import {
   type CoinPackage,
   useGetCoinPackagesQuery,
-  useStartCheckoutMutation,
+  useReconcileOrderMutation,
+  useStartTopUpIntentMutation,
 } from '../../store/api/walletApi';
+import { showToast } from '../../utils/toast';
+import {
+  describeSheetError,
+  describeTopUpOutcome,
+  isSettled,
+  MAX_POLL_ATTEMPTS,
+  nextPollDelay,
+} from '../../wallet/creditPolling';
+
+/**
+ * The payment sheet, dressed as the rest of the app.
+ *
+ * Stripe renders the sheet natively, so this is where its palette is set -
+ * the same purple, gold and near-black the store itself uses. Without it the
+ * sheet arrives in Stripe's default light theme, which reads as a different
+ * app opening on top of this one.
+ */
+const SHEET_APPEARANCE = {
+  colors: {
+    primary: '#8B3DFF',
+    background: '#1A0B2E',
+    componentBackground: '#25123F',
+    componentBorder: '#4B1E78',
+    componentDivider: '#4B1E78',
+    primaryText: '#FFFFFF',
+    secondaryText: '#C9B8E0',
+    componentText: '#FFFFFF',
+    placeholderText: '#7A5AA0',
+    icon: '#C9B8E0',
+    error: '#FF8A8A',
+  },
+  shapes: { borderRadius: 16, borderWidth: 1 },
+  primaryButton: {
+    colors: { background: '#8B3DFF', text: '#FFFFFF', border: '#8B3DFF' },
+    shapes: { borderRadius: 999 },
+  },
+} as const;
 
 const formatPrice = (priceAmount: number, currency: string = 'usd'): string => {
   const symbol = currency.toLowerCase() === 'usd' ? '$' : currency.toUpperCase();
@@ -29,7 +67,10 @@ const formatPrice = (priceAmount: number, currency: string = 'usd'): string => {
 export default function CoinStoreScreen() {
   const navigation = useNavigation();
   const { data: packages = [], isLoading, isError, refetch } = useGetCoinPackagesQuery();
-  const [startCheckout, { isLoading: isCheckingOut }] = useStartCheckoutMutation();
+  const [startTopUpIntent] = useStartTopUpIntentMutation();
+  const [reconcileOrder] = useReconcileOrderMutation();
+  const { initPaymentSheet, presentPaymentSheet } = useStripe();
+  const [isCheckingOut, setIsCheckingOut] = useState(false);
 
   const [selectedPackage, setSelectedPackage] = useState<CoinPackage | null>(null);
   const [isModalVisible, setIsModalVisible] = useState(false);
@@ -39,21 +80,65 @@ export default function CoinStoreScreen() {
     setIsModalVisible(true);
   };
 
-  const handlePayNow = async () => {
-    if (!selectedPackage) return;
-    try {
-      const response = await startCheckout({ sku: selectedPackage.sku }).unwrap();
-      setIsModalVisible(false);
-      if (response?.checkoutUrl) {
-        await Linking.openURL(response.checkoutUrl);
-      } else {
-        Alert.alert('Checkout Error', 'Unable to initiate checkout. Please try again.');
+  /**
+   * Waits for the coins to land after the card is charged.
+   *
+   * The sheet succeeding means the money moved, not that the coins arrived -
+   * that happens when Stripe's webhook reaches the server. Reconcile asks the
+   * server to check with Stripe directly, so a webhook that is slow, or never
+   * arrives, still ends with the user's coins credited.
+   */
+  const waitForCoins = async (orderId: string) => {
+    for (let attempt = 0; attempt < MAX_POLL_ATTEMPTS; attempt += 1) {
+      await new Promise(resolve => setTimeout(resolve, nextPollDelay(attempt)));
+      try {
+        const order = await reconcileOrder({ orderId }).unwrap();
+        if (isSettled(order.status)) return order;
+      } catch {
+        // A failed poll is not a failed payment; keep trying on schedule.
       }
+    }
+    return undefined;
+  };
+
+  const handlePayNow = async () => {
+    if (!selectedPackage || isCheckingOut) return;
+    setIsCheckingOut(true);
+    try {
+      const intent = await startTopUpIntent({ sku: selectedPackage.sku }).unwrap();
+
+      // The key comes from the server with the intent rather than being baked
+      // into the bundle, so rotating it or moving from test to live keys needs
+      // no app release.
+      await initStripe({ publishableKey: intent.publishableKey });
+
+      const { error: initError } = await initPaymentSheet({
+        merchantDisplayName: 'CheerBattle',
+        paymentIntentClientSecret: intent.clientSecret,
+        appearance: SHEET_APPEARANCE as any,
+        defaultBillingDetails: { name: '' },
+      });
+      if (initError) throw initError;
+
+      setIsModalVisible(false);
+      const { error: sheetError } = await presentPaymentSheet();
+      if (sheetError) {
+        // A cancellation is a decision, not a failure, and says nothing.
+        const failure = describeSheetError(sheetError);
+        if (failure) showToast.error(failure.title, failure.detail);
+        return;
+      }
+
+      const order = await waitForCoins(intent.orderId);
+      const outcome = describeTopUpOutcome(order);
+      showToast[outcome.tone](outcome.title, outcome.detail);
     } catch (err: any) {
       Alert.alert(
         'Payment Failed',
-        err?.data?.message || err?.message || 'Could not start checkout session.'
+        err?.data?.message || err?.message || 'Could not start the payment.',
       );
+    } finally {
+      setIsCheckingOut(false);
     }
   };
 

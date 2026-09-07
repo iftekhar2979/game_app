@@ -43,6 +43,30 @@ export interface CoinTransactionPage {
   pagination: { nextCursor: string | null; hasMore: boolean };
 }
 
+/** Everything the native payment sheet needs. Never carries a secret key. */
+export interface TopUpIntentResponse {
+  orderId: string;
+  clientSecret: string;
+  publishableKey: string;
+  coins: number;
+  priceAmount: number;
+  currency: string;
+  displayName: string;
+}
+
+/** An order as the server currently holds it. */
+export interface CoinOrder {
+  orderId: string;
+  status: 'pending' | 'paid' | 'credited' | 'failed' | 'expired' | 'refunded';
+  packageSku: string;
+  coins: number;
+  priceAmount: number;
+  currency: string;
+  creditedAt: string | null;
+  failureReason: string | null;
+  coinBalance: number;
+}
+
 export interface CheckoutSessionResponse {
   orderId: string;
   checkoutUrl: string;
@@ -100,6 +124,28 @@ export const walletApi = baseApi.injectEndpoints({
       providesTags: ['Wallet'],
     }),
 
+    /** Opens an in-app payment sheet rather than sending the user to a browser. */
+    startTopUpIntent: builder.mutation<TopUpIntentResponse, { sku: string }>({
+      query: (body) => ({ url: '/wallet/topup/intent', method: 'POST', body }),
+      transformResponse: (response: any) => response?.data ?? response,
+    }),
+
+    /**
+     * Re-checks an order against the payment provider.
+     *
+     * The sheet reporting success only means the card was charged; the coins
+     * arrive when the webhook lands. Asking the server to reconcile closes the
+     * gap when that webhook is slow or never arrives at all.
+     */
+    reconcileOrder: builder.mutation<CoinOrder, { orderId: string }>({
+      query: ({ orderId }) => ({
+        url: `/wallet/orders/${orderId}/reconcile`,
+        method: 'POST',
+      }),
+      transformResponse: (response: any) => response?.data ?? response,
+      invalidatesTags: ['Wallet'],
+    }),
+
     startCheckout: builder.mutation<CheckoutSessionResponse, { sku: string }>({
       query: (body) => ({
         url: '/wallet/topup/checkout',
@@ -116,5 +162,7 @@ export const {
   useGetCoinPackagesQuery,
   useGetWalletBalanceQuery,
   useGetWalletTransactionsQuery,
+  useStartTopUpIntentMutation,
+  useReconcileOrderMutation,
   useStartCheckoutMutation,
 } = walletApi;
