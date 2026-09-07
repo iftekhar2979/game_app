@@ -80,6 +80,10 @@ import {
 } from '../../services/socketService';
 import { CHEER_DIVISIONS } from '../../utils/cheerScoring';
 import {
+  resolveDraftStartsAt,
+  resolveDraftStartsAtTime,
+} from '../../components/LeagueDetail/draftSchedule';
+import {
   isAuctionDraftPhaseStatus,
   isPlayModeStatus,
 } from '../../components/LeagueDetail/auctionLifecycle';
@@ -370,10 +374,7 @@ export default function LeagueDetailScreen() {
     : null;
 
   const draftStartsAt =
-    rawLeague?.draftStartsAt ||
-    rawLeague?.settings?.draftSettings?.draftStartsAt ||
-    mockFallback?.draftStartsAt ||
-    mockFallback?.draftDate;
+    resolveDraftStartsAt(rawLeague) ?? resolveDraftStartsAt(mockFallback);
 
   // Memoised: the draft countdown re-renders this screen every second, and a fresh
   // league object each time would churn every child that receives it.
@@ -935,18 +936,13 @@ export default function LeagueDetailScreen() {
   };
 
   useEffect(() => {
-    const rawTarget =
-      league?.draftStartsAt ||
-      league?.settings?.draftSettings?.draftStartsAt ||
-      league?.draftDate;
+    const targetTime = resolveDraftStartsAtTime(league);
 
-    if (!rawTarget) {
+    if (targetTime === null) {
       setTimeLeft(null);
       setIsDraftStarted(false);
       return;
     }
-
-    const targetTime = new Date(rawTarget).getTime();
 
     const calculateTime = () => {
       const diff = targetTime - Date.now();
@@ -974,11 +970,9 @@ export default function LeagueDetailScreen() {
     const intervalId = setInterval(calculateTime, 1000);
 
     return () => clearInterval(intervalId);
-  }, [
-    league?.draftStartsAt,
-    league?.settings?.draftSettings?.draftStartsAt,
-    league?.draftDate,
-  ]);
+    // One dependency, resolved the same way the effect resolves it, so the
+    // countdown restarts whenever the scheduled time actually changes.
+  }, [resolveDraftStartsAtTime(league)]);
 
   return (
     <SafeAreaView className="flex-1 bg-black" edges={['top', 'bottom']}>
