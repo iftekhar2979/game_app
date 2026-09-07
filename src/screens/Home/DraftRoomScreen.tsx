@@ -34,6 +34,7 @@ import {
   useDraftCheerTeamMutation,
   useGetAvailableCheerTeamsQuery,
   useGetCheerAuctionQuery,
+  useSkipCheerNominationMutation,
   useStartCheerAuctionMutation,
   useNominateCheerTeamMutation,
   useBidOnCheerTeamMutation,
@@ -47,6 +48,7 @@ import {
   onSocketResync,
 } from '../../services/socketService';
 import { showToast } from '../../utils/toast';
+import { resolveAuctionTurn } from '../../components/LeagueDetail/auctionNomination';
 import {
   DraftBoard,
   DraftPickFeed,
@@ -134,6 +136,8 @@ export default function DraftRoomScreen() {
     useFinalizeCheerAuctionTurnMutation();
   const [completeAuction, { isLoading: isCompletingAuction }] =
     useCompleteCheerAuctionMutation();
+  const [skipNomination, { isLoading: isSkippingNomination }] =
+    useSkipCheerNominationMutation();
   const [bidAmount, setBidAmount] = useState('');
 
   const { data: apiMembersData, isLoading: isLoadingMembers } =
@@ -448,6 +452,44 @@ export default function DraftRoomScreen() {
     ? Number(auctionTurn.currentBid || 0) +
       Number((apiLeagueData as any)?.draftSettings?.bidIncrement || 1)
     : Number((apiLeagueData as any)?.draftSettings?.minimumBid || 1);
+
+  const nominationView = resolveAuctionTurn({
+    auction: auctionState,
+    myTeamId: userTeamId,
+    isCommissioner: !!callerInfo?.isCreator,
+    leagueStatus: (apiLeagueData as any)?.status,
+  });
+  // Matched on the fantasy team id, which is what the nomination order holds.
+  // teamsList is keyed by membership id, a different entity entirely.
+  const onClockTeamName = (() => {
+    const members = Array.isArray(apiMembersData)
+      ? apiMembersData
+      : Array.isArray((apiMembersData as any)?.data)
+      ? (apiMembersData as any).data
+      : [];
+    const match = members.find(
+      (m: any) => String(m?.team?._id ?? m?.team?.id) === nominationView.onClockTeamId,
+    );
+    return match?.team?.name || match?.user?.fullName || null;
+  })();
+
+  const handleSkipNomination = async () => {
+    try {
+      const result: any = await skipNomination(leagueId).unwrap();
+      await refetchAuction();
+      showToast.success(
+        result?.skipped > 1
+          ? `Passed ${result.skipped} expired turns`
+          : 'Nomination passed on',
+        'The next manager is on the clock.',
+      );
+    } catch (err: any) {
+      showToast.error(
+        'Could not skip nomination',
+        err?.data?.message || err?.message,
+      );
+    }
+  };
 
   const handleAuctionStart = async () => {
     try {
@@ -869,10 +911,53 @@ export default function DraftRoomScreen() {
               </View>
             ) : (
               <View>
+                {/* Who holds the clock, read from the nomination order rather
+                    than guessed, so every manager sees the same thing. */}
+                <View className="bg-black/40 border border-[#222] rounded-xl p-3 mb-3">
+                  <Text className="text-gray-400 text-[10px] uppercase font-bold">
+                    On the clock
+                  </Text>
+                  <Text className="text-white text-[15px] font-bold mt-1">
+                    {nominationView.isMyTurn
+                      ? 'You — nominate a cheer team below'
+                      : onClockTeamName || 'Waiting for the next manager'}
+                  </Text>
+                  {nominationView.isExpired ? (
+                    // Expiry is recoverable: the server forfeits the turn on the
+                    // next nomination rather than refusing it.
+                    <Text className="text-[#FFB84D] text-[11px] mt-1.5">
+                      This nomination window has expired. The turn passes to the
+                      next manager on the next nomination or skip.
+                    </Text>
+                  ) : auctionState?.nominationEndsAt ? (
+                    <Text className="text-gray-500 text-[11px] mt-1.5">
+                      Window ends{' '}
+                      {new Date(
+                        auctionState.nominationEndsAt,
+                      ).toLocaleTimeString()}
+                    </Text>
+                  ) : null}
+                </View>
                 <Text className="text-gray-400 text-[12px] mb-3">
                   The manager on nomination duty should select an available
                   cheer team below.
                 </Text>
+                {/* Commissioner only, and only when the server would accept it. */}
+                {nominationView.canSkip ? (
+                  <TouchableOpacity
+                    className="border border-[#8B3DFF] rounded-xl py-2.5 items-center mb-3"
+                    disabled={isSkippingNomination}
+                    onPress={handleSkipNomination}
+                  >
+                    {isSkippingNomination ? (
+                      <ActivityIndicator color="#8B3DFF" size="small" />
+                    ) : (
+                      <Text className="text-[#B388FF] text-[12px] font-semibold">
+                        Skip nomination
+                      </Text>
+                    )}
+                  </TouchableOpacity>
+                ) : null}
                 <TouchableOpacity
                   className="border border-[#444] rounded-xl py-2.5 items-center"
                   disabled={isCompletingAuction}
