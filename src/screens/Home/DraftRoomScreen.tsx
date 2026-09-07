@@ -515,7 +515,10 @@ export default function DraftRoomScreen() {
       );
       return;
     }
-    if (auctionTurn) {
+    // Only live bidding blocks a nomination. A turn whose bidding has already
+    // closed is settled server-side on this same request, so refusing here
+    // used to stop the auction recovering from the app at all.
+    if (nominationView.isBiddingLive) {
       showToast.error(
         'Bidding in progress',
         'Finish the current nomination before selecting another team.',
