@@ -79,6 +79,10 @@ import {
   leaveLeagueRoom,
 } from '../../services/socketService';
 import { CHEER_DIVISIONS } from '../../utils/cheerScoring';
+import {
+  isAuctionDraftPhaseStatus,
+  mayCountdownEndEnterPlayMode,
+} from '../../components/LeagueDetail/auctionLifecycle';
 import { useGetLeagueChatUnreadQuery } from '../../store/api/leagueChatApi';
 import {
   incrementUnread,
@@ -392,10 +396,13 @@ export default function LeagueDetailScreen() {
             status:
               rawLeague.status === 'registration_open' ||
               rawLeague.status === 'drafting' ||
+              // An auction in progress IS the draft. auction_active used to
+              // fall through to the Play branch below, which sent managers to
+              // the matchup tab the moment the commissioner started it.
+              isAuctionDraftPhaseStatus(rawLeague.status) ||
               rawLeague.status === 'Draft'
                 ? 'Draft'
                 : rawLeague.status === 'active' ||
-                  rawLeague.status === 'auction_active' ||
                   rawLeague.status === 'Play'
                 ? 'Play'
                 : rawLeague.status || 'Draft',
@@ -931,6 +938,9 @@ export default function LeagueDetailScreen() {
     }
   };
 
+  // Auction leagues are excluded below; see mayCountdownEndEnterPlayMode.
+  const countdownMayEnterPlayMode = mayCountdownEndEnterPlayMode(league);
+
   useEffect(() => {
     const rawTarget =
       league?.draftStartsAt ||
@@ -950,7 +960,15 @@ export default function LeagueDetailScreen() {
       if (diff <= 0) {
         setTimeLeft({ days: 0, hours: 0, minutes: 0, seconds: 0 });
         setIsDraftStarted(true);
-        if (currentLeagueStatus !== 'Play') {
+        // Reaching draftStartsAt means the draft may now START. For an auction
+        // that is emphatically not completion - the server keeps the league at
+        // auction_active until every roster is full - so the screen must not
+        // promote itself to play mode. Snake leagues keep their existing
+        // behaviour.
+        if (
+          countdownMayEnterPlayMode &&
+          currentLeagueStatus !== 'Play'
+        ) {
           setCurrentLeagueStatus('Play');
           setActiveTab('Matchup');
         }
@@ -975,6 +993,7 @@ export default function LeagueDetailScreen() {
     league?.settings?.draftSettings?.draftStartsAt,
     league?.draftDate,
     currentLeagueStatus,
+    countdownMayEnterPlayMode,
   ]);
 
   return (
