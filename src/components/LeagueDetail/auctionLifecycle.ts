@@ -19,16 +19,17 @@ export function isAuctionLeague(league: any): boolean {
 }
 
 /**
- * Whether a countdown hitting zero may put the screen into play mode.
+ * Whether a status means the league is genuinely in league play.
  *
- * Never for an auction: reaching `draftStartsAt` means the auction is now
- * allowed to START, not that it finished. Only the server saying `active`
- * does that, and it says so only after every roster is full.
- *
- * Snake leagues keep the previous behaviour untouched.
+ * Accepts the display label ('Play') and the server's own value ('active').
+ * Nothing else qualifies - in particular `auction_active`, which is an auction
+ * still running, and no locally derived value: the draft countdown used to set
+ * a status of its own when it reached zero, which showed the matchup tab for a
+ * league whose teams had not been bought yet. Reaching `draftStartsAt` means
+ * the draft may START; only the server reports that one finished.
  */
-export function mayCountdownEndEnterPlayMode(league: any): boolean {
-  return !isAuctionLeague(league);
+export function isPlayModeStatus(status: unknown): boolean {
+  return status === 'Play' || status === 'active';
 }
 
 /**

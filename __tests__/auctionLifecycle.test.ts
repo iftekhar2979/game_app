@@ -1,7 +1,7 @@
 import {
   isAuctionLeague,
   isAuctionDraftPhaseStatus,
-  mayCountdownEndEnterPlayMode,
+  isPlayModeStatus,
 } from '../src/components/LeagueDetail/auctionLifecycle';
 
 const auction = { draftSettings: { type: 'auction' } };
@@ -20,17 +20,30 @@ describe('auction league detection', () => {
   });
 });
 
-describe('countdown must not invent play mode', () => {
-  // Test 1: the reported bug. The commissioner moved draftStartsAt closer, it
-  // elapsed, and the screen declared Play with no nomination having happened.
-  it('refuses to enter play mode for an auction league', () => {
-    expect(mayCountdownEndEnterPlayMode(auction)).toBe(false);
+describe('play mode comes only from the server', () => {
+  it('accepts the display label and the server value', () => {
+    expect(isPlayModeStatus('Play')).toBe(true);
+    expect(isPlayModeStatus('active')).toBe(true);
   });
 
-  // Snake behaviour is deliberately untouched by this fix.
-  it('leaves snake leagues on their existing path', () => {
-    expect(mayCountdownEndEnterPlayMode(snake)).toBe(true);
-    expect(mayCountdownEndEnterPlayMode({})).toBe(true);
+  // The reported bug: the commissioner moved draftStartsAt closer, it elapsed,
+  // and the screen declared Play with no nomination having happened. No status
+  // is derived from the countdown any more, for any draft type - a draft start
+  // time is not a draft completion.
+  it('rejects every status that is not league play', () => {
+    [
+      'auction_active',
+      'auction_scheduled',
+      'draft',
+      'drafting',
+      'Draft',
+      'registration_open',
+      'registration_closed',
+      'completed',
+      'cancelled',
+      undefined,
+      null,
+    ].forEach(status => expect(isPlayModeStatus(status)).toBe(false));
   });
 });
 
