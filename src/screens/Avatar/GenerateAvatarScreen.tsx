@@ -38,6 +38,7 @@ import ArtworkImage from '../../components/Avatar/ArtworkImage';
 import { resolveConfig } from '../../avatar/resolveConfig';
 import { prefetchEditorArtwork, prefetchSources } from '../../avatar/prefetchArtwork';
 import { AvatarAsset, AvatarConfig, AvatarSlot } from '../../avatar/types';
+import { hexToTintMatrix } from '../../avatar/hairTint';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList, 'GenerateAvatar'>;
 type GenerateAvatarRouteProp = RouteProp<RootStackParamList, 'GenerateAvatar'>;
@@ -46,19 +47,6 @@ const { height } = Dimensions.get('window');
 const PREVIEW_HEIGHT = 320;
 const FULLBODY_PREVIEW_HEIGHT = Math.min(560, height * 0.68);
 
-// Helper to convert hex to an optimized SVG color matrix
-// This avoids native crashes from FeBlend while providing a nice color tint
-const hexToTintMatrix = (hex: string) => {
-  const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
-  if (result) {
-    const r = parseInt(result[1], 16) / 255;
-    const g = parseInt(result[2], 16) / 255;
-    const b = parseInt(result[3], 16) / 255;
-    // We scale the color channel but keep 25% of the original contrast to prevent mudiness
-    return `${0.25 + 0.75 * r} 0 0 0 0  0 ${0.25 + 0.75 * g} 0 0 0  0 0 ${0.25 + 0.75 * b} 0 0  0 0 0 1 0`;
-  }
-  return '1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 1 0';
-};
 
 /**
  * Every part list on this screen comes from `avatar/registry`.
