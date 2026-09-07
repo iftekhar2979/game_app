@@ -7,6 +7,7 @@ import ArtworkImage from '../Avatar/ArtworkImage';
 import { FULLBODY_STAGE_SCALE, getEyeSource } from '../../avatar/registry';
 import { baseOf, resolveConfig } from '../../avatar/resolveConfig';
 import { AvatarConfig, AvatarLayer, AvatarSlot } from '../../avatar/types';
+import { hexToTintMatrix } from '../../avatar/hairTint';
 import Avatar from './Avatar';
 
 /**
@@ -22,14 +23,6 @@ import Avatar from './Avatar';
  * blink art covers the whole body, not just the face.
  */
 
-/** Same tint maths as the editor: scale each channel, keep 25% contrast. */
-const hexToTintMatrix = (hex: string) => {
-  const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
-  if (!result) return '1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 1 0';
-
-  const [r, g, b] = [1, 2, 3].map((i) => parseInt(result[i], 16) / 255);
-  return `${0.25 + 0.75 * r} 0 0 0 0  0 ${0.25 + 0.75 * g} 0 0 0  0 0 ${0.25 + 0.75 * b} 0 0  0 0 0 1 0`;
-};
 
 let filterSeq = 0;
 
