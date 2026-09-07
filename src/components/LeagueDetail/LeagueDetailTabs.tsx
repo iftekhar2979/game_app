@@ -34,6 +34,7 @@ import {
 } from '../../store/api/leagueApi';
 import { ActivityIndicator } from 'react-native';
 import { RosterSections } from './RosterPlayerRow';
+import { resolveDraftStartsAt } from './draftSchedule';
 import {
   buildTeamAvatarLookup,
   formatFantasyPoints,
@@ -763,10 +764,7 @@ export const DraftTab = ({
   const isAwaitingStart = !!timeLeft && !hasCountdown;
 
   const draftTimeFormatted = (() => {
-    const rawDate =
-      league?.draftStartsAt ||
-      league?.settings?.draftSettings?.draftStartsAt ||
-      league?.draftDate;
+    const rawDate = resolveDraftStartsAt(league);
 
     if (!rawDate) return 'Draft time to be scheduled';
     try {
