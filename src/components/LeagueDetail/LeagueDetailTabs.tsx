@@ -54,6 +54,11 @@ export const MatchupTab = ({
   const defaultWeekStr = `Week ${league?.currentWeek || 1}`;
   const [localWeek, setLocalWeek] = useState<string | null>(null);
   const [isWeekModalVisible, setIsWeekModalVisible] = useState(false);
+  // The avatar the viewer tapped, shown enlarged. Null closes the viewer.
+  const [previewedAvatar, setPreviewedAvatar] = useState<{
+    uri: string;
+    teamName: string;
+  } | null>(null);
   const weeks = Array.from({ length: 18 }, (_, i) => `Week ${i + 1}`);
 
   const activeWeekStr = selectedWeek || localWeek || defaultWeekStr;
@@ -305,13 +310,25 @@ export const MatchupTab = ({
           {/* Left Team (My Team) */}
           <View className="flex-1 border border-[#222] rounded-[20px] bg-[#141414] p-4 mr-0.5 items-center">
             {resolveTeamAvatarUri(myTeam, teamAvatars) ? (
-              <Image
-                source={{ uri: resolveTeamAvatarUri(myTeam, teamAvatars) }}
-                className="w-12 h-12 rounded-full mb-2 bg-[#222]"
-              />
+              <TouchableOpacity
+                activeOpacity={0.8}
+                accessibilityRole="imagebutton"
+                accessibilityLabel={`View ${myTeam?.teamName || 'my team'} avatar`}
+                onPress={() =>
+                  setPreviewedAvatar({
+                    uri: resolveTeamAvatarUri(myTeam, teamAvatars) as string,
+                    teamName: myTeam?.teamName || 'My Team',
+                  })
+                }
+              >
+                <Image
+                  source={{ uri: resolveTeamAvatarUri(myTeam, teamAvatars) }}
+                  className="w-16 h-16 rounded-full mb-2 bg-[#222]"
+                />
+              </TouchableOpacity>
             ) : (
-              <View className="w-12 h-12 rounded-full border border-[#8B3DFF] justify-center items-center bg-[#8B3DFF]/20 mb-2">
-                <Text className="text-[#8B3DFF] text-[10px] font-bold">MY</Text>
+              <View className="w-16 h-16 rounded-full border border-[#8B3DFF] justify-center items-center bg-[#8B3DFF]/20 mb-2">
+                <Text className="text-[#8B3DFF] text-[11px] font-bold">MY</Text>
               </View>
             )}
             <Text className="text-[#E0B566] text-[11px] font-medium mb-1 uppercase tracking-wider">
@@ -335,13 +352,27 @@ export const MatchupTab = ({
           {/* Right Team (Opponent) */}
           <View className="flex-1 border border-[#222] rounded-[20px] bg-[#141414] p-4 ml-0.5 items-center">
             {resolveTeamAvatarUri(opponent, teamAvatars) ? (
-              <Image
-                source={{ uri: resolveTeamAvatarUri(opponent, teamAvatars) }}
-                className="w-12 h-12 rounded-full mb-2 bg-[#222]"
-              />
+              <TouchableOpacity
+                activeOpacity={0.8}
+                accessibilityRole="imagebutton"
+                accessibilityLabel={`View ${
+                  opponent?.teamName || 'opponent'
+                } avatar`}
+                onPress={() =>
+                  setPreviewedAvatar({
+                    uri: resolveTeamAvatarUri(opponent, teamAvatars) as string,
+                    teamName: opponent?.teamName || 'Opponent',
+                  })
+                }
+              >
+                <Image
+                  source={{ uri: resolveTeamAvatarUri(opponent, teamAvatars) }}
+                  className="w-16 h-16 rounded-full mb-2 bg-[#222]"
+                />
+              </TouchableOpacity>
             ) : (
-              <View className="w-12 h-12 rounded-full border border-gray-600 justify-center items-center bg-gray-800 mb-2">
-                <Text className="text-gray-300 text-[10px] font-bold">OPP</Text>
+              <View className="w-16 h-16 rounded-full border border-gray-600 justify-center items-center bg-gray-800 mb-2">
+                <Text className="text-gray-300 text-[11px] font-bold">OPP</Text>
               </View>
             )}
             <Text className="text-gray-400 text-[11px] font-medium mb-1 uppercase tracking-wider">
@@ -585,6 +616,41 @@ export const MatchupTab = ({
               ))}
             </View>
           </TouchableOpacity>
+        </TouchableOpacity>
+      </Modal>
+
+      {/* Enlarged avatar, opened by tapping either side of the matchup. */}
+      <Modal
+        visible={previewedAvatar !== null}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setPreviewedAvatar(null)}
+      >
+        <TouchableOpacity
+          className="flex-1 justify-center items-center bg-black/90 px-8"
+          activeOpacity={1}
+          accessibilityRole="button"
+          accessibilityLabel="Close avatar preview"
+          onPress={() => setPreviewedAvatar(null)}
+        >
+          {previewedAvatar ? (
+            <>
+              <Image
+                source={{ uri: previewedAvatar.uri }}
+                className="w-64 h-64 rounded-full bg-[#222] border-2 border-[#E0B566]"
+                resizeMode="cover"
+              />
+              <Text
+                className="text-white text-[16px] font-bold mt-5 text-center"
+                numberOfLines={2}
+              >
+                {previewedAvatar.teamName}
+              </Text>
+              <Text className="text-gray-400 text-[12px] mt-2">
+                Tap anywhere to close
+              </Text>
+            </>
+          ) : null}
         </TouchableOpacity>
       </Modal>
     </View>
