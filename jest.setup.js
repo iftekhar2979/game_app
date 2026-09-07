@@ -47,3 +47,18 @@ jest.mock('react-native-fbsdk-next', () => ({
     getCurrentAccessToken: jest.fn(async () => null),
   },
 }));
+
+/**
+ * Stripe's SDK reaches straight for a TurboModule that only exists in a native
+ * build, so importing it under jest throws before any test runs. The payment
+ * flow's own logic lives in `src/wallet/creditPolling.ts` and is tested
+ * directly; this stub only needs to let the screens that import the SDK load.
+ */
+jest.mock('@stripe/stripe-react-native', () => ({
+  initStripe: jest.fn(async () => ({})),
+  StripeProvider: ({ children }) => children,
+  useStripe: () => ({
+    initPaymentSheet: jest.fn(async () => ({ error: undefined })),
+    presentPaymentSheet: jest.fn(async () => ({ error: undefined })),
+  }),
+}));
