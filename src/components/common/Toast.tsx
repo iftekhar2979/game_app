@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { Animated, Text, View, TouchableOpacity, StyleSheet, Modal } from 'react-native';
+import { Animated, Text, View, TouchableOpacity, StyleSheet } from 'react-native';
 import { CheckCircle2, AlertCircle, Info, X } from 'lucide-react-native';
 import { toastEmitter, ToastOptions } from '../../utils/toast';
 
@@ -73,38 +73,44 @@ export const ToastContainer = () => {
     ? 'rgba(255,77,77,0.2)'
     : 'rgba(168,85,247,0.2)';
 
+  // Deliberately not a Modal. A Modal is its own native window: it swallows
+  // every touch on the screen for as long as it is mounted, so a four-second
+  // toast froze scrolling and taps across the whole app, and a toast raised
+  // from inside another Modal fought it for the top window and flickered.
+  //
+  // An overlay at the app root avoids both. `box-none` lets touches fall
+  // through everywhere except the card itself, which stays tappable to dismiss.
   return (
-    <Modal visible={true} transparent={true} animationType="none" statusBarTranslucent onRequestClose={hideToast}>
-      <View style={StyleSheet.absoluteFill} pointerEvents="box-none">
-        <Animated.View
-          style={[
-            styles.container,
-            {
-              transform: [{ translateY }],
-              opacity,
-              borderColor: borderColor,
-            },
-          ]}
-        >
-          <TouchableOpacity activeOpacity={0.9} onPress={hideToast} style={styles.toastCard}>
-            <View style={[styles.iconContainer, { backgroundColor: bgBadgeColor }]}>
-              {isSuccess && <CheckCircle2 color={iconColor} size={22} />}
-              {(isError || isWarning) && <AlertCircle color={iconColor} size={22} />}
-              {!isSuccess && !isError && !isWarning && <Info color={iconColor} size={22} />}
-            </View>
+    <View style={StyleSheet.absoluteFill} pointerEvents="box-none">
+      <Animated.View
+        pointerEvents="box-none"
+        style={[
+          styles.container,
+          {
+            transform: [{ translateY }],
+            opacity,
+            borderColor: borderColor,
+          },
+        ]}
+      >
+        <TouchableOpacity activeOpacity={0.9} onPress={hideToast} style={styles.toastCard}>
+          <View style={[styles.iconContainer, { backgroundColor: bgBadgeColor }]}>
+            {isSuccess && <CheckCircle2 color={iconColor} size={22} />}
+            {(isError || isWarning) && <AlertCircle color={iconColor} size={22} />}
+            {!isSuccess && !isError && !isWarning && <Info color={iconColor} size={22} />}
+          </View>
 
-            <View style={styles.textContainer}>
-              <Text style={styles.titleText}>{toast.title}</Text>
-              {toast.message ? <Text style={styles.messageText}>{toast.message}</Text> : null}
-            </View>
+          <View style={styles.textContainer}>
+            <Text style={styles.titleText}>{toast.title}</Text>
+            {toast.message ? <Text style={styles.messageText}>{toast.message}</Text> : null}
+          </View>
 
-            <TouchableOpacity onPress={hideToast} style={styles.closeBtn}>
-              <X color="#A1A1AA" size={18} />
-            </TouchableOpacity>
+          <TouchableOpacity onPress={hideToast} style={styles.closeBtn}>
+            <X color="#A1A1AA" size={18} />
           </TouchableOpacity>
-        </Animated.View>
-      </View>
-    </Modal>
+        </TouchableOpacity>
+      </Animated.View>
+    </View>
   );
 };
 
