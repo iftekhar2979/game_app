@@ -317,7 +317,10 @@ const GenerateAvatarScreen = () => {
     () => savedConfig?.hairColor ?? null,
   );
   const [selectedBodyColor, setSelectedBodyColor] = useState<number | null>(
-    () => seed('bodyColor', avatarCategory === 1 ? 0 : null),
+    // First available tone, for whichever body offers one. Category 1 was the
+    // only body with skin-tone artwork when this was written, which is how the
+    // number came to stand in for "has a tone at all".
+    () => seed('bodyColor', BODY_COLORS.length ? 0 : null),
   );
 
   // Half body state
@@ -467,8 +470,15 @@ const GenerateAvatarScreen = () => {
                   resizeMode="contain"
                 />
 
-                {/* Body Color Layer (Conditional for avatarCategory === 1) */}
-                {avatarCategory === 1 && bodyColorArt.source && (
+                {/* Skin tone.
+
+                    Drawn whenever one resolved, rather than only for category
+                    1. Gating on the number meant a tone picked on any other
+                    body was accepted by the picker, saved, and then rendered
+                    everywhere *except* the editor that had just refused to
+                    show it - the profile and roster draw this layer with no
+                    such test. */}
+                {bodyColorArt.source && (
                   <ArtworkImage
                     source={bodyColorArt.source}
                     fallback={bodyColorArt.fallback}
