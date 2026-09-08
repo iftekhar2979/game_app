@@ -238,6 +238,35 @@ describe('the editor screens draw from the registry, not their own copies', () =
     expect(source).toContain('character.primary');
   });
 
+  /**
+   * A body only shows the slots something was drawn for. A heading over an
+   * empty row reads as artwork failing to load rather than as artwork nobody
+   * has made yet - and a base given its own category legitimately starts with
+   * every slot empty.
+   */
+  it('GenerateAvatarScreen hides a picker with nothing in it', () => {
+    const source = sourceOf('GenerateAvatarScreen');
+
+    for (const list of [
+      'HAIR_STYLES',
+      'BLAZERS',
+      'FULLBODY_HAIR',
+      'FULLBODY_SKIRTS',
+      'FULLBODY_OUTFITS',
+      'SHOES',
+      'BODY_COLORS',
+    ]) {
+      expect(source).toContain(`{${list}.length > 0 &&`);
+    }
+  });
+
+  it('GenerateAvatarScreen says so when a body has no wardrobe at all', () => {
+    const source = sourceOf('GenerateAvatarScreen');
+
+    expect(source).toContain('hasAnyWardrobe');
+    expect(source).toContain('Nothing to wear yet');
+  });
+
   it('GenerateAvatarScreen inverts an index with that same resolver', () => {
     const source = sourceOf('GenerateAvatarScreen');
 

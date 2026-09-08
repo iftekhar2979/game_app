@@ -430,6 +430,21 @@ const GenerateAvatarScreen = () => {
    * rendering as a broken image over the body.
    */
   const bodyColorArt = layerArtwork('bodyColor', selectedBodyColor);
+
+  /**
+   * Whether this body has anything at all drawn for it.
+   *
+   * Every picker hides itself when its slot is empty, which is right - but a
+   * body with nothing in any slot would then show a bare screen with no
+   * explanation. A base given its own category starts exactly there, until
+   * garments are drawn for it.
+   */
+  const hasAnyWardrobe =
+    HAIR_STYLES.length > 0 ||
+    BLAZERS.length > 0 ||
+    FULLBODY_SKIRTS.length > 0 ||
+    SHOES.length > 0 ||
+    BODY_COLORS.length > 0;
   const halfOutfitArt = layerArtwork('outfit', isFullbody ? null : selectedBody);
   const halfHairArt = layerArtwork('hair', isFullbody ? null : selectedHair);
   const fullSkirtArt = layerArtwork('skirt', isFullbody ? selectedFullbodySkirt : null);
@@ -673,11 +688,27 @@ const GenerateAvatarScreen = () => {
         )}
 
         {/* Customization Sections */}
+        {!hasAnyWardrobe && (
+          <View className="mx-6 mb-6 rounded-2xl border border-[#4B1E78] bg-[#1A0B2E] p-5">
+            <Text className="text-white text-[15px] font-bold mb-1">
+              Nothing to wear yet
+            </Text>
+            <Text className="text-gray-400 text-[13px] leading-5">
+              No clothing, hair or shoes have been drawn for this body yet. You
+              can still save it as it is, and anything added later will appear
+              here.
+            </Text>
+          </View>
+        )}
+
         {!isFullbody ? (
           <>
-            {/* Hair Style */}
-            <View className="mb-6">
-              <Text className="text-white text-base font-medium px-6 mb-4">Hair style</Text>
+            {/* Hair Style . Hidden when this body has none: a heading over an
+                empty row reads as artwork failing to load rather than as
+                artwork nobody has drawn yet. */}
+            {HAIR_STYLES.length > 0 && (
+              <View className="mb-6">
+                <Text className="text-white text-base font-medium px-6 mb-4">Hair style</Text>
               <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 24 }}>
                 {HAIR_STYLES.map((hair, index) => (
                   <TouchableOpacity
@@ -697,7 +728,8 @@ const GenerateAvatarScreen = () => {
                   </TouchableOpacity>
                 ))}
               </ScrollView>
-            </View>
+              </View>
+            )}
 
             {/* Hair Color */}
             <View className="mb-6">
@@ -719,9 +751,12 @@ const GenerateAvatarScreen = () => {
               </ScrollView>
             </View>
 
-            {/* Blazer */}
-            <View className="mb-6">
-              <Text className="text-white text-base font-medium px-6 mb-4">Blazer</Text>
+            {/* Blazer . Hidden when this body has none: a heading over an
+                empty row reads as artwork failing to load rather than as
+                artwork nobody has drawn yet. */}
+            {BLAZERS.length > 0 && (
+              <View className="mb-6">
+                <Text className="text-white text-base font-medium px-6 mb-4">Blazer</Text>
               <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 24 }}>
                 {BLAZERS.map((blazer, index) => (
                   <TouchableOpacity
@@ -741,7 +776,8 @@ const GenerateAvatarScreen = () => {
                   </TouchableOpacity>
                 ))}
               </ScrollView>
-            </View>
+              </View>
+            )}
 
             {/* Body Color (Half Body) */}
             {/* Body colour: the tones this character is drawn in.
@@ -826,9 +862,12 @@ const GenerateAvatarScreen = () => {
           </>
         ) : (
           <>
-            {/* Full Body Hair Style */}
-            <View className="mb-6">
-              <Text className="text-white text-base font-medium px-6 mb-4">Full Body Hair</Text>
+            {/* Full Body Hair Style . Hidden when this body has none: a heading over an
+                empty row reads as artwork failing to load rather than as
+                artwork nobody has drawn yet. */}
+            {FULLBODY_HAIR.length > 0 && (
+              <View className="mb-6">
+                <Text className="text-white text-base font-medium px-6 mb-4">Full Body Hair</Text>
               <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 24 }}>
                 {FULLBODY_HAIR.map((hair, index) => {
                   const assetKey = idAt('hair', index);
@@ -848,7 +887,8 @@ const GenerateAvatarScreen = () => {
                   );
                 })}
               </ScrollView>
-            </View>
+              </View>
+            )}
 
             {/* Hair Color (Shared) */}
             <View className="mb-6">
@@ -951,8 +991,9 @@ const GenerateAvatarScreen = () => {
               </View>
             )}
 
-            <View className="mb-6">
-              <Text className="text-white text-base font-medium px-6 mb-4">Skirt</Text>
+            {FULLBODY_SKIRTS.length > 0 && (
+              <View className="mb-6">
+                <Text className="text-white text-base font-medium px-6 mb-4">Skirt</Text>
               <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 24 }}>
                 {FULLBODY_SKIRTS.map((skirt, index) => {
                   const assetKey = idAt('skirt', index);
@@ -972,7 +1013,8 @@ const GenerateAvatarScreen = () => {
                   );
                 })}
               </ScrollView>
-            </View>
+              </View>
+            )}
 
             {FULLBODY_OUTFITS.length > 0 && (
               <View className="mb-6">
