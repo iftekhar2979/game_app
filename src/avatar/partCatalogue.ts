@@ -21,21 +21,32 @@ import { AvatarAsset, AvatarSlot, AvatarTarget } from './types';
  * are appended after them. The prefix a selection was made against never moves.
  */
 
-/** Whether a catalogue row is a garment this body could wear. */
+/**
+ * Whether a catalogue row is a garment this body could wear.
+ *
+ * The catalogue names the bases a garment fits, so that is what decides it.
+ * Matching on the category number is the fallback, for rows the server has not
+ * backfilled yet - it is the same fact stated by proxy, and was the only form
+ * of it before the link existed.
+ */
 function fitsBase(
   asset: Partial<AvatarCatalogueAsset>,
   slot: AvatarSlot,
   target: AvatarTarget,
   category: number,
+  baseId?: string | null,
 ): boolean {
-  return (
-    asset.slot === slot &&
-    asset.target === target &&
-    (asset.categories ?? []).includes(category) &&
-    // Artwork is required: a row with neither an upload nor a bundled file
-    // would render as a hole in the picker.
-    (!!asset.imageUrl || !!getAssetById(slot, asset.key))
-  );
+  if (asset.slot !== slot || asset.target !== target) return false;
+
+  // Artwork is required: a row with neither an upload nor a bundled file would
+  // render as a hole in the picker.
+  const drawable = !!asset.imageUrl || !!getAssetById(slot, asset.key);
+  if (!drawable) return false;
+
+  const links = asset.compatibleBaseKeys ?? [];
+  if (links.length) return !!baseId && links.includes(baseId);
+
+  return (asset.categories ?? []).includes(category);
 }
 
 /**
@@ -54,6 +65,7 @@ export function resolveParts(
   target: AvatarTarget,
   category: number,
   assets?: CatalogueAssets | null,
+  baseId?: string | null,
 ): AvatarAsset[] {
   const bundled = listFor(slot, target, category);
   if (!assets) return bundled;
@@ -66,7 +78,7 @@ export function resolveParts(
       (row) =>
         !known.has(row.key) &&
         !row.isRetired &&
-        fitsBase(row, slot, target, category),
+        fitsBase(row, slot, target, category, baseId),
     )
     .sort(
       (a, b) =>

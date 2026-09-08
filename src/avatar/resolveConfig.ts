@@ -34,7 +34,7 @@ export function defaultConfig(
   const parts: AvatarConfig['parts'] = {};
 
   for (const slot of AVATAR_SLOTS) {
-    const options = resolveParts(slot, base.target, base.category, catalogue);
+    const options = resolveParts(slot, base.target, base.category, catalogue, base.id);
     parts[slot] = options.length ? options[0].id : null;
   }
 

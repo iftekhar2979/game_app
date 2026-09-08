@@ -182,3 +182,81 @@ describe('recognising a saved part', () => {
     expect(isKnownPart('outfit', 'new_shirt_1', lookup(row({ imageUrl: null })))).toBe(false);
   });
 });
+
+/**
+ * The catalogue names the bases a garment fits, so that link decides it. The
+ * category number is the same fact by proxy, kept only as the fallback for
+ * rows the server has not backfilled.
+ */
+describe('the explicit base link', () => {
+  const BASE_ID = 'base_avatar_3';
+
+  it('offers a garment linked to this body', () => {
+    const merged = resolveParts(
+      'outfit',
+      TARGET,
+      CATEGORY,
+      lookup(row({ compatibleBaseKeys: [BASE_ID] })),
+      BASE_ID,
+    );
+
+    expect(merged.map((a) => a.id)).toContain('new_shirt_1');
+  });
+
+  // The link wins outright: a garment naming another body is not offered here
+  // even though its category still matches.
+  it('refuses a garment linked to a different body', () => {
+    const merged = resolveParts(
+      'outfit',
+      TARGET,
+      CATEGORY,
+      lookup(row({ compatibleBaseKeys: ['some_other_base'] })),
+      BASE_ID,
+    );
+
+    expect(merged.map((a) => a.id)).not.toContain('new_shirt_1');
+  });
+
+  it('refuses a linked garment when the body is unknown', () => {
+    const merged = resolveParts(
+      'outfit',
+      TARGET,
+      CATEGORY,
+      lookup(row({ compatibleBaseKeys: [BASE_ID] })),
+      null,
+    );
+
+    expect(merged.map((a) => a.id)).not.toContain('new_shirt_1');
+  });
+
+  it('offers a garment linked to several bodies, including this one', () => {
+    const merged = resolveParts(
+      'outfit',
+      TARGET,
+      CATEGORY,
+      lookup(row({ compatibleBaseKeys: ['other', BASE_ID] })),
+      BASE_ID,
+    );
+
+    expect(merged.map((a) => a.id)).toContain('new_shirt_1');
+  });
+
+  // Half a catalogue may be backfilled; the other half must still work.
+  it('falls back to the category when a garment has no links', () => {
+    const merged = resolveParts(
+      'outfit',
+      TARGET,
+      CATEGORY,
+      lookup(row({ compatibleBaseKeys: [] })),
+      BASE_ID,
+    );
+
+    expect(merged.map((a) => a.id)).toContain('new_shirt_1');
+  });
+
+  it('still matches on category when nothing passes a base id at all', () => {
+    const merged = resolveParts('outfit', TARGET, CATEGORY, lookup(row()));
+
+    expect(merged.map((a) => a.id)).toContain('new_shirt_1');
+  });
+});
