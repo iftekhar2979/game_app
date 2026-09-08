@@ -37,7 +37,7 @@ const randomIdFor = (
   base: AvatarBase,
   assets?: CatalogueAssets | null,
 ): string | null => {
-  const options = resolveParts(slot, base.target, base.category, assets);
+  const options = resolveParts(slot, base.target, base.category, assets, base.id);
   if (!options.length) return null;
 
   return options[Math.floor(Math.random() * options.length)].id;

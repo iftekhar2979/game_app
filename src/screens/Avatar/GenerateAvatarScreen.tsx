@@ -107,36 +107,6 @@ const GenerateAvatarScreen = () => {
    * they have to be the very same list or an index would resolve to a garment
    * other than the one on screen.
    */
-  const optionsFor = useMemo(() => {
-    const cache: Partial<Record<AvatarSlot, ReturnType<typeof resolveParts>>> = {};
-    return (slot: AvatarSlot, t = target, c = avatarCategory) => {
-      const key = `${slot}:${t}:${c}` as AvatarSlot;
-      if (!cache[key]) cache[key] = resolveParts(slot, t, c, catalogue.assets);
-      return cache[key]!;
-    };
-  }, [catalogue.assets, target, avatarCategory]);
-
-  const HAIR_STYLES = optionsFor('hair');
-  const BLAZERS = optionsFor('outfit');
-  const FULLBODY_HAIR = HAIR_STYLES;
-  const FULLBODY_OUTFITS = BLAZERS;
-  const FULLBODY_SKIRTS = optionsFor('skirt');
-  const SHOES = optionsFor('shoes');
-  const BODY_COLORS = optionsFor('bodyColor');
-
-  const isFullbody = route.params?.isFullbody === true;
-
-  /**
-   * The base this look is built on.
-   *
-   * By id when the caller sent one, which is the only thing that identifies a
-   * base once two can share a category - a dashboard-created base is free to
-   * reuse an existing one. Target + category remain the fallback so anything
-   * that navigates here without an id behaves exactly as before.
-   *
-   * Never the `require()` handle: the saved config stores a stable id, not a
-   * bundler-assigned number.
-   */
   const bases = useMemo(() => resolveBases(catalogue.assets), [catalogue.assets]);
 
   /**
@@ -166,6 +136,42 @@ const GenerateAvatarScreen = () => {
     [activeBase, bases],
   );
 
+  // The body the lists are for. Named separately so the memo below depends on
+  // the id rather than the whole object, which is rebuilt on every resolve.
+  const activeBaseId = activeBase?.id ?? chosenBaseId ?? route.params?.baseId ?? null;
+
+  const optionsFor = useMemo(() => {
+    const cache: Partial<Record<AvatarSlot, ReturnType<typeof resolveParts>>> = {};
+    return (slot: AvatarSlot, t = target, c = avatarCategory) => {
+      const key = `${slot}:${t}:${c}:${activeBaseId ?? ''}` as AvatarSlot;
+      if (!cache[key]) {
+        cache[key] = resolveParts(slot, t, c, catalogue.assets, activeBaseId);
+      }
+      return cache[key]!;
+    };
+  }, [catalogue.assets, target, avatarCategory, activeBaseId]);
+
+  const HAIR_STYLES = optionsFor('hair');
+  const BLAZERS = optionsFor('outfit');
+  const FULLBODY_HAIR = HAIR_STYLES;
+  const FULLBODY_OUTFITS = BLAZERS;
+  const FULLBODY_SKIRTS = optionsFor('skirt');
+  const SHOES = optionsFor('shoes');
+  const BODY_COLORS = optionsFor('bodyColor');
+
+  const isFullbody = route.params?.isFullbody === true;
+
+  /**
+   * The base this look is built on.
+   *
+   * By id when the caller sent one, which is the only thing that identifies a
+   * base once two can share a category - a dashboard-created base is free to
+   * reuse an existing one. Target + category remain the fallback so anything
+   * that navigates here without an id behaves exactly as before.
+   *
+   * Never the `require()` handle: the saved config stores a stable id, not a
+   * bundler-assigned number.
+   */
   /**
    * The pickers still hold indices into their filtered lists; the registry
    * preserves that same order, so an index maps back to a stable asset id here.

@@ -21,6 +21,13 @@ export interface AvatarAssetResponse {
   target: 'female' | 'male';
   categories: number[];
   isFullbody: boolean;
+  /**
+   * Garment only. The bases it may be worn on, by key.
+   *
+   * The authoritative link. `categories` says the same thing by proxy and is
+   * the fallback for anything the server has not backfilled.
+   */
+  compatibleBaseKeys?: string[];
   /** Base only. See `AvatarBase` for what each of these means. */
   characterId?: string | null;
   bodyColorId?: string | null;
@@ -61,6 +68,7 @@ export interface AvatarCatalogueAsset {
    * in the bundle and is not once a base can arrive from the catalogue alone.
    */
   isFullbody: boolean;
+  compatibleBaseKeys: string[];
   characterId?: string | null;
   bodyColorId?: string | null;
   blinkEnabled?: boolean;
@@ -94,6 +102,7 @@ export const toCatalogueAsset = (raw: AvatarAssetResponse): AvatarCatalogueAsset
     target: raw.target,
     categories: raw.categories ?? [],
     isFullbody: raw.isFullbody ?? true,
+    compatibleBaseKeys: raw.compatibleBaseKeys ?? [],
     characterId: raw.characterId ?? null,
     bodyColorId: raw.bodyColorId ?? null,
     blinkEnabled: raw.blinkEnabled ?? true,
