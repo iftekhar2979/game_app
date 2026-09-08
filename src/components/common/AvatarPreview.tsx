@@ -190,12 +190,12 @@ export default function AvatarPreview({
           ) : (
             <>
               <Image
-                source={getEyeSource('half', base.target, base.category)}
+                source={getEyeSource('half', base.target, base.id)}
                 style={[styles.layer, { opacity: eyeState === 'half_closed' ? 1 : 0 }]}
                 resizeMode="contain"
               />
               <Image
-                source={getEyeSource('full', base.target, base.category)}
+                source={getEyeSource('full', base.target, base.id)}
                 style={[styles.layer, { opacity: eyeState === 'closed' ? 1 : 0 }]}
                 resizeMode="contain"
               />

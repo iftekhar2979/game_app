@@ -4,7 +4,7 @@ import {
   resolveAssetState,
   toCatalogueLookup,
 } from '../src/store/api/avatarAssetsTransforms';
-import { BASES, getAssetById, listFor } from '../src/avatar/registry';
+import { ASSETS, BASES, getAssetById } from '../src/avatar/registry';
 import { describeUsedAssets, normaliseConfig, resolveConfig } from '../src/avatar/resolveConfig';
 import { AvatarConfig } from '../src/avatar/types';
 
@@ -23,7 +23,7 @@ const row = (over: Partial<AvatarAssetResponse> = {}): AvatarAssetResponse => ({
   displayName: 'Hair 6',
   description: null,
   target: 'female',
-  categories: [4, 5, 6],
+  characterId: 'base_avatar_3',
   isFullbody: true,
   bundledId: 'hair6',
   imageUrl: null,
@@ -156,7 +156,9 @@ describe('rendering does not depend on the catalogue', () => {
   });
 
   it('keeps every bundled asset resolvable by its registry id', () => {
-    for (const asset of listFor('hair', 'female', 4)) {
+    // Every bundled id still resolves to artwork, which is the one job the
+    // registry has left. Whether it may be *worn* is the server's answer now.
+    for (const asset of ASSETS.hair) {
       expect(getAssetById('hair', asset.id)).toBeDefined();
     }
     expect(femaleBase.source).toBeTruthy();

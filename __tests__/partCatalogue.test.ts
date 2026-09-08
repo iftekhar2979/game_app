@@ -1,19 +1,31 @@
 import { isKnownPart, resolveParts } from '../src/avatar/partCatalogue';
-import { listFor } from '../src/avatar/registry';
+import { getAssetById } from '../src/avatar/registry';
 
-/** A female body 4, which the bundle has garments for in every slot. */
+/**
+ * What one Base Avatar may wear.
+ *
+ * This file used to assert the opposite contract: that `resolveParts` returned
+ * the bundled list first, at stable indices, with catalogue rows appended. That
+ * was the leak written down as a test - the bundled prefix was selected by
+ * category number and never looked at the body being dressed, so every
+ * character carrying that number was offered the same garments.
+ *
+ * The contract now is that the response *is* the list. The rows handed in are
+ * one character's scoped wardrobe, fetched per character, so there is nothing
+ * left to filter and nothing that can widen it.
+ */
+
 const TARGET = 'female' as const;
-const CATEGORY = 4;
 
 const row = (over: any = {}) => ({
-  key: 'new_shirt_1',
+  key: 'aurora_shirt_1',
   slot: 'outfit',
-  displayName: 'New Shirt',
+  displayName: 'Aurora shirt',
   target: TARGET,
-  categories: [CATEGORY],
+  characterId: 'aurora',
   isFullbody: true,
   bundledId: null,
-  imageUrl: 'https://s3/new_shirt_1.png',
+  imageUrl: 'https://s3/aurora_shirt_1.png',
   previewUrl: null,
   isFree: true,
   isOwned: true,
@@ -27,236 +39,190 @@ const row = (over: any = {}) => ({
 const lookup = (...rows: any[]) =>
   rows.reduce((acc, r) => ({ ...acc, [r.key]: r }), {});
 
-describe('no catalogue', () => {
-  it('falls back to the bundled list, unchanged', () => {
-    const bundled = listFor('outfit', TARGET, CATEGORY);
-    expect(resolveParts('outfit', TARGET, CATEGORY, undefined)).toEqual(bundled);
-    expect(resolveParts('outfit', TARGET, CATEGORY, null)).toEqual(bundled);
-  });
-
-  it('is unchanged by a catalogue that adds nothing', () => {
-    const bundled = listFor('outfit', TARGET, CATEGORY);
-    expect(resolveParts('outfit', TARGET, CATEGORY, {})).toEqual(bundled);
-  });
-});
-
-/**
- * The pickers hold an index into this list and convert it back to an id with
- * the same list. If the order shifted when the catalogue arrived, a selection
- * made a moment earlier would come to mean a different garment.
- */
-describe('index stability', () => {
-  it.each(['outfit', 'skirt', 'shoes', 'hair'] as const)(
-    'keeps every bundled %s at its original index',
-    (slot) => {
-      const bundled = listFor(slot, TARGET, CATEGORY);
-      const merged = resolveParts(slot, TARGET, CATEGORY, lookup(row({ slot })));
-
-      bundled.forEach((asset, index) => {
-        expect(merged[index].id).toBe(asset.id);
-      });
-    },
-  );
-
-  it('appends catalogue-only assets after the bundled ones', () => {
-    const bundled = listFor('outfit', TARGET, CATEGORY);
-    const merged = resolveParts('outfit', TARGET, CATEGORY, lookup(row()));
-
-    expect(merged).toHaveLength(bundled.length + 1);
-    expect(merged[merged.length - 1].id).toBe('new_shirt_1');
-  });
-
-  it('orders appended assets by sortOrder', () => {
-    const merged = resolveParts(
-      'outfit',
-      TARGET,
-      CATEGORY,
-      lookup(
-        row({ key: 'second', sortOrder: 2 }),
-        row({ key: 'first', sortOrder: 1 }),
-      ),
-    );
-    const ids = merged.map((a) => a.id);
-    expect(ids.indexOf('first')).toBeLessThan(ids.indexOf('second'));
-  });
-});
-
-describe('a garment created in the dashboard', () => {
-  it.each(['outfit', 'skirt', 'shoes', 'hair', 'bodyColor'] as const)(
-    'appears in the %s picker',
-    (slot) => {
-      const merged = resolveParts(slot, TARGET, CATEGORY, lookup(row({ slot })));
-      expect(merged.map((a) => a.id)).toContain('new_shirt_1');
-    },
-  );
-
-  it('draws from its uploaded artwork', () => {
-    const merged = resolveParts('outfit', TARGET, CATEGORY, lookup(row()));
-    const added = merged.find((a) => a.id === 'new_shirt_1');
-    expect(added?.source).toEqual({ uri: 'https://s3/new_shirt_1.png' });
-  });
-});
-
-describe('compatibility is respected', () => {
-  it('excludes another slot', () => {
-    const merged = resolveParts('outfit', TARGET, CATEGORY, lookup(row({ slot: 'hair' })));
-    expect(merged.map((a) => a.id)).not.toContain('new_shirt_1');
-  });
-
-  it('excludes the other gender', () => {
-    const merged = resolveParts('outfit', TARGET, CATEGORY, lookup(row({ target: 'male' })));
-    expect(merged.map((a) => a.id)).not.toContain('new_shirt_1');
-  });
-
-  it('excludes a garment drawn for another category', () => {
-    const merged = resolveParts('outfit', TARGET, CATEGORY, lookup(row({ categories: [9] })));
-    expect(merged.map((a) => a.id)).not.toContain('new_shirt_1');
-  });
-
-  it('includes a garment listing several categories, one of which fits', () => {
-    const merged = resolveParts(
-      'outfit',
-      TARGET,
-      CATEGORY,
-      lookup(row({ categories: [CATEGORY, 5, 6] })),
-    );
-    expect(merged.map((a) => a.id)).toContain('new_shirt_1');
-  });
-
-  it('excludes a row with no artwork anywhere', () => {
-    const merged = resolveParts('outfit', TARGET, CATEGORY, lookup(row({ imageUrl: null })));
-    expect(merged.map((a) => a.id)).not.toContain('new_shirt_1');
-  });
-});
-
-describe('retirement', () => {
-  it('hides a retired catalogue-only garment', () => {
-    const merged = resolveParts('outfit', TARGET, CATEGORY, lookup(row({ isRetired: true })));
-    expect(merged.map((a) => a.id)).not.toContain('new_shirt_1');
-  });
-
+describe('the bundle is not a list', () => {
   /**
-   * A retired *bundled* asset stays listed. That is what the app already did -
-   * the tile is dimmed by resolveAssetState rather than removed - and removing
-   * it would shift every index after it.
+   * The single most important assertion in this file.
+   *
+   * `suit1`, `hair6` and the rest are compiled into the app and were previously
+   * returned for any female body of category 4-6. They must now appear only
+   * because a character was assigned them.
    */
-  it('keeps a retired bundled garment in place', () => {
-    const bundled = listFor('outfit', TARGET, CATEGORY);
-    const first = bundled[0];
-    const merged = resolveParts(
+  it('returns nothing for a character with an empty wardrobe', () => {
+    expect(resolveParts('outfit', TARGET, {})).toEqual([]);
+    expect(resolveParts('hair', TARGET, {})).toEqual([]);
+    expect(resolveParts('shoes', TARGET, {})).toEqual([]);
+  });
+
+  it('returns nothing when the wardrobe could not be fetched', () => {
+    // Deliberately not a fallback to the bundle. Falling back would mean
+    // falling back to category matching, and doing so precisely when the
+    // server is unreachable and nobody can see that it happened.
+    expect(resolveParts('outfit', TARGET, undefined)).toEqual([]);
+    expect(resolveParts('outfit', TARGET, null)).toEqual([]);
+  });
+
+  it('offers a bundled asset only when the character was assigned it', () => {
+    const assigned = resolveParts(
       'outfit',
       TARGET,
-      CATEGORY,
-      lookup(row({ key: first.id, isRetired: true })),
+      lookup(row({ key: 'suit1', imageUrl: null, bundledId: 'suit1' })),
     );
 
-    expect(merged[0].id).toBe(first.id);
-    expect(merged).toHaveLength(bundled.length);
+    expect(assigned.map((asset) => asset.id)).toEqual(['suit1']);
+    // And it still draws from the bundle, which is the half that is kept.
+    expect(assigned[0].source).toBe(getAssetById('outfit', 'suit1')!.source);
   });
 });
 
-describe('recognising a saved part', () => {
-  const bundled = listFor('outfit', TARGET, CATEGORY)[0];
+describe('isolation', () => {
+  /**
+   * Two characters whose wardrobes were indistinguishable under the old rules:
+   * same gender, same slot, artwork that used to carry the same category.
+   */
+  const auroraWardrobe = lookup(
+    row({ key: 'aurora_shirt_1', characterId: 'aurora' }),
+    row({ key: 'aurora_hair_1', slot: 'hair', characterId: 'aurora' }),
+  );
 
-  it('recognises a bundled id with no catalogue at all', () => {
-    expect(isKnownPart('outfit', bundled.id, undefined)).toBe(true);
+  const novaWardrobe = lookup(
+    row({ key: 'nova_shirt_1', characterId: 'nova' }),
+    row({ key: 'festival_hat', slot: 'hair', characterId: 'nova' }),
+  );
+
+  it('offers each character only what its own response contained', () => {
+    expect(resolveParts('outfit', TARGET, auroraWardrobe).map((a) => a.id)).toEqual([
+      'aurora_shirt_1',
+    ]);
+    expect(resolveParts('outfit', TARGET, novaWardrobe).map((a) => a.id)).toEqual([
+      'nova_shirt_1',
+    ]);
   });
 
-  // Without this a look wearing a dashboard shirt came back with that slot
-  // emptied, because normaliseConfig only knew the bundle.
-  it('recognises a catalogue-only id', () => {
-    expect(isKnownPart('outfit', 'new_shirt_1', lookup(row()))).toBe(true);
+  it('has no way to reach the other character’s asset', () => {
+    const aurora = resolveParts('hair', TARGET, auroraWardrobe).map((a) => a.id);
+
+    expect(aurora).toEqual(['aurora_hair_1']);
+    expect(aurora).not.toContain('festival_hat');
   });
 
-  it('rejects an id nothing describes', () => {
-    expect(isKnownPart('outfit', 'nope', lookup(row()))).toBe(false);
-    expect(isKnownPart('outfit', null, lookup(row()))).toBe(false);
-    expect(isKnownPart('outfit', undefined, undefined)).toBe(false);
+  it('offers a shared asset to whichever wardrobe contains it', () => {
+    // Sharing is two assignment rows on the server, so it arrives as a row in
+    // both responses. There is no client-side notion of "shared" to get wrong.
+    const shared = row({ key: 'festival_hat', slot: 'hair', isShared: true });
+
+    expect(
+      resolveParts('hair', TARGET, lookup(shared)).map((a) => a.id),
+    ).toEqual(['festival_hat']);
+    expect(
+      resolveParts('hair', TARGET, lookup(row({ key: 'other_hair', slot: 'hair' }))).map(
+        (a) => a.id,
+      ),
+    ).toEqual(['other_hair']);
   });
 
-  it('rejects a catalogue id filed under a different slot', () => {
-    expect(isKnownPart('hair', 'new_shirt_1', lookup(row()))).toBe(false);
+  it('ignores gender entirely', () => {
+    // A male-tagged garment in a female character's wardrobe is offered: the
+    // response decided, and gender is display metadata. The inverse of the old
+    // rule, deliberately.
+    const wardrobe = lookup(row({ key: 'unisex_shirt', target: 'male' }));
+
+    expect(resolveParts('outfit', TARGET, wardrobe).map((a) => a.id)).toEqual([
+      'unisex_shirt',
+    ]);
+  });
+});
+
+describe('ordering', () => {
+  it('follows this character’s arrangement, not the asset’s own', () => {
+    // The point of a per-assignment order: a shared garment can sit first for
+    // one character and last for another, which one field on the asset cannot
+    // express.
+    const wardrobe = lookup(
+      row({ key: 'a_shirt', sortOrder: 0, assignmentSortOrder: 2 }),
+      row({ key: 'b_shirt', sortOrder: 1, assignmentSortOrder: 0 }),
+      row({ key: 'c_shirt', sortOrder: 2, assignmentSortOrder: 1 }),
+    );
+
+    expect(resolveParts('outfit', TARGET, wardrobe).map((a) => a.id)).toEqual([
+      'b_shirt',
+      'c_shirt',
+      'a_shirt',
+    ]);
   });
 
-  it('rejects a catalogue id with no artwork', () => {
-    expect(isKnownPart('outfit', 'new_shirt_1', lookup(row({ imageUrl: null })))).toBe(false);
+  it('falls back to the asset’s own order when there is no assignment order', () => {
+    const wardrobe = lookup(
+      row({ key: 'z_shirt', sortOrder: 0 }),
+      row({ key: 'a_shirt', sortOrder: 1 }),
+    );
+
+    expect(resolveParts('outfit', TARGET, wardrobe).map((a) => a.id)).toEqual([
+      'z_shirt',
+      'a_shirt',
+    ]);
+  });
+});
+
+describe('what is drawable', () => {
+  it('drops a row with no artwork anywhere, rather than showing a hole', () => {
+    const wardrobe = lookup(
+      row({ key: 'ghost_shirt', imageUrl: null, bundledId: null }),
+    );
+
+    expect(resolveParts('outfit', TARGET, wardrobe)).toEqual([]);
+  });
+
+  it('drops a retired row, which cannot be chosen for a new look', () => {
+    const wardrobe = lookup(row({ isRetired: true }));
+
+    expect(resolveParts('outfit', TARGET, wardrobe)).toEqual([]);
+  });
+
+  it('ignores a row sitting in a different slot', () => {
+    const wardrobe = lookup(row({ slot: 'hair' }));
+
+    expect(resolveParts('outfit', TARGET, wardrobe)).toEqual([]);
+  });
+
+  it('prefers uploaded artwork over the bundled copy of the same id', () => {
+    const wardrobe = lookup(
+      row({ key: 'suit1', imageUrl: 'https://s3/suit1.png' }),
+    );
+
+    expect(resolveParts('outfit', TARGET, wardrobe)[0].source).toEqual({
+      uri: 'https://s3/suit1.png',
+    });
   });
 });
 
 /**
- * The catalogue names the bases a garment fits, so that link decides it. The
- * category number is the same fact by proxy, kept only as the fallback for
- * rows the server has not backfilled.
+ * Rendering a saved look, as opposed to choosing a new one.
+ *
+ * `isKnownPart` asks whether something can be *drawn*, never whether it may be
+ * *picked*. A saved avatar only needs the first, which is what lets a look keep
+ * rendering after the part it wears has been retired or unassigned.
  */
-describe('the explicit base link', () => {
-  const BASE_ID = 'base_avatar_3';
-
-  it('offers a garment linked to this body', () => {
-    const merged = resolveParts(
-      'outfit',
-      TARGET,
-      CATEGORY,
-      lookup(row({ compatibleBaseKeys: [BASE_ID] })),
-      BASE_ID,
-    );
-
-    expect(merged.map((a) => a.id)).toContain('new_shirt_1');
+describe('isKnownPart', () => {
+  it('knows every bundled part, with no catalogue at all', () => {
+    expect(isKnownPart('outfit', 'suit1')).toBe(true);
+    expect(isKnownPart('hair', 'hair6')).toBe(true);
   });
 
-  // The link wins outright: a garment naming another body is not offered here
-  // even though its category still matches.
-  it('refuses a garment linked to a different body', () => {
-    const merged = resolveParts(
-      'outfit',
-      TARGET,
-      CATEGORY,
-      lookup(row({ compatibleBaseKeys: ['some_other_base'] })),
-      BASE_ID,
-    );
-
-    expect(merged.map((a) => a.id)).not.toContain('new_shirt_1');
+  it('knows an uploaded part from the catalogue', () => {
+    expect(isKnownPart('outfit', 'aurora_shirt_1', lookup(row()))).toBe(true);
   });
 
-  it('refuses a linked garment when the body is unknown', () => {
-    const merged = resolveParts(
-      'outfit',
-      TARGET,
-      CATEGORY,
-      lookup(row({ compatibleBaseKeys: [BASE_ID] })),
-      null,
+  it('still knows a retired part, so a saved avatar keeps rendering it', () => {
+    // The asymmetry with `resolveParts` above is the whole point: retired is
+    // unpickable, not undrawable.
+    expect(isKnownPart('outfit', 'aurora_shirt_1', lookup(row({ isRetired: true })))).toBe(
+      true,
     );
-
-    expect(merged.map((a) => a.id)).not.toContain('new_shirt_1');
+    expect(isKnownPart('outfit', 'suit1', {})).toBe(true);
   });
 
-  it('offers a garment linked to several bodies, including this one', () => {
-    const merged = resolveParts(
-      'outfit',
-      TARGET,
-      CATEGORY,
-      lookup(row({ compatibleBaseKeys: ['other', BASE_ID] })),
-      BASE_ID,
-    );
-
-    expect(merged.map((a) => a.id)).toContain('new_shirt_1');
-  });
-
-  // Half a catalogue may be backfilled; the other half must still work.
-  it('falls back to the category when a garment has no links', () => {
-    const merged = resolveParts(
-      'outfit',
-      TARGET,
-      CATEGORY,
-      lookup(row({ compatibleBaseKeys: [] })),
-      BASE_ID,
-    );
-
-    expect(merged.map((a) => a.id)).toContain('new_shirt_1');
-  });
-
-  it('still matches on category when nothing passes a base id at all', () => {
-    const merged = resolveParts('outfit', TARGET, CATEGORY, lookup(row()));
-
-    expect(merged.map((a) => a.id)).toContain('new_shirt_1');
+  it('does not know a part that never existed', () => {
+    expect(isKnownPart('outfit', 'never_shipped', {})).toBe(false);
+    expect(isKnownPart('outfit', null)).toBe(false);
   });
 });

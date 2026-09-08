@@ -74,14 +74,14 @@ export type RootStackParamList = {
     // registry, so passing a bundled `require()` handle here would pin it to
     // the bundle.
     //
-    // `baseId` identifies the base outright. `target` + `avatarCategory` are
-    // still accepted, and still the only thing older callers send, but they
-    // cannot tell two bases apart once both share a category - which a
-    // dashboard-created base is free to do.
+    // `baseId` is what identifies the body, and through it the character whose
+    // wardrobe the editor scopes to. `avatarCategory` is gone: a category could
+    // not tell two bodies apart once both carried the same number, and it is no
+    // longer what decides which assets a body may wear.
     baseId?: string;
     isFullbody?: boolean;
+    // Display and layout only - the editor sizes its stage from it.
     target?: 'female' | 'male';
-    avatarCategory?: number;
     returnTo?: keyof RootStackParamList;
     isAccountSetup?: boolean;
     config?: AvatarConfig | null;

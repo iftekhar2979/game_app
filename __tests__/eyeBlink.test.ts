@@ -2,7 +2,7 @@ import {
   blinkOpacity,
   blinkSourcesFor,
   HALF_CLOSED_OPACITY,
-  resolveBases,
+  toBase,
 } from '../src/avatar/baseCatalogue';
 import { BASES, getEyeSource } from '../src/avatar/registry';
 
@@ -11,7 +11,7 @@ const row = (over: any = {}) => ({
   slot: 'base' as const,
   displayName: 'New base',
   target: 'male' as const,
-  categories: [7],
+  characterId: 'new_character',
   isFullbody: true,
   bundledId: null,
   imageUrl: 'https://s3/body.png',
@@ -25,32 +25,30 @@ const row = (over: any = {}) => ({
   ...over,
 });
 
-const lookup = (...rows: any[]) =>
-  rows.reduce((acc, r) => ({ ...acc, [r.key]: r }), {});
-
-const baseFrom = (over: any = {}) =>
-  resolveBases(lookup(row(over))).find((b) => b.id === 'new_base_1')!;
+/** One catalogue row, resolved to the renderable body it describes. */
+const baseFrom = (over: any = {}) => toBase(row(over))!;
 
 describe('the bundled eye fallback', () => {
   /**
-   * The regression: category was tested before target, so any male body whose
-   * category was not 1 or 2 fell through to the female overlay - which is every
-   * male base created since a category stopped being a number an admin types.
+   * The regression this replaced: a category was tested before the target, so
+   * any male body whose number was not 1 or 2 fell through to the female
+   * overlay. Keyed by base id there is no number to fall through, and an
+   * unrecognised male body gets the male overlay by construction.
    */
-  it('gives an unknown male category the male overlay, not the female one', () => {
-    for (const category of [3, 7, 99]) {
-      expect(getEyeSource('half', 'male', category)).toBe(
+  it('gives an unrecognised male body the male overlay, not the female one', () => {
+    for (const baseId of ['new_male_body', 'male_avatar_9', null]) {
+      expect(getEyeSource('half', 'male', baseId)).toBe(
         getEyeSource('half', 'male', 1),
       );
-      expect(getEyeSource('full', 'male', category)).toBe(
+      expect(getEyeSource('full', 'male', baseId)).toBe(
         getEyeSource('full', 'male', 1),
       );
     }
   });
 
   it('never hands a male body the female overlay', () => {
-    for (const category of [1, 2, 3, 7, 99]) {
-      expect(getEyeSource('half', 'male', category)).not.toBe(
+    for (const baseId of ['male_avatar_1', 'male_avatar_2', 'new_male_body']) {
+      expect(getEyeSource('half', 'male', baseId)).not.toBe(
         getEyeSource('half', 'female', 4),
       );
     }
@@ -58,11 +56,17 @@ describe('the bundled eye fallback', () => {
 
   // The five shipped bodies must look exactly as they did.
   it('keeps every bundled body on the overlay it already used', () => {
-    expect(getEyeSource('half', 'male', 1)).not.toBe(getEyeSource('half', 'male', 2));
-    expect(getEyeSource('full', 'male', 1)).not.toBe(getEyeSource('full', 'male', 2));
+    // The two shipped male bodies have separate eye artwork, and are now told
+    // apart by their own ids rather than by a category number.
+    expect(getEyeSource('half', 'male', 'male_avatar_1')).not.toBe(
+      getEyeSource('half', 'male', 'male_avatar_2'),
+    );
+    expect(getEyeSource('full', 'male', 'male_avatar_1')).not.toBe(
+      getEyeSource('full', 'male', 'male_avatar_2'),
+    );
 
-    for (const category of [4, 5, 6]) {
-      expect(getEyeSource('half', 'female', category)).toBe(
+    for (const baseId of ['base_avatar_3', 'base_avatar_4', 'new_female_body']) {
+      expect(getEyeSource('half', 'female', baseId)).toBe(
         getEyeSource('half', 'female', 4),
       );
     }
@@ -75,8 +79,8 @@ describe('the bundled eye fallback', () => {
 
   it('resolves for every bundled body', () => {
     for (const base of BASES) {
-      expect(getEyeSource('half', base.target, base.category)).toBeDefined();
-      expect(getEyeSource('full', base.target, base.category)).toBeDefined();
+      expect(getEyeSource('half', base.target, base.id)).toBeDefined();
+      expect(getEyeSource('full', base.target, base.id)).toBeDefined();
     }
   });
 });

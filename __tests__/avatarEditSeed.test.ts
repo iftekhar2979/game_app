@@ -1,155 +1,196 @@
-import { BASES, indexOfAsset, listFor } from '../src/avatar/registry';
+import { BASES } from '../src/avatar/registry';
+import { resolveParts } from '../src/avatar/partCatalogue';
 import { defaultConfig, normaliseConfig } from '../src/avatar/resolveConfig';
 import { AVATAR_SLOTS, AvatarConfig, AvatarSlot } from '../src/avatar/types';
 
 /**
  * Reopening a saved avatar in the editor.
  *
- * The pickers hold an index into `listFor()`, so edit mode has to turn stored
- * ids back into indices. These pin down that the two directions are exact
- * inverses — a look that round-trips through the editor must come back byte for
- * byte, or saving an untouched avatar would quietly change it.
+ * This file used to be about inverting an index: the pickers held a position in
+ * a list, so edit mode had to turn a stored id back into one, and the two
+ * directions had to be exact inverses or saving an untouched avatar would
+ * quietly change it. The inversion is gone because the index is - a selection
+ * is the stored key itself, so the round trip is an identity rather than a pair
+ * of lookups that have to agree.
+ *
+ * What still needs pinning down is the part that never was automatic: a saved
+ * key is *confirmed* against this character's wardrobe, so a part that has been
+ * retired or unassigned empties its slot instead of quietly resolving to
+ * something else.
  */
 
 const femaleBase = BASES.find((b) => b.id === 'base_avatar_3')!;
-const maleBase = BASES.find((b) => b.id === 'male_avatar_1')!;
 
-/** `idAt` from GenerateAvatarScreen: index -> stored id. */
-const idAt = (slot: AvatarSlot, base: typeof femaleBase, index: number | null) =>
-  index === null ? null : listFor(slot, base.target, base.category)[index]?.id ?? null;
+/** One character's scoped wardrobe, as the server would send it. */
+const wardrobe = (...entries: [AvatarSlot, string][]) =>
+  entries.reduce<Record<string, any>>((byKey, [slot, key]) => {
+    byKey[key] = {
+      key,
+      slot,
+      target: 'female',
+      imageUrl: `https://s3/${key}.png`,
+      isRetired: false,
+      sortOrder: 0,
+    };
+    return byKey;
+  }, {});
 
-/** `seed` from GenerateAvatarScreen: stored id -> picker index. */
+const AURORA = wardrobe(
+  ['hair', 'aurora_hair_1'],
+  ['outfit', 'aurora_shirt_1'],
+  ['skirt', 'aurora_skirt_1'],
+  ['shoes', 'aurora_shoes_1'],
+);
+
+/**
+ * `keyIn` from GenerateAvatarScreen: a selection, confirmed against the list.
+ * `seed`: the saved key for a slot, or the first option for a new look.
+ */
+const keyIn = (
+  slot: AvatarSlot,
+  assets: Record<string, any>,
+  assetKey: string | null,
+): string | null => {
+  if (!assetKey) return null;
+  return resolveParts(slot, 'female', assets).some((asset) => asset.id === assetKey)
+    ? assetKey
+    : null;
+};
+
 const seed = (
   slot: AvatarSlot,
-  base: typeof femaleBase,
+  assets: Record<string, any>,
   config: AvatarConfig | null,
-  fallback: number | null,
-) =>
-  config ? indexOfAsset(slot, base.target, base.category, config.parts?.[slot]) : fallback;
+  fallbackToFirst: boolean,
+): string | null => {
+  const options = resolveParts(slot, 'female', assets);
 
-describe('indexOfAsset', () => {
-  it('is the exact inverse of listFor for every offered part', () => {
-    for (const slot of AVATAR_SLOTS) {
-      const options = listFor(slot, 'female', 4);
+  if (config) {
+    const savedId = config.parts?.[slot];
+    if (!savedId) return null;
+    return options.some((asset) => asset.id === savedId) ? savedId : null;
+  }
 
-      options.forEach((asset, index) => {
-        expect(indexOfAsset(slot, 'female', 4, asset.id)).toBe(index);
-      });
-    }
-  });
+  return fallbackToFirst && options.length ? options[0].id : null;
+};
 
-  it('returns null for a retired or unknown id, never a stale index', () => {
-    expect(indexOfAsset('hair', 'female', 4, 'hair_that_was_deleted')).toBeNull();
-    expect(indexOfAsset('hair', 'female', 4, null)).toBeNull();
-    expect(indexOfAsset('hair', 'female', 4, undefined)).toBeNull();
-  });
-
-  it('does not match a part belonging to another base', () => {
-    // `suit1` is female artwork; a male base must not resolve it.
-    expect(indexOfAsset('outfit', 'female', 4, 'suit1')).toBe(0);
-    expect(indexOfAsset('outfit', 'male', 1, 'suit1')).toBeNull();
-  });
-});
-
-describe('edit mode seeding', () => {
-  const savedLook: AvatarConfig = {
+describe('a saved look round-trips unchanged', () => {
+  const saved: AvatarConfig = {
     version: 1,
     base: 'base_avatar_3',
     parts: {
       bodyColor: null,
-      skirt: 'short_pant_2',
-      shoes: 'shoe_1',
-      outfit: 'necksleb_1',
-      hair: 'hair6',
+      hair: 'aurora_hair_1',
+      outfit: 'aurora_shirt_1',
+      skirt: 'aurora_skirt_1',
+      shoes: 'aurora_shoes_1',
     },
     hairColor: '#A33327',
   };
 
-  it('restores every saved part to its picker index', () => {
-    expect(seed('hair', femaleBase, savedLook, 0)).toBe(1);
-    expect(seed('outfit', femaleBase, savedLook, 0)).toBe(3);
-    expect(seed('skirt', femaleBase, savedLook, 0)).toBe(2);
-    expect(seed('shoes', femaleBase, savedLook, 0)).toBe(3);
-  });
-
-  it('round-trips a saved look back to an identical config', () => {
-    const rebuilt: AvatarConfig['parts'] = {};
+  it('seeds every slot with exactly the key that was saved', () => {
     for (const slot of AVATAR_SLOTS) {
-      rebuilt[slot] = idAt(slot, femaleBase, seed(slot, femaleBase, savedLook, 0));
+      expect(seed(slot, AURORA, saved, true)).toBe(saved.parts[slot] ?? null);
     }
-
-    expect(rebuilt).toEqual(savedLook.parts);
   });
 
-  it('round-trips the default look too, so re-saving an untouched avatar is a no-op', () => {
-    const saved = defaultConfig(maleBase);
+  it('rebuilds the identical config, so saving an untouched avatar changes nothing', () => {
+    const rebuilt: AvatarConfig = {
+      ...saved,
+      parts: Object.fromEntries(
+        AVATAR_SLOTS.map((slot) => [slot, keyIn(slot, AURORA, seed(slot, AURORA, saved, true))]),
+      ),
+    };
 
-    const rebuilt: AvatarConfig['parts'] = {};
+    expect(rebuilt).toEqual(saved);
+  });
+
+  /**
+   * The failure an index-based seed had and a key-based one cannot.
+   *
+   * Reordering used to move every selection made against the old order. A key
+   * means the same thing whatever position it occupies.
+   */
+  it('is unaffected by the wardrobe being reordered', () => {
+    const reordered = Object.fromEntries(
+      Object.entries(AURORA).map(([key, row]) => [key, { ...row, sortOrder: -(row.sortOrder ?? 0) }]),
+    );
+
     for (const slot of AVATAR_SLOTS) {
-      rebuilt[slot] = idAt(slot, maleBase, seed(slot, maleBase, saved, 0));
+      expect(seed(slot, reordered, saved, true)).toBe(seed(slot, AURORA, saved, true));
     }
-
-    expect(rebuilt).toEqual(saved.parts);
   });
 
-  it('keeps a deliberately empty slot empty instead of falling back to option 0', () => {
-    const noShoes = { ...savedLook, parts: { ...savedLook.parts, shoes: null } };
+  it('is unaffected by new artwork being added to the character', () => {
+    const grown = { ...AURORA, ...wardrobe(['hair', 'aurora_hair_2']) };
 
-    expect(seed('shoes', femaleBase, noShoes, 0)).toBeNull();
-    expect(idAt('shoes', femaleBase, seed('shoes', femaleBase, noShoes, 0))).toBeNull();
+    expect(seed('hair', grown, saved, true)).toBe('aurora_hair_1');
   });
+});
 
-  it('empties a slot whose art was retired rather than selecting different art', () => {
-    const retired = { ...savedLook, parts: { ...savedLook.parts, outfit: 'gone_forever' } };
+describe('a saved part that is no longer available', () => {
+  const withRetiredHair = {
+    ...AURORA,
+    aurora_hair_1: { ...AURORA.aurora_hair_1, isRetired: true },
+  };
 
-    expect(seed('outfit', femaleBase, retired, 0)).toBeNull();
-  });
-
-  it('restores the hair tint, including "no tint"', () => {
-    expect(savedLook.hairColor).toBe('#A33327');
-    expect({ ...savedLook, hairColor: null }.hairColor).toBeNull();
-  });
-
-  it('restores the skin overlay on a base that uses one', () => {
-    const maleLook: AvatarConfig = {
+  it('empties the slot rather than resolving to something else', () => {
+    const saved: AvatarConfig = {
       version: 1,
-      base: 'male_avatar_1',
-      parts: { bodyColor: 'brown_yellow', skirt: null, shoes: null, outfit: null, hair: null },
+      base: 'base_avatar_3',
+      parts: { bodyColor: null, hair: 'aurora_hair_1', outfit: 'aurora_shirt_1', skirt: null, shoes: null },
       hairColor: null,
     };
 
-    expect(seed('bodyColor', maleBase, maleLook, 0)).toBe(0);
+    expect(seed('hair', withRetiredHair, saved, true)).toBeNull();
+    // The rest of the look is untouched.
+    expect(seed('outfit', withRetiredHair, saved, true)).toBe('aurora_shirt_1');
+  });
+
+  it('empties a slot holding another character’s asset', () => {
+    // The case an attacker or a stale screen produces. The server refuses it
+    // on save too; this is the editor refusing to show it in the first place.
+    const saved: AvatarConfig = {
+      version: 1,
+      base: 'base_avatar_3',
+      parts: { bodyColor: null, hair: 'nova_hair_1', outfit: null, skirt: null, shoes: null },
+      hairColor: null,
+    };
+
+    expect(seed('hair', AURORA, saved, true)).toBeNull();
+    expect(keyIn('hair', AURORA, 'nova_hair_1')).toBeNull();
   });
 });
 
-describe('create mode is unaffected', () => {
-  it('falls back to the first option in every slot when no config is passed', () => {
-    for (const slot of AVATAR_SLOTS) {
-      expect(seed(slot, femaleBase, null, 0)).toBe(0);
+describe('a brand-new look', () => {
+  it('starts on the first thing this character was assigned in each slot', () => {
+    for (const slot of ['hair', 'outfit', 'skirt', 'shoes'] as AvatarSlot[]) {
+      expect(seed(slot, AURORA, null, true)).toBe(resolveParts(slot, 'female', AURORA)[0].id);
     }
   });
 
-  it('keeps the bodyColor default that only category 1 gets', () => {
-    expect(seed('bodyColor', maleBase, null, 0)).toBe(0);
-    expect(seed('bodyColor', femaleBase, null, null)).toBeNull();
+  it('starts empty in a slot the character owns nothing in', () => {
+    expect(seed('bodyColor', AURORA, null, true)).toBeNull();
+  });
+
+  it('matches what defaultConfig builds from the same wardrobe', () => {
+    const config = defaultConfig(femaleBase, AURORA);
+
+    for (const slot of AVATAR_SLOTS) {
+      expect(config.parts[slot] ?? null).toBe(seed(slot, AURORA, null, true));
+    }
   });
 });
 
-describe('legacy documents', () => {
-  it('opens on defaults rather than mis-seeding from the old index shape', () => {
-    // The pre-registry client stored indices into a filtered array. Those cannot
-    // be mapped back, so `normaliseConfig` rejects them and edit mode falls
-    // through to create-mode defaults.
-    const legacy = {
-      target: 'female',
-      avatarCategory: 4,
-      isFullbody: true,
-      details: { selectedFullbodyHair: 1, selectedShoes: 0 },
+describe('normalisation', () => {
+  it('leaves a modern config exactly as it was', () => {
+    const saved: AvatarConfig = {
+      version: 1,
+      base: 'base_avatar_3',
+      parts: { bodyColor: null, hair: 'hair6', outfit: 'suit1', skirt: null, shoes: null },
+      hairColor: '#A33327',
     };
 
-    const config = normaliseConfig(legacy);
-
-    expect(config).toBeNull();
-    expect(seed('hair', femaleBase, config, 0)).toBe(0);
+    expect(normaliseConfig(saved)).toEqual(saved);
   });
 });

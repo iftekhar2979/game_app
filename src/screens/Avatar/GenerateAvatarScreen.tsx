@@ -11,7 +11,7 @@ import { RootStackParamList } from '../../../App';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLazyGetPreSignedUrlQuery } from '../../store/api/usersApi';
 import { useSaveAvatarMutation } from '../../store/api/avatarApi';
-import { usePurchaseAvatarAssetMutation } from '../../store/api/avatarAssetsApi';
+import { useGetAvatarCharactersQuery, usePurchaseAvatarAssetMutation } from '../../store/api/avatarAssetsApi';
 import { describePurchaseError } from '../../store/api/avatarAssetsTransforms';
 import { useAssetCatalogue } from '../../avatar/useAssetCatalogue';
 import AssetPickerTile from '../../components/Avatar/AssetPickerTile';
@@ -42,8 +42,8 @@ import {
   blinkOpacity,
   blinkSourcesFor,
   describeVariant,
-  resolveBases,
-  variantsOf,
+  characterIdOf,
+  tonesForBase,
 } from '../../avatar/baseCatalogue';
 import { resolveParts } from '../../avatar/partCatalogue';
 
@@ -81,41 +81,20 @@ const GenerateAvatarScreen = () => {
   const [getPreSignedUrl] = useLazyGetPreSignedUrlQuery();
   const [isSaving, setIsSaving] = useState(false);
 
-  /**
-   * The backend decides what may be picked; the bundled registry still decides
-   * what gets drawn. A catalogue failure therefore degrades selection only -
-   * every preview on this screen keeps rendering.
-   */
-  const catalogue = useAssetCatalogue();
   const [purchaseAsset] = usePurchaseAvatarAssetMutation();
   const [purchasingKey, setPurchasingKey] = useState<string | null>(null);
   // Strips the preview chrome for the one frame that gets captured.
   const [isCapturing, setIsCapturing] = useState(false);
 
   const target = route.params?.target || 'female';
-  const avatarCategory = route.params?.avatarCategory || 1;
-
-  /**
-   * `resolveParts` already filters by target and category, which is what the seven
-   * hand-written filters here used to do. Half-body and full-body draw the same
-   * hair and outfit lists - they always did, the screen just held two copies.
-   */
-  /**
-   * Options per slot, catalogue included.
-   *
-   * Memoised on the catalogue so the array identity is stable within a render:
-   * the pickers hold indices into these lists and `idAt`/`seed` invert them, so
-   * they have to be the very same list or an index would resolve to a garment
-   * other than the one on screen.
-   */
-  const bases = useMemo(() => resolveBases(catalogue.assets), [catalogue.assets]);
 
   /**
    * Which tone of the character is being worn.
    *
-   * Explore hands over a character rather than a body, so the editor owns the
-   * choice between its tones. Null means "whatever the route asked for", which
-   * is what keeps a saved look reopening on the exact body it was built on.
+   * Explore hands over a body rather than a character, so the editor owns the
+   * choice between that character's tones. Null means "whatever the route
+   * asked for", which is what keeps a saved look reopening on the exact body it
+   * was built on.
    */
   const [chosenBaseId, setChosenBaseId] = useState<string | null>(
     // Read from the route rather than `savedConfig`, which is declared further
@@ -124,33 +103,70 @@ const GenerateAvatarScreen = () => {
     () => route.params?.config?.base ?? route.params?.baseId ?? null,
   );
 
-  const activeBase = useMemo(() => {
-    const chosen = chosenBaseId ? bases.find((b) => b.id === chosenBaseId) : undefined;
-    return (
-      chosen ?? bases.find((b) => b.target === target && b.category === avatarCategory)
-    );
-  }, [bases, chosenBaseId, target, avatarCategory]);
-
-  /** The tones of this character. One entry means there is nothing to choose. */
-  const bodyVariants = useMemo(
-    () => (activeBase ? variantsOf(activeBase, bases) : []),
-    [activeBase, bases],
+  /**
+   * The character whose wardrobe this screen shows.
+   *
+   * Everything on this screen is scoped to it, and the scoping happens on the
+   * server - `useAssetCatalogue` fetches this character's assets and holds no
+   * others, so there is no list here to filter and no filter that could be
+   * wrong. The catalogue decides what may be picked; the bundled registry still
+   * decides what gets drawn, so a network failure degrades selection only.
+   */
+  const characterList = useGetAvatarCharactersQuery();
+  const characterId = useMemo(
+    () => characterIdOf(chosenBaseId, characterList.data),
+    [chosenBaseId, characterList.data],
   );
 
-  // The body the lists are for. Named separately so the memo below depends on
-  // the id rather than the whole object, which is rebuilt on every resolve.
-  const activeBaseId = activeBase?.id ?? chosenBaseId ?? route.params?.baseId ?? null;
+  const catalogue = useAssetCatalogue(characterId);
 
+  /**
+   * Fall back to the first character when nothing chose one.
+   *
+   * Anything navigating here without a body - a deep link, or an older screen -
+   * would otherwise leave `characterId` null, and the wardrobe query is skipped
+   * while it is. Skipped is the right behaviour rather than a bug to route
+   * around: fetching an unscoped catalogue as a default is exactly what this
+   * screen no longer does. So it picks a character instead, and scopes to that.
+   */
+  useEffect(() => {
+    if (chosenBaseId) return;
+
+    const first = characterList.data?.[0];
+    if (first?.primary) setChosenBaseId(first.primary.key);
+  }, [chosenBaseId, characterList.data]);
+
+  /** The tones this character is offered in. One entry means nothing to choose. */
+  const bodyVariants = useMemo(
+    () => tonesForBase(chosenBaseId, catalogue.characters),
+    [chosenBaseId, catalogue.characters],
+  );
+
+  const activeBase = useMemo(
+    () =>
+      bodyVariants.find((base) => base.id === chosenBaseId) ?? bodyVariants[0],
+    [bodyVariants, chosenBaseId],
+  );
+
+  const activeBaseId = activeBase?.id ?? chosenBaseId ?? null;
+
+  /**
+   * Options per slot.
+   *
+   * `catalogue.assets` is already this character's wardrobe and nothing else,
+   * so `resolveParts` only has to turn rows into drawable entries. It used to
+   * take a target and a category and do the matching itself, which is what let
+   * one character's garments reach another's picker.
+   */
   const optionsFor = useMemo(() => {
-    const cache: Partial<Record<AvatarSlot, ReturnType<typeof resolveParts>>> = {};
-    return (slot: AvatarSlot, t = target, c = avatarCategory) => {
-      const key = `${slot}:${t}:${c}:${activeBaseId ?? ''}` as AvatarSlot;
-      if (!cache[key]) {
-        cache[key] = resolveParts(slot, t, c, catalogue.assets, activeBaseId);
+    const cache: Partial<Record<AvatarSlot, AvatarAsset[]>> = {};
+    return (slot: AvatarSlot): AvatarAsset[] => {
+      if (!cache[slot]) {
+        cache[slot] = resolveParts(slot, activeBase?.target ?? target, catalogue.assets);
       }
-      return cache[key]!;
+      return cache[slot]!;
     };
-  }, [catalogue.assets, target, avatarCategory, activeBaseId]);
+  }, [catalogue.assets, activeBase?.target, target]);
 
   const HAIR_STYLES = optionsFor('hair');
   const BLAZERS = optionsFor('outfit');
@@ -179,29 +195,40 @@ const GenerateAvatarScreen = () => {
    * Only ids are ever persisted - an index would silently point at different
    * artwork as soon as any asset is added or reordered.
    */
-  const idAt = (slot: AvatarSlot, index: number | null): string | null => {
-    if (index === null || index === undefined || !activeBase) return null;
-    const options = optionsFor(slot, activeBase.target, activeBase.category);
-    return options[index]?.id ?? null;
+  /**
+   * A selection, confirmed against what this character is actually offered.
+   *
+   * Selections are stable asset keys rather than indices into the picker list.
+   * They used to be indices, which made every selection depend on the list's
+   * length and order: adding or reordering an asset silently changed what an
+   * already-made choice meant, and the ordering had to be frozen across the
+   * bundled and catalogue halves to stop it. A key means the same thing
+   * whatever the list does.
+   *
+   * Still confirmed rather than trusted, because the list can change under a
+   * held selection: switching tone, or an asset being unassigned between the
+   * screen opening and a save. A key that is no longer offered resolves to
+   * null, which empties the slot rather than saving something this character
+   * may not wear.
+   */
+  const keyIn = (slot: AvatarSlot, assetKey: string | null): string | null => {
+    if (!assetKey) return null;
+    return optionsFor(slot).some((asset) => asset.id === assetKey) ? assetKey : null;
   };
 
   /**
-   * Artwork for a picker index, uploaded where the catalogue has any.
+   * Artwork for a selected key, uploaded where the catalogue has any.
    *
    * `layerArtwork` feeds the preview stage and needs the full-resolution image;
    * `tileArtwork` feeds the 72px picker tiles and prefers the smaller preview,
    * because a layer PNG is painted on a full-body canvas and the bases run to
    * half a megabyte each.
    */
-  const layerArtwork = (slot: AvatarSlot, index: number | null): ArtworkWithFallback =>
-    artworkForAsset(slot, idAt(slot, index), catalogue.artwork);
+  const layerArtwork = (slot: AvatarSlot, assetKey: string | null): ArtworkWithFallback =>
+    artworkForAsset(slot, keyIn(slot, assetKey), catalogue.artwork);
 
-  const tileArtwork = (
-    slot: AvatarSlot,
-    index: number,
-    asset: AvatarAsset,
-  ): ArtworkWithFallback => {
-    const artwork = previewArtworkForAsset(slot, idAt(slot, index), catalogue.artwork);
+  const tileArtwork = (slot: AvatarSlot, asset: AvatarAsset): ArtworkWithFallback => {
+    const artwork = previewArtworkForAsset(slot, asset.id, catalogue.artwork);
     return { source: artwork.source ?? asset.source, fallback: artwork.fallback ?? asset.source };
   };
 
@@ -219,23 +246,26 @@ const GenerateAvatarScreen = () => {
   const savedConfig = route.params?.config ?? null;
 
   /**
-   * The picker index for a saved part — the exact inverse of `idAt` above, so a
-   * config that round-trips through the editor comes back unchanged.
+   * The saved key for a slot, confirmed against this character's wardrobe.
    *
-   * A slot the user deliberately left empty stays empty, and a part whose art
-   * has since been retired resolves to `null` rather than to whatever now sits
-   * at that index.
+   * A slot the user deliberately left empty stays empty. A part that has since
+   * been retired, or unassigned from this character, resolves to null rather
+   * than to whatever now sits where it used to - which is what an index-based
+   * seed did, and why reopening a look could silently redress it.
+   *
+   * `fallbackToFirst` is what a brand-new look wants: the first thing this
+   * character was assigned in that slot.
    */
-  const seed = (slot: AvatarSlot, fallback: number | null): number | null => {
-    if (!savedConfig || !activeBase) return fallback;
-    // Inverted against the same merged list the pickers render, so a saved
-    // part that came from the catalogue seeds correctly too.
-    const savedId = savedConfig.parts?.[slot];
-    if (!savedId) return null;
-    const index = optionsFor(slot, activeBase.target, activeBase.category).findIndex(
-      (asset) => asset.id === savedId,
-    );
-    return index >= 0 ? index : null;
+  const seed = (slot: AvatarSlot, fallbackToFirst: boolean): string | null => {
+    const options = optionsFor(slot);
+
+    if (savedConfig) {
+      const savedId = savedConfig.parts?.[slot];
+      if (!savedId) return null;
+      return options.some((asset) => asset.id === savedId) ? savedId : null;
+    }
+
+    return fallbackToFirst && options.length ? options[0].id : null;
   };
 
   /**
@@ -246,8 +276,8 @@ const GenerateAvatarScreen = () => {
    * tile is disabled for the duration, and the mutation is only ever in flight
    * for one asset at a time.
    */
-  const handlePurchase = async (slot: AvatarSlot, index: number) => {
-    const key = idAt(slot, index);
+  const handlePurchase = async (slot: AvatarSlot, assetKey: string) => {
+    const key = keyIn(slot, assetKey);
     if (!key || purchasingKey) return;
 
     try {
@@ -277,8 +307,8 @@ const GenerateAvatarScreen = () => {
   };
 
   /** Says why a tap did nothing, for assets that cannot simply be bought. */
-  const explainBlocked = (slot: AvatarSlot, index: number) => {
-    const availability = catalogue.stateOf(idAt(slot, index)).availability;
+  const explainBlocked = (slot: AvatarSlot, assetKey: string) => {
+    const availability = catalogue.stateOf(keyIn(slot, assetKey)).availability;
 
     if (availability === 'retired') {
       showToast.info(
@@ -297,11 +327,11 @@ const GenerateAvatarScreen = () => {
     version: REGISTRY_VERSION,
     base: activeBase!.id,
     parts: {
-      bodyColor: idAt('bodyColor', selectedBodyColor),
-      skirt: idAt('skirt', isFullbody ? selectedFullbodySkirt : null),
-      shoes: idAt('shoes', isFullbody ? selectedShoes : null),
-      outfit: idAt('outfit', isFullbody ? selectedFullbodyOutfit : selectedBody),
-      hair: idAt('hair', isFullbody ? selectedFullbodyHair : selectedHair),
+      bodyColor: keyIn('bodyColor', selectedBodyColor),
+      skirt: keyIn('skirt', isFullbody ? selectedFullbodySkirt : null),
+      shoes: keyIn('shoes', isFullbody ? selectedShoes : null),
+      outfit: keyIn('outfit', isFullbody ? selectedFullbodyOutfit : selectedBody),
+      hair: keyIn('hair', isFullbody ? selectedFullbodyHair : selectedHair),
     },
     hairColor: selectedHairColor,
   });
@@ -319,7 +349,6 @@ const GenerateAvatarScreen = () => {
 
     prefetchEditorArtwork(
       activeBase.target,
-      activeBase.category,
       activeBase.id,
       catalogue.artwork,
     ).catch(() => undefined);
@@ -339,9 +368,8 @@ const GenerateAvatarScreen = () => {
   // own. Resolved from the body actually being worn rather than the route, so a
   // catalogue base with no artwork still gets overlays drawn for its target.
   const eyeTarget = activeBase?.target ?? target;
-  const eyeCategory = activeBase?.category ?? avatarCategory;
-  const halfClosedEyeSource = getEyeSource('half', eyeTarget, eyeCategory);
-  const fullClosedEyeSource = getEyeSource('full', eyeTarget, eyeCategory);
+  const halfClosedEyeSource = getEyeSource('half', eyeTarget, activeBaseId);
+  const fullClosedEyeSource = getEyeSource('full', eyeTarget, activeBaseId);
 
   // Every picker is seeded in its useState initializer, so edit mode's first
   // paint is already the saved look. Hydrating in an effect instead would flash
@@ -351,33 +379,32 @@ const GenerateAvatarScreen = () => {
   const [selectedHairColor, setSelectedHairColor] = useState<string | null>(
     () => savedConfig?.hairColor ?? null,
   );
-  const [selectedBodyColor, setSelectedBodyColor] = useState<number | null>(
-    // First available tone, for whichever body offers one. Category 1 was the
-    // only body with skin-tone artwork when this was written, which is how the
-    // number came to stand in for "has a tone at all".
-    () => seed('bodyColor', BODY_COLORS.length ? 0 : null),
+  // A skin overlay only exists for a character that was assigned one, so the
+  // list being empty is the whole test - no number stands in for it any more.
+  const [selectedBodyColor, setSelectedBodyColor] = useState<string | null>(
+    () => seed('bodyColor', true),
   );
 
   // Half body state
-  const [selectedHair, setSelectedHair] = useState<number | null>(
-    () => (!isFullbody ? seed('hair', 0) : null),
+  const [selectedHair, setSelectedHair] = useState<string | null>(
+    () => (!isFullbody ? seed('hair', true) : null),
   );
-  const [selectedBody, setSelectedBody] = useState<number | null>(
-    () => (!isFullbody ? seed('outfit', 0) : null),
+  const [selectedBody, setSelectedBody] = useState<string | null>(
+    () => (!isFullbody ? seed('outfit', true) : null),
   );
 
   // Full body state
-  const [selectedFullbodyHair, setSelectedFullbodyHair] = useState<number | null>(
-    () => (isFullbody ? seed('hair', 0) : null),
+  const [selectedFullbodyHair, setSelectedFullbodyHair] = useState<string | null>(
+    () => (isFullbody ? seed('hair', true) : null),
   );
-  const [selectedFullbodySkirt, setSelectedFullbodySkirt] = useState<number | null>(
-    () => (isFullbody ? seed('skirt', 0) : null),
+  const [selectedFullbodySkirt, setSelectedFullbodySkirt] = useState<string | null>(
+    () => (isFullbody ? seed('skirt', true) : null),
   );
-  const [selectedFullbodyOutfit, setSelectedFullbodyOutfit] = useState<number | null>(
-    () => (isFullbody ? seed('outfit', 0) : null),
+  const [selectedFullbodyOutfit, setSelectedFullbodyOutfit] = useState<string | null>(
+    () => (isFullbody ? seed('outfit', true) : null),
   );
-  const [selectedShoes, setSelectedShoes] = useState<number | null>(
-    () => (isFullbody ? seed('shoes', 0) : null),
+  const [selectedShoes, setSelectedShoes] = useState<string | null>(
+    () => (isFullbody ? seed('shoes', true) : null),
   );
 
   // Eye Animation State
@@ -750,12 +777,12 @@ const GenerateAvatarScreen = () => {
                     key={`hair-${index}`}
                     activeOpacity={0.8}
                     className="mr-3 items-center"
-                    onPress={() => setSelectedHair(index)}
+                    onPress={() => setSelectedHair(hair.id)}
                   >
                     <View className="w-[72px] h-[90px] rounded-xl border border-[#5B1F7D] bg-[#1A0B2E] overflow-hidden justify-end pb-6">
                       <ArtworkImage
-                        source={tileArtwork('hair', index, hair).source}
-                        fallback={tileArtwork('hair', index, hair).fallback}
+                        source={tileArtwork('hair', hair).source}
+                        fallback={tileArtwork('hair', hair).fallback}
                         className="w-[180%] h-[180%] absolute top-[-40%] left-[-40%]"
                         resizeMode="cover"
                       />
@@ -798,12 +825,12 @@ const GenerateAvatarScreen = () => {
                     key={`blazer-${index}`}
                     activeOpacity={0.8}
                     className="mr-3 items-center opacity-80"
-                    onPress={() => setSelectedBody(index)}
+                    onPress={() => setSelectedBody(blazer.id)}
                   >
                     <View className="w-[72px] h-[90px] rounded-xl border border-[#3A144E] bg-black/40 overflow-hidden justify-center items-center pb-4">
                       <ArtworkImage
-                        source={tileArtwork('outfit', index, blazer).source}
-                        fallback={tileArtwork('outfit', index, blazer).fallback}
+                        source={tileArtwork('outfit', blazer).source}
+                        fallback={tileArtwork('outfit', blazer).fallback}
                         className="w-[50%] h-[50%]"
                         resizeMode="contain"
                       />
@@ -875,17 +902,17 @@ const GenerateAvatarScreen = () => {
                     accessibilityLabel="No skin tone overlay"
                   />
                   {BODY_COLORS.map((bodyColor, index) => {
-                    const assetKey = idAt('bodyColor', index);
+                    const assetKey = bodyColor.id;
                     return (
                       <AssetPickerTile
                         key={`fb-body-color-${assetKey ?? index}`}
-                        source={tileArtwork('bodyColor', index, bodyColor).source}
+                        source={tileArtwork('bodyColor', bodyColor).source}
                         imageClassName="w-full h-full"
                         state={catalogue.stateOf(assetKey)}
-                        isSelected={selectedBodyColor === index}
-                        onSelect={() => setSelectedBodyColor(index)}
-                        onPurchase={() => handlePurchase('bodyColor', index)}
-                        onBlocked={() => explainBlocked('bodyColor', index)}
+                        isSelected={selectedBodyColor === bodyColor.id}
+                        onSelect={() => setSelectedBodyColor(bodyColor.id)}
+                        onPurchase={() => handlePurchase('bodyColor', assetKey)}
+                        onBlocked={() => explainBlocked('bodyColor', assetKey)}
                         isPurchasing={purchasingKey !== null && purchasingKey === assetKey}
                         accessibilityLabel="Skin tone"
                       />
@@ -905,17 +932,17 @@ const GenerateAvatarScreen = () => {
                 <Text className="text-white text-base font-medium px-6 mb-4">Full Body Hair</Text>
               <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 24 }}>
                 {FULLBODY_HAIR.map((hair, index) => {
-                  const assetKey = idAt('hair', index);
+                  const assetKey = hair.id;
                   return (
                     <AssetPickerTile
                       key={`fb-hair-${assetKey ?? index}`}
-                      source={tileArtwork('hair', index, hair).source}
+                      source={tileArtwork('hair', hair).source}
                       imageClassName="w-[250%] h-[250%] absolute top-[-10%]"
                       state={catalogue.stateOf(assetKey)}
-                      isSelected={selectedFullbodyHair === index}
-                      onSelect={() => setSelectedFullbodyHair(index)}
-                      onPurchase={() => handlePurchase('hair', index)}
-                      onBlocked={() => explainBlocked('hair', index)}
+                      isSelected={selectedFullbodyHair === hair.id}
+                      onSelect={() => setSelectedFullbodyHair(hair.id)}
+                      onPurchase={() => handlePurchase('hair', assetKey)}
+                      onBlocked={() => explainBlocked('hair', assetKey)}
                       isPurchasing={purchasingKey !== null && purchasingKey === assetKey}
                       accessibilityLabel="Hair style"
                     />
@@ -1006,17 +1033,17 @@ const GenerateAvatarScreen = () => {
                     accessibilityLabel="No skin tone overlay"
                   />
                   {BODY_COLORS.map((bodyColor, index) => {
-                    const assetKey = idAt('bodyColor', index);
+                    const assetKey = bodyColor.id;
                     return (
                       <AssetPickerTile
                         key={`fb-body-color-${assetKey ?? index}`}
-                        source={tileArtwork('bodyColor', index, bodyColor).source}
+                        source={tileArtwork('bodyColor', bodyColor).source}
                         imageClassName="w-full h-full"
                         state={catalogue.stateOf(assetKey)}
-                        isSelected={selectedBodyColor === index}
-                        onSelect={() => setSelectedBodyColor(index)}
-                        onPurchase={() => handlePurchase('bodyColor', index)}
-                        onBlocked={() => explainBlocked('bodyColor', index)}
+                        isSelected={selectedBodyColor === bodyColor.id}
+                        onSelect={() => setSelectedBodyColor(bodyColor.id)}
+                        onPurchase={() => handlePurchase('bodyColor', assetKey)}
+                        onBlocked={() => explainBlocked('bodyColor', assetKey)}
                         isPurchasing={purchasingKey !== null && purchasingKey === assetKey}
                         accessibilityLabel="Skin tone"
                       />
@@ -1031,17 +1058,17 @@ const GenerateAvatarScreen = () => {
                 <Text className="text-white text-base font-medium px-6 mb-4">Skirt</Text>
               <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 24 }}>
                 {FULLBODY_SKIRTS.map((skirt, index) => {
-                  const assetKey = idAt('skirt', index);
+                  const assetKey = skirt.id;
                   return (
                     <AssetPickerTile
                       key={`fb-skirt-${assetKey ?? index}`}
-                      source={tileArtwork('skirt', index, skirt).source}
+                      source={tileArtwork('skirt', skirt).source}
                       imageClassName="w-[220%] h-[220%] absolute top-[-40%]"
                       state={catalogue.stateOf(assetKey)}
-                      isSelected={selectedFullbodySkirt === index}
-                      onSelect={() => setSelectedFullbodySkirt(index)}
-                      onPurchase={() => handlePurchase('skirt', index)}
-                      onBlocked={() => explainBlocked('skirt', index)}
+                      isSelected={selectedFullbodySkirt === skirt.id}
+                      onSelect={() => setSelectedFullbodySkirt(skirt.id)}
+                      onPurchase={() => handlePurchase('skirt', assetKey)}
+                      onBlocked={() => explainBlocked('skirt', assetKey)}
                       isPurchasing={purchasingKey !== null && purchasingKey === assetKey}
                       accessibilityLabel="Skirt"
                     />
@@ -1056,17 +1083,17 @@ const GenerateAvatarScreen = () => {
                 <Text className="text-white text-base font-medium px-6 mb-4">Full Body Outfit</Text>
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 24 }}>
                   {FULLBODY_OUTFITS.map((outfit, index) => {
-                    const assetKey = idAt('outfit', index);
+                    const assetKey = outfit.id;
                     return (
                       <AssetPickerTile
                         key={`fb-outfit-${assetKey ?? index}`}
-                        source={tileArtwork('outfit', index, outfit).source}
+                        source={tileArtwork('outfit', outfit).source}
                         imageClassName="w-[220%] h-[220%] absolute top-[-25%]"
                         state={catalogue.stateOf(assetKey)}
-                        isSelected={selectedFullbodyOutfit === index}
-                        onSelect={() => setSelectedFullbodyOutfit(index)}
-                        onPurchase={() => handlePurchase('outfit', index)}
-                        onBlocked={() => explainBlocked('outfit', index)}
+                        isSelected={selectedFullbodyOutfit === outfit.id}
+                        onSelect={() => setSelectedFullbodyOutfit(outfit.id)}
+                        onPurchase={() => handlePurchase('outfit', assetKey)}
+                        onBlocked={() => explainBlocked('outfit', assetKey)}
                         isPurchasing={purchasingKey !== null && purchasingKey === assetKey}
                         accessibilityLabel="Outfit"
                       />
@@ -1081,17 +1108,17 @@ const GenerateAvatarScreen = () => {
                 <Text className="text-white text-base font-medium px-6 mb-4">Shoes</Text>
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 24 }}>
                   {SHOES.map((shoe, index) => {
-                    const assetKey = idAt('shoes', index);
+                    const assetKey = shoe.id;
                     return (
                       <AssetPickerTile
                         key={`fb-shoe-${assetKey ?? index}`}
-                        source={tileArtwork('shoes', index, shoe).source}
+                        source={tileArtwork('shoes', shoe).source}
                         imageClassName="w-[280%] h-[280%] absolute bottom-[0%]"
                         state={catalogue.stateOf(assetKey)}
-                        isSelected={selectedShoes === index}
-                        onSelect={() => setSelectedShoes(index)}
-                        onPurchase={() => handlePurchase('shoes', index)}
-                        onBlocked={() => explainBlocked('shoes', index)}
+                        isSelected={selectedShoes === shoe.id}
+                        onSelect={() => setSelectedShoes(shoe.id)}
+                        onPurchase={() => handlePurchase('shoes', assetKey)}
+                        onBlocked={() => explainBlocked('shoes', assetKey)}
                         isPurchasing={purchasingKey !== null && purchasingKey === assetKey}
                         accessibilityLabel="Shoes"
                       />

@@ -9,39 +9,25 @@ import { useDispatch } from 'react-redux';
 import { authService } from '../../services/authService';
 import { ArtworkCatalogue, artworkForAsset, artworkForBase } from '../../avatar/assetSource';
 import ArtworkImage from '../../components/Avatar/ArtworkImage';
-import { resolveParts } from '../../avatar/partCatalogue';
-import {
-  groupByCharacter,
-  resolveBases,
-  type CatalogueAssets,
-} from '../../avatar/baseCatalogue';
-import { AvatarBase, AvatarSlot } from '../../avatar/types';
+import { tonesOf } from '../../avatar/baseCatalogue';
+import { AvatarSlot } from '../../avatar/types';
 import { useAssetCatalogue } from '../../avatar/useAssetCatalogue';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList, 'ExploreAvatar'>;
 
 /**
- * Every list here comes from `avatar/registry`.
+ * The Base Avatar picker: one card per character.
  *
- * This screen used to carry its own copy of the skirt, shoe, outfit and hair
- * arrays - the same duplication `GenerateAvatarScreen` had - which meant the
- * card previews were bundled `require()` handles and could never show uploaded
- * artwork. Reading the registry is what connects them to the catalogue.
+ * The clothes on each card come from the server, as the assignments an admin
+ * marked as that character's preview default. They used to be picked at random
+ * from everything whose category number matched the body, which meant a card
+ * could advertise a character wearing another character's clothes - the leak,
+ * in its most visible form. Fetching a whole wardrobe per card to fix that
+ * would be one request per card, so the defaults arrive with the characters.
  */
 
-/** The slots a card layers on top of the body, in paint order. */
-const PREVIEW_SLOTS: AvatarSlot[] = ['skirt', 'shoes', 'outfit', 'hair'];
-
-const randomIdFor = (
-  slot: AvatarSlot,
-  base: AvatarBase,
-  assets?: CatalogueAssets | null,
-): string | null => {
-  const options = resolveParts(slot, base.target, base.category, assets, base.id);
-  if (!options.length) return null;
-
-  return options[Math.floor(Math.random() * options.length)].id;
-};
+/** Paint order for the garments a card layers over the body. */
+const PREVIEW_SLOT_ORDER: AvatarSlot[] = ['bodyColor', 'skirt', 'shoes', 'outfit', 'hair'];
 
 const { width } = Dimensions.get('window');
 const CARD_WIDTH = Math.floor((width - 48 - 24) / 3); // 48 for screen padding (px-6 is 24*2), 24 for gaps (12*2)
@@ -57,40 +43,57 @@ const ExploreAvatarScreen = () => {
   const returnTo = route.params?.returnTo;
   const isAccountSetup = route.params?.isAccountSetup === true;
 
-  const { artwork, assets } = useAssetCatalogue();
+  // No character is selected on this screen, so no wardrobe is fetched: the
+  // hook's scoped query stays skipped and only the character list loads.
+  const { characters } = useAssetCatalogue();
 
-  // Catalogue first, bundle as the fallback: a base added in the dashboard
-  // appears here with no app release, and an unreachable catalogue still lists
-  // everything the app ships with.
-  const bases = useMemo(() => resolveBases(assets), [assets]);
+  /**
+   * Artwork for the preview garments, from the character list itself.
+   *
+   * The hook's `artwork` lookup is the *scoped wardrobe*, and nothing is scoped
+   * here - so it is empty, and reading it would silently fall back to bundled
+   * art for every uploaded garment. The preview layers carry their own
+   * `imageUrl`, so they are their own catalogue.
+   */
+  const previewArtwork: ArtworkCatalogue = useMemo(
+    () =>
+      Object.fromEntries(
+        characters.flatMap((character) =>
+          character.previewLayers.map((layer) => [
+            layer.key,
+            { imageUrl: layer.imageUrl, previewUrl: layer.imageUrl },
+          ]),
+        ),
+      ),
+    [characters],
+  );
 
   /**
    * One card per character, not per body.
    *
-   * A character offered in several tones is several bases in the catalogue,
+   * A character offered in several tones is several base rows in the catalogue,
    * and listing them side by side reads as several different people. The tone
    * is chosen inside the editor instead.
    */
-  const characters = useMemo(() => groupByCharacter(bases), [bases]);
-
-  /**
-   * Which parts each card wears, chosen once per mount.
-   *
-   * Only the *ids* are randomised here; the artwork for them is resolved during
-   * render. Randomising the resolved sources instead would reshuffle every card
-   * the moment the catalogue arrived, so a card the user was already looking at
-   * would silently change clothes.
-   */
   const cardParts = useMemo(
     () =>
-      characters.map((character) => ({
-        base: character.primary,
-        parts: PREVIEW_SLOTS.map((slot) => ({
-          slot,
-          assetId: randomIdFor(slot, character.primary, assets),
-        })),
-      })),
-    [characters, assets],
+      characters
+        .map((character) => {
+          const [primary] = tonesOf(character);
+          if (!primary) return null;
+
+          return {
+            base: primary,
+            characterId: character.characterId,
+            parts: [...character.previewLayers].sort(
+              (a, b) =>
+                PREVIEW_SLOT_ORDER.indexOf(a.slot) -
+                PREVIEW_SLOT_ORDER.indexOf(b.slot),
+            ),
+          };
+        })
+        .filter((card): card is NonNullable<typeof card> => card !== null),
+    [characters],
   );
 
   const renderCard = (
@@ -113,13 +116,12 @@ const ExploreAvatarScreen = () => {
         }}
         onPress={() =>
           navigation.navigate('GenerateAvatar', {
-            // The id is what identifies the base now. Target and category are
-            // still sent so the editor works unchanged for anything that
-            // navigates here without one.
+            // The body id is what the editor needs: it identifies the tone to
+            // open on, and the character it belongs to is what scopes every
+            // picker on that screen.
             baseId: base.id,
             isFullbody: base.isFullbody,
             target: base.target,
-            avatarCategory: base.category,
             returnTo,
             isAccountSetup,
           })
@@ -138,8 +140,8 @@ const ExploreAvatarScreen = () => {
           />
 
           {base.isFullbody &&
-            card.parts.map(({ slot, assetId }) => {
-              const art = artworkForAsset(slot, assetId, catalogue);
+            card.parts.map(({ slot, key }) => {
+              const art = artworkForAsset(slot, key, catalogue);
               // A slot with no artwork anywhere is simply not layered on.
               if (!art.source && !art.fallback) return null;
 
@@ -190,7 +192,7 @@ const ExploreAvatarScreen = () => {
 
         {/* Grid List - Half Body */}
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: 24 }}>
-          {halfBodyCards.map((card, index) => renderCard(card, index, artwork))}
+          {halfBodyCards.map((card, index) => renderCard(card, index, previewArtwork))}
         </View>
 
         {/* Full Body Section */}
@@ -200,7 +202,7 @@ const ExploreAvatarScreen = () => {
               <Text className="text-white text-lg font-medium">Full body avatar</Text>
             </View>
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: 24 }}>
-              {fullBodyCards.map((card, index) => renderCard(card, index, artwork))}
+              {fullBodyCards.map((card, index) => renderCard(card, index, previewArtwork))}
             </View>
           </>
         )}

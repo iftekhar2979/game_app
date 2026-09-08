@@ -1,5 +1,5 @@
 import { ArtworkCatalogue, sourceForAsset, sourceForBase } from './assetSource';
-import { getAssetById, getBaseById, listFor, REGISTRY_VERSION } from './registry';
+import { getAssetById, getBaseById, REGISTRY_VERSION } from './registry';
 import { resolveBaseById } from './baseCatalogue';
 import { isKnownPart, resolveParts } from './partCatalogue';
 import { AssetSource, AVATAR_SLOTS, AvatarBase, AvatarConfig, AvatarLayer, AvatarSlot } from './types';
@@ -34,7 +34,11 @@ export function defaultConfig(
   const parts: AvatarConfig['parts'] = {};
 
   for (const slot of AVATAR_SLOTS) {
-    const options = resolveParts(slot, base.target, base.category, catalogue, base.id);
+    // `catalogue` here is one character's scoped wardrobe, so the first option
+    // is the first thing *this* character was assigned. It used to be the first
+    // asset whose category number matched, which is how a default look could be
+    // assembled out of another character's clothes.
+    const options = resolveParts(slot, base.target, catalogue);
     parts[slot] = options.length ? options[0].id : null;
   }
 

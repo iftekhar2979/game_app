@@ -18,18 +18,12 @@ export interface AvatarAssetResponse {
   slot: AvatarSlot | 'base';
   displayName: string;
   description: string | null;
+  /** Display metadata. Never compatibility - see `AvatarCatalogueAsset`. */
   target: 'female' | 'male';
-  categories: number[];
   isFullbody: boolean;
-  /**
-   * Garment only. The bases it may be worn on, by key.
-   *
-   * The authoritative link. `categories` says the same thing by proxy and is
-   * the fallback for anything the server has not backfilled.
-   */
-  compatibleBaseKeys?: string[];
-  /** Base only. See `AvatarBase` for what each of these means. */
+  /** The Base Avatar this row belongs to. */
   characterId?: string | null;
+  /** Base only. See `AvatarBase` for what each of these means. */
   bodyColorId?: string | null;
   blinkEnabled?: boolean;
   normalEyeUrl?: string | null;
@@ -45,6 +39,9 @@ export interface AvatarAssetResponse {
   sortOrder: number;
   /** Present only on the player-facing listing. Free assets come back true. */
   owned?: boolean;
+  /** Present only on a character-scoped listing. See `AvatarCatalogueAsset`. */
+  assignmentSortOrder?: number;
+  isShared?: boolean;
 }
 
 /**
@@ -58,17 +55,23 @@ export interface AvatarCatalogueAsset {
   key: string;
   slot: AvatarSlot | 'base';
   displayName: string;
+  /**
+   * Gender, for display and routing only.
+   *
+   * Deliberately not used to decide what fits. Compatibility is not something
+   * this model can express at all any more: an asset is wearable by exactly the
+   * character whose scoped listing returned it, and there is no field here from
+   * which a client could derive a second opinion. That is the point - the leak
+   * this replaced came from the app matching `target` and `categories` itself.
+   */
   target: 'female' | 'male';
-  categories: number[];
   /**
    * Only meaningful for `slot: 'base'` - whether the body is drawn full length.
    *
-   * Carried through because the editor sizes its stage from it. It was on the
-   * wire already and dropped here, which was harmless while every base shipped
-   * in the bundle and is not once a base can arrive from the catalogue alone.
+   * Carried through because the editor sizes its stage from it.
    */
   isFullbody: boolean;
-  compatibleBaseKeys: string[];
+  /** The Base Avatar this row belongs to. */
   characterId?: string | null;
   bodyColorId?: string | null;
   blinkEnabled?: boolean;
@@ -84,6 +87,16 @@ export interface AvatarCatalogueAsset {
   isRetired: boolean;
   price: number;
   sortOrder: number;
+  /**
+   * Where this sits in *this character's* picker.
+   *
+   * Sent per assignment rather than per asset, so a garment shared between two
+   * characters can be arranged differently for each. Absent on a base and on
+   * an unscoped response, where the asset's own `sortOrder` is the answer.
+   */
+  assignmentSortOrder?: number;
+  /** Whether this asset is deliberately worn by more than one character. */
+  isShared?: boolean;
   /** Whether this may be chosen for a *new* configuration. */
   isSelectable: boolean;
 }
@@ -100,9 +113,7 @@ export const toCatalogueAsset = (raw: AvatarAssetResponse): AvatarCatalogueAsset
     slot: raw.slot,
     displayName: raw.displayName,
     target: raw.target,
-    categories: raw.categories ?? [],
     isFullbody: raw.isFullbody ?? true,
-    compatibleBaseKeys: raw.compatibleBaseKeys ?? [],
     characterId: raw.characterId ?? null,
     bodyColorId: raw.bodyColorId ?? null,
     blinkEnabled: raw.blinkEnabled ?? true,
@@ -116,6 +127,8 @@ export const toCatalogueAsset = (raw: AvatarAssetResponse): AvatarCatalogueAsset
     isRetired,
     price: raw.price ?? 0,
     sortOrder: raw.sortOrder ?? 0,
+    assignmentSortOrder: raw.assignmentSortOrder,
+    isShared: raw.isShared,
     // Retirement withdraws an asset from new selections; ownership gates the
     // rest. Neither affects whether an already-saved avatar renders it.
     isSelectable: !isRetired && isOwned,
@@ -248,3 +261,101 @@ export function describePurchaseError(error: any): PurchaseFailure {
 
   return { title: 'Could not unlock that', detail: detail || 'Please try again.', tone: 'error' };
 }
+
+// ============================================================================
+// Base Avatars (characters)
+// ============================================================================
+
+/** One Base Avatar as the API sends it, with its tone variants. */
+export interface AvatarCharacterResponse {
+  characterId: string;
+  displayName: string;
+  target: 'female' | 'male';
+  sortOrder: number;
+  variants: AvatarAssetResponse[];
+  previewLayers?: AvatarPreviewLayerResponse[];
+}
+
+/** One garment a character's browse card is shown wearing. */
+export interface AvatarPreviewLayerResponse {
+  slot: AvatarSlot;
+  key: string;
+  bundledId: string | null;
+  imageUrl: string | null;
+}
+
+/**
+ * A Base Avatar and the skin tones it is offered in.
+ *
+ * The unit the picker shows and the unit a wardrobe belongs to. Three tones of
+ * one character are three catalogue rows with three keys - three separate
+ * things to price, retire and save against - but one silhouette, so the tone is
+ * chosen inside the character rather than alongside it.
+ */
+export interface AvatarCharacter {
+  characterId: string;
+  displayName: string;
+  target: 'female' | 'male';
+  sortOrder: number;
+  /** Every tone, in catalogue order. Never empty. */
+  variants: AvatarCatalogueAsset[];
+  /** The tone shown on the card and worn when none is chosen. */
+  primary: AvatarCatalogueAsset;
+  /**
+   * What this character's browse card is shown wearing.
+   *
+   * Comes from the server as the assignments an admin marked as this
+   * character's preview default, so a card can never advertise a character in
+   * another character's clothes. Empty means the card shows the bare body,
+   * which is the honest answer for a character nothing has been chosen for.
+   */
+  previewLayers: AvatarPreviewLayerResponse[];
+}
+
+/**
+ * Turns the wire shape into the character model.
+ *
+ * Retired tones are dropped here rather than in the picker, because a tone
+ * withdrawn from sale should not be offered - while a *saved* avatar built on
+ * one keeps rendering, since rendering resolves a key directly and never
+ * consults this list.
+ */
+export const toCharacter = (raw: AvatarCharacterResponse): AvatarCharacter => {
+  const variants = (raw.variants ?? [])
+    .map(toCatalogueAsset)
+    .filter((variant) => !variant.isRetired);
+
+  const usable = variants.length
+    ? variants
+    : (raw.variants ?? []).map(toCatalogueAsset);
+
+  return {
+    characterId: raw.characterId,
+    displayName: raw.displayName,
+    target: raw.target,
+    sortOrder: raw.sortOrder ?? 0,
+    variants: usable,
+    primary: usable[0],
+    previewLayers: raw.previewLayers ?? [],
+  };
+};
+
+/** Characters keyed by id, for resolving a saved avatar's base. */
+export const toCharacterLookup = (
+  characters: AvatarCharacter[],
+): Record<string, AvatarCharacter> =>
+  characters.reduce<Record<string, AvatarCharacter>>((byId, character) => {
+    byId[character.characterId] = character;
+    return byId;
+  }, {});
+
+/** The character a base key belongs to, across every character loaded. */
+export const characterOfBase = (
+  characters: AvatarCharacter[],
+  baseKey?: string | null,
+): AvatarCharacter | undefined => {
+  if (!baseKey) return undefined;
+  return characters.find((character) =>
+    character.variants.some((variant) => variant.key === baseKey),
+  );
+};

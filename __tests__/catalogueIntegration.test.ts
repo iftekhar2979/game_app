@@ -1,7 +1,6 @@
 import catalogue from './fixtures-catalogue.json';
-import { resolveBases } from '../src/avatar/baseCatalogue';
+import { toBase } from '../src/avatar/baseCatalogue';
 import { isKnownPart, resolveParts } from '../src/avatar/partCatalogue';
-import { listFor } from '../src/avatar/registry';
 import {
   describeCatalogueCoverage,
   formatCoverageWarning,
@@ -18,6 +17,15 @@ import {
  * Fixtures drift, so the assertions below check the shape they depend on
  * rather than trusting it - a fixture that stopped containing the probe rows
  * would fail loudly instead of passing vacuously.
+ *
+ * The capture predates scoping, so it is the whole catalogue rather than one
+ * character's wardrobe. Its *shape* is unchanged - a lookup keyed by asset key
+ * is exactly what a scoped response is - so it is read here as the wardrobe of
+ * a single character that happens to own everything. That is the honest
+ * reading: it tests that real uploaded rows resolve, draw and are recognised,
+ * which is what this file was always for. Which rows a character *gets* is
+ * decided on the server and proved in `avatar-scope.spec.ts` there and in
+ * `partCatalogue.test.ts` here.
  */
 const assets = catalogue as any;
 
@@ -39,7 +47,6 @@ describe('the captured catalogue', () => {
       expect(assets[key]).toMatchObject({
         slot,
         target: TARGET,
-        categories: [CATEGORY],
         isRetired: false,
       });
       expect(assets[key].imageUrl).toContain('http');
@@ -49,13 +56,13 @@ describe('the captured catalogue', () => {
 
 describe('a garment uploaded from the dashboard reaches the app', () => {
   it.each(PROBES)('lists $key in the $slot picker', ({ key, slot }) => {
-    const options = resolveParts(slot, TARGET, CATEGORY, assets);
+    const options = resolveParts(slot, TARGET, assets);
 
     expect(options.map((a) => a.id)).toContain(key);
   });
 
   it.each(PROBES)('draws $key from its uploaded artwork', ({ key, slot }) => {
-    const options = resolveParts(slot, TARGET, CATEGORY, assets);
+    const options = resolveParts(slot, TARGET, assets);
     const added = options.find((a) => a.id === key)!;
 
     expect(added.source).toEqual({ uri: assets[key].imageUrl });
@@ -68,21 +75,24 @@ describe('a garment uploaded from the dashboard reaches the app', () => {
 
 describe('existing assets are not disturbed', () => {
   it.each(['outfit', 'skirt', 'shoes', 'hair'] as const)(
-    'keeps every bundled %s at its original index',
+    'still resolves every %s the capture contains',
     (slot) => {
-      const bundled = listFor(slot, TARGET, CATEGORY);
-      const merged = resolveParts(slot, TARGET, CATEGORY, assets);
+      const listed = resolveParts(slot, TARGET, assets).map((a) => a.id);
 
-      expect(merged.length).toBeGreaterThanOrEqual(bundled.length);
-      bundled.forEach((asset, index) => {
-        expect(merged[index].id).toBe(asset.id);
-      });
+      const inCapture = Object.values(assets).filter(
+        (row: any) => row.slot === slot && !row.isRetired,
+      );
+
+      expect(inCapture.length).toBeGreaterThan(0);
+      for (const row of inCapture as any[]) {
+        expect(listed).toContain(row.key);
+      }
     },
   );
 
-  it('still lists the five bundled bodies', () => {
-    const ids = resolveBases(assets).map((b) => b.id);
-
+  it('still resolves the five bundled bodies', () => {
+    // Bodies come from the character endpoint now, so what matters here is that
+    // each row in the capture still turns into a drawable body.
     for (const id of [
       'base_avatar_3',
       'base_avatar_4',
@@ -90,35 +100,29 @@ describe('existing assets are not disturbed', () => {
       'male_avatar_1',
       'male_avatar_2',
     ]) {
-      expect(ids).toContain(id);
+      expect(toBase({ ...assets[id], key: id }, id)?.id).toBe(id);
     }
   });
 });
 
-describe('compatibility holds against real data', () => {
-  it('does not offer female garments to a male body', () => {
-    const options = resolveParts('outfit', 'male', 1, assets);
-
-    for (const { key } of PROBES) {
-      expect(options.map((a) => a.id)).not.toContain(key);
-    }
-  });
-
-  it('does not offer category 4 garments to a category 5 body', () => {
-    const options = resolveParts('outfit', TARGET, 5, assets);
-
-    expect(options.map((a) => a.id)).not.toContain('probe_shirt_zz');
-  });
-
+describe('slots hold against real data', () => {
   it('files each probe under its own slot only', () => {
+    // Gender and category no longer take part in this, so the slot is the only
+    // thing keeping a hat out of the shoes picker - worth pinning on real rows.
     for (const { key, slot } of PROBES) {
       for (const other of ['outfit', 'skirt', 'shoes', 'hair'] as const) {
-        const listed = resolveParts(other, TARGET, CATEGORY, assets)
+        const listed = resolveParts(other, TARGET, assets)
           .map((a) => a.id)
           .includes(key);
 
         expect(listed).toBe(other === slot);
       }
+    }
+  });
+
+  it('draws a row the capture has no artwork for from the bundle, or not at all', () => {
+    for (const asset of resolveParts('hair', TARGET, assets)) {
+      expect(asset.source).toBeTruthy();
     }
   });
 });

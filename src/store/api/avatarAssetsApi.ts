@@ -2,25 +2,36 @@ import { baseApi } from './baseApi';
 import {
   AvatarAssetResponse,
   AvatarCatalogueAsset,
+  AvatarCharacter,
+  AvatarCharacterResponse,
   toCatalogueLookup,
+  toCharacter,
 } from './avatarAssetsTransforms';
 
 /**
- * The backend avatar catalogue.
+ * The backend avatar catalogue, scoped to one Base Avatar.
  *
- * This decides what a user is *allowed* to pick — free, owned, purchasable or
- * retired. It deliberately does not decide what gets drawn: artwork still comes
- * from the bundled registry, keyed by the same stable ids, so the editor and
- * every saved avatar keep rendering with no network at all.
+ * The catalogue decides both what exists for a character and what a user is
+ * allowed to pick of it. It used to decide only the second: the app fetched
+ * every asset in one request and worked out for itself which ones fitted the
+ * body, by matching category numbers held in the bundled registry. That is what
+ * let one character's garments appear on another, and it is why there is no
+ * unscoped listing here to fetch any more.
  *
- * The mapping itself lives in `avatarAssetsTransforms` so it stays testable
- * without pulling in RTK Query's ESM build.
+ * Artwork is still resolved locally where the bundle has it, which is a
+ * separate concern and deliberately unchanged: a catalogue row says *whether*
+ * something may be worn, `assetSource` says *how it is drawn*. A network
+ * failure therefore degrades selection, never rendering.
+ *
+ * The mapping lives in `avatarAssetsTransforms` so it stays testable without
+ * pulling in RTK Query's ESM build.
  */
 
 export type {
   AvatarAssetLifecycle,
   AvatarAssetResponse,
   AvatarCatalogueAsset,
+  AvatarCharacter,
 } from './avatarAssetsTransforms';
 
 interface Envelope<T> {
@@ -28,6 +39,12 @@ interface Envelope<T> {
   status: number;
   message: string;
   data: T;
+  pagination?: {
+    currentPage: number;
+    totalPages: number;
+    nextPage: number | null;
+    totalItems: number;
+  };
 }
 
 export interface PurchaseResult {
@@ -35,20 +52,70 @@ export interface PurchaseResult {
   coinBalance: number;
 }
 
+/**
+ * How many rows one request asks for.
+ *
+ * Nothing depends on this being large enough to hold a whole wardrobe - the
+ * loop below follows `nextPage` until the server says there is none. That is
+ * the point: the previous implementation asked for `limit: 100` once and used
+ * whatever came back, so the 101st asset simply did not exist as far as the app
+ * was concerned, with nothing on screen to say so.
+ */
+const PAGE_SIZE = 100;
+
+/** Guards against a malformed `nextPage` looping forever. */
+const MAX_PAGES = 50;
+
 export const avatarAssetsApi = baseApi.injectEndpoints({
   overrideExisting: true,
   endpoints: (builder) => ({
     /**
-     * The whole catalogue, keyed for lookup.
+     * The Base Avatars a player may build on, each with its skin tones.
      *
-     * Fetched in one page: there are ~50 assets and the editor needs all of
-     * them at once to render its pickers, so paging would only add states to
-     * handle for no benefit.
+     * One entry per character rather than per body: three tones of one
+     * character are three catalogue rows, and listing them flat reads as three
+     * different people.
      */
-    getAvatarAssets: builder.query<Record<string, AvatarCatalogueAsset>, void>({
-      query: () => ({ url: '/avatar-assets', method: 'GET', params: { page: 1, limit: 100 } }),
-      transformResponse: (response: Envelope<AvatarAssetResponse[]>) =>
-        toCatalogueLookup(response?.data),
+    getAvatarCharacters: builder.query<AvatarCharacter[], void>({
+      query: () => ({ url: '/avatar-assets/characters', method: 'GET' }),
+      transformResponse: (response: Envelope<AvatarCharacterResponse[]>) =>
+        (response?.data ?? []).map(toCharacter),
+      providesTags: ['AvatarAsset'],
+    }),
+
+    /**
+     * Everything one character may wear, keyed for lookup.
+     *
+     * Every page is followed, so what the pickers hold is the character's whole
+     * wardrobe or a failure - never a silent prefix of it. `queryFn` rather
+     * than `query` because that is what lets one endpoint make several requests
+     * while still behaving as a single cache entry with a single loading state.
+     */
+    getAvatarAssetsForCharacter: builder.query<
+      Record<string, AvatarCatalogueAsset>,
+      string
+    >({
+      async queryFn(characterId, _api, _extra, fetchWithBQ) {
+        const rows: AvatarAssetResponse[] = [];
+
+        for (let page = 1; page <= MAX_PAGES; page += 1) {
+          const result = await fetchWithBQ({
+            url: '/avatar-assets',
+            method: 'GET',
+            params: { character: characterId, page, limit: PAGE_SIZE },
+          });
+
+          if (result.error) return { error: result.error };
+
+          const envelope = result.data as Envelope<AvatarAssetResponse[]>;
+          rows.push(...(envelope?.data ?? []));
+
+          const next = envelope?.pagination?.nextPage;
+          if (!next || next <= page) break;
+        }
+
+        return { data: toCatalogueLookup(rows) };
+      },
       providesTags: ['AvatarAsset'],
     }),
 
@@ -67,4 +134,8 @@ export const avatarAssetsApi = baseApi.injectEndpoints({
   }),
 });
 
-export const { useGetAvatarAssetsQuery, usePurchaseAvatarAssetMutation } = avatarAssetsApi;
+export const {
+  useGetAvatarCharactersQuery,
+  useGetAvatarAssetsForCharacterQuery,
+  usePurchaseAvatarAssetMutation,
+} = avatarAssetsApi;
