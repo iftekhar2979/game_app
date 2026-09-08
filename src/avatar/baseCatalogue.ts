@@ -194,3 +194,65 @@ export function blinkSourcesFor(
     blink: base.blinkEyeSource ?? null,
   };
 }
+
+/**
+ * One entry per character, rather than one per body.
+ *
+ * A character offered in three tones is three bases in the catalogue, and
+ * listing all three side by side reads as three different people. Grouping
+ * them puts one card on the picker and leaves the tone to be chosen inside,
+ * which is what `characterId` was added to make possible.
+ *
+ * A base with no `characterId` is its own group: it stands alone, and lumping
+ * every characterless base together would merge unrelated bodies.
+ */
+export interface CharacterGroup {
+  /** Null for a body that stands alone. */
+  characterId: string | null;
+  /** The body to show on the card. */
+  primary: AvatarBase;
+  /** Every tone of this character, in catalogue order. `primary` included. */
+  variants: AvatarBase[];
+}
+
+export function groupByCharacter(bases: AvatarBase[]): CharacterGroup[] {
+  const groups: CharacterGroup[] = [];
+  const byCharacter = new Map<string, CharacterGroup>();
+
+  for (const base of bases) {
+    if (!base.characterId) {
+      groups.push({ characterId: null, primary: base, variants: [base] });
+      continue;
+    }
+
+    const existing = byCharacter.get(base.characterId);
+    if (existing) {
+      existing.variants.push(base);
+      continue;
+    }
+
+    // The first variant seen is the card's face, which keeps the picker in
+    // whatever order the catalogue's sortOrder established.
+    const group: CharacterGroup = {
+      characterId: base.characterId,
+      primary: base,
+      variants: [base],
+    };
+    byCharacter.set(base.characterId, group);
+    groups.push(group);
+  }
+
+  return groups;
+}
+
+/** A short label for one tone, for the editor's variant row. */
+export function describeVariant(base: AvatarBase, index: number): string {
+  if (!base.bodyColorId) return `Tone ${index + 1}`;
+
+  // `light_brown` reads better as "Light brown" than as the stored id.
+  return base.bodyColorId
+    .split('_')
+    .filter(Boolean)
+    .join(' ')
+    .replace(/^./, (first) => first.toUpperCase());
+}

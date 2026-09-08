@@ -38,7 +38,12 @@ import { resolveConfig } from '../../avatar/resolveConfig';
 import { prefetchEditorArtwork, prefetchSources } from '../../avatar/prefetchArtwork';
 import { AvatarAsset, AvatarConfig, AvatarSlot } from '../../avatar/types';
 import { hexToTintMatrix } from '../../avatar/hairTint';
-import { blinkSourcesFor, resolveBases } from '../../avatar/baseCatalogue';
+import {
+  blinkSourcesFor,
+  describeVariant,
+  resolveBases,
+  variantsOf,
+} from '../../avatar/baseCatalogue';
 import { resolveParts } from '../../avatar/partCatalogue';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList, 'GenerateAvatar'>;
@@ -132,15 +137,34 @@ const GenerateAvatarScreen = () => {
    * Never the `require()` handle: the saved config stores a stable id, not a
    * bundler-assigned number.
    */
+  const bases = useMemo(() => resolveBases(catalogue.assets), [catalogue.assets]);
+
+  /**
+   * Which tone of the character is being worn.
+   *
+   * Explore hands over a character rather than a body, so the editor owns the
+   * choice between its tones. Null means "whatever the route asked for", which
+   * is what keeps a saved look reopening on the exact body it was built on.
+   */
+  const [chosenBaseId, setChosenBaseId] = useState<string | null>(
+    // Read from the route rather than `savedConfig`, which is declared further
+    // down: a lazy initializer still runs during this first render, so
+    // referencing it here would throw before it exists.
+    () => route.params?.config?.base ?? route.params?.baseId ?? null,
+  );
+
   const activeBase = useMemo(() => {
-    const bases = resolveBases(catalogue.assets);
-    const byId = route.params?.baseId
-      ? bases.find((b) => b.id === route.params?.baseId)
-      : undefined;
+    const chosen = chosenBaseId ? bases.find((b) => b.id === chosenBaseId) : undefined;
     return (
-      byId ?? bases.find((b) => b.target === target && b.category === avatarCategory)
+      chosen ?? bases.find((b) => b.target === target && b.category === avatarCategory)
     );
-  }, [catalogue.assets, route.params?.baseId, target, avatarCategory]);
+  }, [bases, chosenBaseId, target, avatarCategory]);
+
+  /** The tones of this character. One entry means there is nothing to choose. */
+  const bodyVariants = useMemo(
+    () => (activeBase ? variantsOf(activeBase, bases) : []),
+    [activeBase, bases],
+  );
 
   /**
    * The pickers still hold indices into their filtered lists; the registry
@@ -720,6 +744,54 @@ const GenerateAvatarScreen = () => {
             </View>
 
             {/* Body Color (Half Body) */}
+            {/* Body colour: the tones this character is drawn in.
+                Hidden when there is only one, since there is nothing to
+                choose. Switching swaps the body itself rather than painting an
+                overlay on it, so the artwork is always the one that was
+                drawn. */}
+            {bodyVariants.length > 1 && (
+              <View className="mb-6">
+                <Text className="text-white text-base font-medium px-6 mb-4">
+                  Body colour
+                </Text>
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={{ paddingHorizontal: 24 }}
+                >
+                  {bodyVariants.map((variant, index) => (
+                    <TouchableOpacity
+                      key={variant.id}
+                      activeOpacity={0.8}
+                      className="mr-3 items-center"
+                      accessibilityRole="button"
+                      accessibilityLabel={`Body colour ${describeVariant(variant, index)}`}
+                      accessibilityState={{ selected: activeBase?.id === variant.id }}
+                      onPress={() => setChosenBaseId(variant.id)}
+                    >
+                      <View
+                        className={`w-[72px] h-[90px] rounded-xl border-2 ${
+                          activeBase?.id === variant.id
+                            ? 'border-[#B366FF]'
+                            : 'border-[#5B1F7D]'
+                        } bg-[#1A0B2E] overflow-hidden items-center justify-center`}
+                      >
+                        <ArtworkImage
+                          source={variant.source}
+                          fallback={variant.source}
+                          className="w-full h-full"
+                          resizeMode="contain"
+                        />
+                      </View>
+                      <Text className="text-gray-300 text-[11px] mt-1.5">
+                        {describeVariant(variant, index)}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+              </View>
+            )}
+
             {BODY_COLORS.length > 0 && (
               <View className="mb-6">
                 <Text className="text-white text-base font-medium px-6 mb-4">Skin tone</Text>
@@ -799,6 +871,54 @@ const GenerateAvatarScreen = () => {
             </View>
 
             {/* Skin tone (Full Body) */}
+            {/* Body colour: the tones this character is drawn in.
+                Hidden when there is only one, since there is nothing to
+                choose. Switching swaps the body itself rather than painting an
+                overlay on it, so the artwork is always the one that was
+                drawn. */}
+            {bodyVariants.length > 1 && (
+              <View className="mb-6">
+                <Text className="text-white text-base font-medium px-6 mb-4">
+                  Body colour
+                </Text>
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={{ paddingHorizontal: 24 }}
+                >
+                  {bodyVariants.map((variant, index) => (
+                    <TouchableOpacity
+                      key={variant.id}
+                      activeOpacity={0.8}
+                      className="mr-3 items-center"
+                      accessibilityRole="button"
+                      accessibilityLabel={`Body colour ${describeVariant(variant, index)}`}
+                      accessibilityState={{ selected: activeBase?.id === variant.id }}
+                      onPress={() => setChosenBaseId(variant.id)}
+                    >
+                      <View
+                        className={`w-[72px] h-[90px] rounded-xl border-2 ${
+                          activeBase?.id === variant.id
+                            ? 'border-[#B366FF]'
+                            : 'border-[#5B1F7D]'
+                        } bg-[#1A0B2E] overflow-hidden items-center justify-center`}
+                      >
+                        <ArtworkImage
+                          source={variant.source}
+                          fallback={variant.source}
+                          className="w-full h-full"
+                          resizeMode="contain"
+                        />
+                      </View>
+                      <Text className="text-gray-300 text-[11px] mt-1.5">
+                        {describeVariant(variant, index)}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+              </View>
+            )}
+
             {BODY_COLORS.length > 0 && (
               <View className="mb-6">
                 <Text className="text-white text-base font-medium px-6 mb-4">Skin tone</Text>

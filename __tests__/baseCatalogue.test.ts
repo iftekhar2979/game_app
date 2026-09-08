@@ -1,6 +1,8 @@
 import {
   blinkSourcesFor,
   categoryOf,
+  describeVariant,
+  groupByCharacter,
   hasCompatibleGarments,
   resolveBaseById,
   resolveBases,
@@ -262,5 +264,65 @@ describe('blink configuration', () => {
 
     expect(resolved.blinkEnabled).toBe(true);
     expect(blinkSourcesFor(resolved)).not.toBeNull();
+  });
+});
+
+describe('one card per character', () => {
+  const light = row({ key: 'm1_light', characterId: 'male_avatar_1', bodyColorId: 'light', sortOrder: 1 });
+  const dark = row({ key: 'm1_dark', characterId: 'male_avatar_1', bodyColorId: 'dark', sortOrder: 2 });
+  const solo = row({ key: 'lone_body', sortOrder: 3 });
+
+  const groupsFor = (...rows: any[]) => groupByCharacter(resolveBases(lookup(...rows)));
+
+  // Three tones listed side by side read as three different people.
+  it('collapses the tones of one character into a single entry', () => {
+    const groups = groupsFor(light, dark);
+    const male1 = groups.filter((g) => g.characterId === 'male_avatar_1');
+
+    expect(male1).toHaveLength(1);
+    expect(male1[0].variants.map((v) => v.id).sort()).toEqual(['m1_dark', 'm1_light']);
+  });
+
+  it('shows the first variant on the card', () => {
+    expect(groupsFor(light, dark)[0].primary.id).toBe('m1_light');
+  });
+
+  // Lumping every characterless body together would merge unrelated bodies.
+  it('leaves a body with no character standing alone', () => {
+    const groups = groupsFor(solo, row({ key: 'another_lone' }));
+    // Every bundled body is characterless too, so this checks the two by name
+    // rather than counting - and that each is alone in its own group.
+    const lone = groups.filter((g) =>
+      ['lone_body', 'another_lone'].includes(g.primary.id),
+    );
+
+    expect(lone).toHaveLength(2);
+    expect(lone.every((g) => g.characterId === null)).toBe(true);
+    expect(lone.every((g) => g.variants.length === 1)).toBe(true);
+  });
+
+  it('keeps the bundled bodies as their own entries', () => {
+    const ids = groupsFor(light).map((g) => g.primary.id);
+
+    for (const bundled of BASES) expect(ids).toContain(bundled.id);
+  });
+
+  it('preserves catalogue order', () => {
+    const ids = groupsFor(dark, light).map((g) => g.primary.id);
+    // sortOrder puts light first, so it is the face of the character group.
+    expect(ids).toContain('m1_light');
+    expect(ids).not.toContain('m1_dark');
+  });
+});
+
+describe('naming a tone', () => {
+  it('reads a stored id as words', () => {
+    expect(describeVariant({ bodyColorId: 'light_brown' } as any, 0)).toBe('Light brown');
+    expect(describeVariant({ bodyColorId: 'dark' } as any, 1)).toBe('Dark');
+  });
+
+  it('falls back to a position when the tone is unnamed', () => {
+    expect(describeVariant({ bodyColorId: null } as any, 0)).toBe('Tone 1');
+    expect(describeVariant({} as any, 2)).toBe('Tone 3');
   });
 });

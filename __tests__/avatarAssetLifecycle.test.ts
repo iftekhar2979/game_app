@@ -217,6 +217,27 @@ describe('the editor screens draw from the registry, not their own copies', () =
     expect(source).not.toMatch(/avatarCategory === 1/);
   });
 
+  /**
+   * Explore hands over a character, not a body, so the editor owns the choice
+   * between its tones - and switching swaps the body itself rather than
+   * painting an overlay, so the artwork shown is always the one that was drawn.
+   */
+  it('GenerateAvatarScreen switches between the tones of a character', () => {
+    const source = sourceOf('GenerateAvatarScreen');
+
+    expect(source).toContain('variantsOf');
+    expect(source).toContain('setChosenBaseId(variant.id)');
+    // Nothing to choose from one tone, so the row is not shown.
+    expect(source).toContain('bodyVariants.length > 1');
+  });
+
+  it('ExploreAvatarScreen lists characters rather than every tone', () => {
+    const source = sourceOf('ExploreAvatarScreen');
+
+    expect(source).toContain('groupByCharacter');
+    expect(source).toContain('character.primary');
+  });
+
   it('GenerateAvatarScreen inverts an index with that same resolver', () => {
     const source = sourceOf('GenerateAvatarScreen');
 
