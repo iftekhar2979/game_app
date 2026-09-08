@@ -267,6 +267,32 @@ describe('the editor screens draw from the registry, not their own copies', () =
     expect(source).toContain('Nothing to wear yet');
   });
 
+  /**
+   * A body that brought its own closed frame uses that one, faded for the half
+   * phase. One that did not keeps the bundled pair, which ships a separate
+   * frame per phase - so the fallback must not be routed through the opacity
+   * path, and the uploaded frame must not be drawn twice.
+   */
+  it.each(['GenerateAvatarScreen', 'AvatarPreview'] as const)(
+    '%s fades one uploaded frame and keeps the bundled pair',
+    (screen) => {
+      const source =
+        screen === 'AvatarPreview'
+          ? fs.readFileSync(
+              path.join(__dirname, '../src/components/common/AvatarPreview.tsx'),
+              'utf8',
+            )
+          : sourceOf(screen);
+
+      expect(source).toContain('blinkOpacity(eyeState)');
+      // The bundled pair is still addressed a frame at a time.
+      expect(source).toContain("getEyeSource('half'");
+      expect(source).toContain("getEyeSource('full'");
+      // Open-eye artwork is drawn when a body supplies it.
+      expect(source).toContain('blink?.normal');
+    },
+  );
+
   it('GenerateAvatarScreen inverts an index with that same resolver', () => {
     const source = sourceOf('GenerateAvatarScreen');
 
