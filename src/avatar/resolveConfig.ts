@@ -1,5 +1,6 @@
 import { ArtworkCatalogue, sourceForAsset, sourceForBase } from './assetSource';
 import { getAssetById, getBaseById, listFor, REGISTRY_VERSION } from './registry';
+import { resolveBaseById } from './baseCatalogue';
 import { AssetSource, AVATAR_SLOTS, AvatarBase, AvatarConfig, AvatarLayer, AvatarSlot } from './types';
 
 /**
@@ -51,7 +52,10 @@ export function resolveConfig(
   config?: AvatarConfig | null,
   catalogue?: ArtworkCatalogue,
 ): AvatarLayer[] {
-  const base = getBaseById(config?.base);
+  // Looked up through the catalogue as well as the bundle: a base added in the
+  // dashboard exists nowhere else, and resolving only from the bundle would
+  // render every avatar built on one as nothing at all.
+  const base = resolveBaseById(config?.base, catalogue);
   if (!config || !base) return [];
 
   const layers: AvatarLayer[] = [
@@ -86,10 +90,16 @@ export function resolveConfig(
  * those are treated as "no saved look" so the editor opens on defaults rather
  * than rendering someone else's clothes.
  */
-export function normaliseConfig(raw: any): AvatarConfig | null {
+export function normaliseConfig(
+  raw: any,
+  catalogue?: ArtworkCatalogue,
+): AvatarConfig | null {
   if (!raw || typeof raw !== 'object') return null;
 
-  const base = getBaseById(raw.base);
+  // Without a catalogue this still accepts every bundled base, so existing
+  // callers are unchanged; passing one additionally keeps a look built on a
+  // dashboard base from being discarded as unrecognised.
+  const base = resolveBaseById(raw.base, catalogue);
   if (!base) return null;
 
   const parts: AvatarConfig['parts'] = {};
@@ -184,7 +194,7 @@ export function describeUsedAssets(
   config?: AvatarConfig | null,
   catalogue?: ArtworkCatalogue,
 ): UsedAsset[] {
-  const base = getBaseById(config?.base);
+  const base = resolveBaseById(config?.base, catalogue);
   if (!config || !base) return [];
 
   return USED_ASSET_ORDER.map((slot): UsedAsset => {
@@ -231,8 +241,11 @@ export function describeUsedAssets(
   });
 }
 
-export function baseOf(config?: AvatarConfig | null): AvatarBase | undefined {
-  return getBaseById(config?.base);
+export function baseOf(
+  config?: AvatarConfig | null,
+  catalogue?: ArtworkCatalogue,
+): AvatarBase | undefined {
+  return resolveBaseById(config?.base, catalogue);
 }
 
 /** Immutably sets one slot, used by every picker in the editor. */

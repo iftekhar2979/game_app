@@ -9,7 +9,8 @@ import { useDispatch } from 'react-redux';
 import { authService } from '../../services/authService';
 import { ArtworkCatalogue, artworkForAsset, artworkForBase } from '../../avatar/assetSource';
 import ArtworkImage from '../../components/Avatar/ArtworkImage';
-import { BASES, listFor } from '../../avatar/registry';
+import { listFor } from '../../avatar/registry';
+import { resolveBases } from '../../avatar/baseCatalogue';
 import { AvatarBase, AvatarSlot } from '../../avatar/types';
 import { useAssetCatalogue } from '../../avatar/useAssetCatalogue';
 
@@ -48,7 +49,12 @@ const ExploreAvatarScreen = () => {
   const returnTo = route.params?.returnTo;
   const isAccountSetup = route.params?.isAccountSetup === true;
 
-  const { artwork } = useAssetCatalogue();
+  const { artwork, assets } = useAssetCatalogue();
+
+  // Catalogue first, bundle as the fallback: a base added in the dashboard
+  // appears here with no app release, and an unreachable catalogue still lists
+  // everything the app ships with.
+  const bases = useMemo(() => resolveBases(assets), [assets]);
 
   /**
    * Which parts each card wears, chosen once per mount.
@@ -60,11 +66,11 @@ const ExploreAvatarScreen = () => {
    */
   const cardParts = useMemo(
     () =>
-      BASES.map((base) => ({
+      bases.map((base) => ({
         base,
         parts: PREVIEW_SLOTS.map((slot) => ({ slot, assetId: randomIdFor(slot, base) })),
       })),
-    [],
+    [bases],
   );
 
   const renderCard = (
@@ -87,6 +93,10 @@ const ExploreAvatarScreen = () => {
         }}
         onPress={() =>
           navigation.navigate('GenerateAvatar', {
+            // The id is what identifies the base now. Target and category are
+            // still sent so the editor works unchanged for anything that
+            // navigates here without one.
+            baseId: base.id,
             isFullbody: base.isFullbody,
             target: base.target,
             avatarCategory: base.category,

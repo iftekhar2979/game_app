@@ -56,7 +56,7 @@ export default function AvatarPreview({
   catalogue,
 }: AvatarPreviewProps) {
   const layers = useMemo(() => resolveConfig(config, catalogue), [config, catalogue]);
-  const base = baseOf(config);
+  const base = baseOf(config, catalogue);
 
   // Stable per-instance id: a grid renders several of these at once and SVG
   // filter ids are global, so a shared id would tint the wrong avatar's hair.

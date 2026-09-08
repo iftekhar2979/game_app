@@ -47,6 +47,14 @@ export interface AvatarCatalogueAsset {
   displayName: string;
   target: 'female' | 'male';
   categories: number[];
+  /**
+   * Only meaningful for `slot: 'base'` - whether the body is drawn full length.
+   *
+   * Carried through because the editor sizes its stage from it. It was on the
+   * wire already and dropped here, which was harmless while every base shipped
+   * in the bundle and is not once a base can arrive from the catalogue alone.
+   */
+  isFullbody: boolean;
   bundledId: string | null;
   /** Uploaded full-resolution artwork. Null while the asset is bundle-only. */
   imageUrl: string | null;
@@ -74,6 +82,7 @@ export const toCatalogueAsset = (raw: AvatarAssetResponse): AvatarCatalogueAsset
     displayName: raw.displayName,
     target: raw.target,
     categories: raw.categories ?? [],
+    isFullbody: raw.isFullbody ?? true,
     bundledId: raw.bundledId ?? null,
     imageUrl: raw.imageUrl ?? null,
     previewUrl: raw.previewUrl ?? null,

@@ -70,9 +70,15 @@ export type RootStackParamList = {
   // `config` puts the editor in edit mode: the pickers open on that saved look
   // instead of on the first option in every slot. Absent means create mode.
   GenerateAvatar: {
-    // No `baseImage`: the editor resolves the body from `target` +
-    // `avatarCategory` through the registry and catalogue, so passing a
-    // bundled `require()` handle here would pin it to the bundle.
+    // No `baseImage`: the editor resolves the body from the catalogue and the
+    // registry, so passing a bundled `require()` handle here would pin it to
+    // the bundle.
+    //
+    // `baseId` identifies the base outright. `target` + `avatarCategory` are
+    // still accepted, and still the only thing older callers send, but they
+    // cannot tell two bases apart once both share a category - which a
+    // dashboard-created base is free to do.
+    baseId?: string;
     isFullbody?: boolean;
     target?: 'female' | 'male';
     avatarCategory?: number;
