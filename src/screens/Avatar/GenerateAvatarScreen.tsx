@@ -38,7 +38,7 @@ import { resolveConfig } from '../../avatar/resolveConfig';
 import { prefetchEditorArtwork, prefetchSources } from '../../avatar/prefetchArtwork';
 import { AvatarAsset, AvatarConfig, AvatarSlot } from '../../avatar/types';
 import { hexToTintMatrix } from '../../avatar/hairTint';
-import { resolveBases } from '../../avatar/baseCatalogue';
+import { blinkSourcesFor, resolveBases } from '../../avatar/baseCatalogue';
 import { resolveParts } from '../../avatar/partCatalogue';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList, 'GenerateAvatar'>;
@@ -295,12 +295,18 @@ const GenerateAvatarScreen = () => {
   }, [activeBase, catalogue.artwork, catalogue.isLoading]);
 
   /**
-   * Blink overlays are chosen by base rather than picked, so they have no
-   * catalogue row and stay bundled. `getEyeSource` is the registry's own
-   * version of the two lookup functions that used to live here.
+   * Blink overlays.
+   *
+   * A body uploaded through the dashboard carries its own closed-eye artwork,
+   * because the bundled overlays are drawn for the five shipped silhouettes and
+   * would not sit correctly on anything else. Without one it falls back to
+   * those; with blinking turned off it draws neither.
    */
-  const halfClosedEyeSource = getEyeSource('half', target, avatarCategory);
-  const fullClosedEyeSource = getEyeSource('full', target, avatarCategory);
+  const blink = activeBase ? blinkSourcesFor(activeBase) : null;
+  const halfClosedEyeSource =
+    blink?.blink ?? getEyeSource('half', target, avatarCategory);
+  const fullClosedEyeSource =
+    blink?.blink ?? getEyeSource('full', target, avatarCategory);
 
   // Every picker is seeded in its useState initializer, so edit mode's first
   // paint is already the saved look. Hydrating in an effect instead would flash
@@ -340,6 +346,13 @@ const GenerateAvatarScreen = () => {
   const [eyeState, setEyeState] = useState<'open' | 'half_closed' | 'closed'>('open');
 
   useEffect(() => {
+    // A body with blinking turned off stays open-eyed rather than running a
+    // timer whose overlays are never drawn.
+    if (!blink) {
+      setEyeState('open');
+      return;
+    }
+
     const blinkInterval = setInterval(() => {
       setEyeState('half_closed'); // Starts at 0ms
       setTimeout(() => setEyeState('closed'), 150); // Happens at 150ms
@@ -348,7 +361,7 @@ const GenerateAvatarScreen = () => {
     }, 3000); // Every 3 seconds
 
     return () => clearInterval(blinkInterval);
-  }, []);
+  }, [blink]);
 
   // Breathing Animation State
   const breatheAnim = useRef(new Animated.Value(0)).current;

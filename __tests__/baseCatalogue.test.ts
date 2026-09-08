@@ -1,8 +1,10 @@
 import {
+  blinkSourcesFor,
   categoryOf,
   hasCompatibleGarments,
   resolveBaseById,
   resolveBases,
+  variantsOf,
 } from '../src/avatar/baseCatalogue';
 import { BASES } from '../src/avatar/registry';
 
@@ -193,5 +195,72 @@ describe('garment compatibility', () => {
     expect(
       hasCompatibleGarments({ target: 'female', category: 7 }, lookup(row())),
     ).toBe(false);
+  });
+});
+
+describe('colour variants of one character', () => {
+  const light = row({ key: 'male_1_light', characterId: 'male_avatar_1', bodyColorId: 'light' });
+  const dark = row({ key: 'male_1_dark', characterId: 'male_avatar_1', bodyColorId: 'dark' });
+  const other = row({ key: 'female_2', characterId: 'female_avatar_2' });
+
+  it('groups every tone of the same character', () => {
+    const bases = resolveBases(lookup(light, dark, other));
+    const resolved = bases.find((b) => b.id === 'male_1_light')!;
+
+    expect(variantsOf(resolved, bases).map((b) => b.id).sort()).toEqual([
+      'male_1_dark',
+      'male_1_light',
+    ]);
+  });
+
+  it('carries the variant identity through', () => {
+    const resolved = resolveBases(lookup(light)).find((b) => b.id === 'male_1_light');
+
+    expect(resolved).toMatchObject({
+      characterId: 'male_avatar_1',
+      bodyColorId: 'light',
+    });
+  });
+
+  // A base with no characterId stands alone; grouping it with everything else
+  // that also has none would merge unrelated bodies.
+  it('treats a base with no character as its own only variant', () => {
+    const bases = resolveBases(lookup(row({ key: 'alone_1' }), row({ key: 'alone_2' })));
+    const resolved = bases.find((b) => b.id === 'alone_1')!;
+
+    expect(variantsOf(resolved, bases).map((b) => b.id)).toEqual(['alone_1']);
+  });
+});
+
+describe('blink configuration', () => {
+  it('uses the uploaded closed-eye artwork', () => {
+    const resolved = resolveBases(
+      lookup(row({ blinkEyeUrl: 'https://s3/blink.png' })),
+    ).find((b) => b.id === 'new_base_1')!;
+
+    expect(blinkSourcesFor(resolved)?.blink).toEqual({ uri: 'https://s3/blink.png' });
+  });
+
+  // The bundled overlays are drawn for the five shipped silhouettes, so a body
+  // without its own falls back to them rather than to nothing.
+  it('leaves the source null so the renderer can fall back', () => {
+    const resolved = resolveBases(lookup(row())).find((b) => b.id === 'new_base_1')!;
+
+    expect(blinkSourcesFor(resolved)).toEqual({ normal: null, blink: null });
+  });
+
+  it('reports no blinking at all when it is turned off', () => {
+    const resolved = resolveBases(lookup(row({ blinkEnabled: false }))).find(
+      (b) => b.id === 'new_base_1',
+    )!;
+
+    expect(blinkSourcesFor(resolved)).toBeNull();
+  });
+
+  it('blinks by default, so migrated bodies are unaffected', () => {
+    const resolved = resolveBases(lookup(row())).find((b) => b.id === 'new_base_1')!;
+
+    expect(resolved.blinkEnabled).toBe(true);
+    expect(blinkSourcesFor(resolved)).not.toBeNull();
   });
 });

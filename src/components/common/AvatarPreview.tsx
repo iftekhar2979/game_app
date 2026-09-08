@@ -6,6 +6,7 @@ import { ArtworkCatalogue, sourceForAsset, sourceForBase } from '../../avatar/as
 import ArtworkImage from '../Avatar/ArtworkImage';
 import { FULLBODY_STAGE_SCALE, getEyeSource } from '../../avatar/registry';
 import { baseOf, resolveConfig } from '../../avatar/resolveConfig';
+import { blinkSourcesFor } from '../../avatar/baseCatalogue';
 import { AvatarConfig, AvatarLayer, AvatarSlot } from '../../avatar/types';
 import { hexToTintMatrix } from '../../avatar/hairTint';
 import Avatar from './Avatar';
@@ -57,6 +58,9 @@ export default function AvatarPreview({
 }: AvatarPreviewProps) {
   const layers = useMemo(() => resolveConfig(config, catalogue), [config, catalogue]);
   const base = baseOf(config, catalogue);
+  // Null when this body does not blink at all, which is an admin's choice
+  // rather than a missing asset.
+  const blink = base ? blinkSourcesFor(base) : null;
 
   // Stable per-instance id: a grid renders several of these at once and SVG
   // filter ids are global, so a shared id would tint the wrong avatar's hair.
@@ -161,18 +165,26 @@ export default function AvatarPreview({
           ))}
 
         {/* Blink overlays: both mounted, opacity toggled, so neither pops in
-            late. These stay bundled — they are chosen by base rather than
-            picked, so they have no catalogue row to carry a URL. */}
-        <Image
-          source={getEyeSource('half', base.target, base.category)}
-          style={[styles.layer, { opacity: eyeState === 'half_closed' ? 1 : 0 }]}
-          resizeMode="contain"
-        />
-        <Image
-          source={getEyeSource('full', base.target, base.category)}
-          style={[styles.layer, { opacity: eyeState === 'closed' ? 1 : 0 }]}
-          resizeMode="contain"
-        />
+            late.
+
+            A body uploaded through the dashboard brings its own closed-eye
+            artwork, since the bundled overlays are drawn for the five shipped
+            silhouettes and would not sit on anything else. Without one it falls
+            back to those, and a body with blinking turned off draws neither. */}
+        {blink ? (
+          <>
+            <Image
+              source={blink.blink ?? getEyeSource('half', base.target, base.category)}
+              style={[styles.layer, { opacity: eyeState === 'half_closed' ? 1 : 0 }]}
+              resizeMode="contain"
+            />
+            <Image
+              source={blink.blink ?? getEyeSource('full', base.target, base.category)}
+              style={[styles.layer, { opacity: eyeState === 'closed' ? 1 : 0 }]}
+              resizeMode="contain"
+            />
+          </>
+        ) : null}
 
         {/* Clothing, in the registry's paint order. */}
         {bodyLayers
