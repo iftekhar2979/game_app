@@ -225,7 +225,7 @@ describe('the editor screens draw from the registry, not their own copies', () =
   it('GenerateAvatarScreen switches between the tones of a character', () => {
     const source = sourceOf('GenerateAvatarScreen');
 
-    expect(source).toContain('variantsOf');
+    expect(source).toContain('tonesForBase');
     expect(source).toContain('setChosenBaseId(variant.id)');
     // Nothing to choose from one tone, so the row is not shown.
     expect(source).toContain('bodyVariants.length > 1');
@@ -234,8 +234,34 @@ describe('the editor screens draw from the registry, not their own copies', () =
   it('ExploreAvatarScreen lists characters rather than every tone', () => {
     const source = sourceOf('ExploreAvatarScreen');
 
-    expect(source).toContain('groupByCharacter');
-    expect(source).toContain('character.primary');
+    // The character list is already one entry per character, from the server.
+    expect(source).toContain('tonesOf(character)');
+    expect(source).toContain('character.previewLayers');
+  });
+
+  /**
+   * The editor holds asset *keys*, not picker indices.
+   *
+   * An index depends on the length and order of the list it points into, so
+   * adding or reordering an asset silently changed what an existing selection
+   * meant. It also forced the bundled and catalogue halves of that list into a
+   * frozen order to compensate - the very merge that let one character's
+   * garments reach another's picker.
+   */
+  it('GenerateAvatarScreen selects by asset key rather than by index', () => {
+    const source = sourceOf('GenerateAvatarScreen');
+
+    expect(source).toContain('useState<string | null>');
+    expect(source).not.toContain('useState<number | null>');
+    expect(source).not.toContain('indexOfAsset');
+  });
+
+  /** Every picker on the editor is scoped to one character, server-side. */
+  it('GenerateAvatarScreen scopes its catalogue to the chosen character', () => {
+    const source = sourceOf('GenerateAvatarScreen');
+
+    expect(source).toContain('useAssetCatalogue(characterId)');
+    expect(source).toContain('characterIdOf');
   });
 
   /**
@@ -293,9 +319,16 @@ describe('the editor screens draw from the registry, not their own copies', () =
     },
   );
 
-  it('GenerateAvatarScreen inverts an index with that same resolver', () => {
+  /**
+   * A held selection is confirmed against the list, not trusted.
+   *
+   * The list can change under it - switching tone, or an asset unassigned
+   * between the screen opening and a save - and a key that is no longer offered
+   * must empty the slot rather than be saved anyway.
+   */
+  it('GenerateAvatarScreen confirms a selection against this character’s options', () => {
     const source = sourceOf('GenerateAvatarScreen');
 
-    expect(source).toMatch(/optionsFor\(slot, activeBase\.target, activeBase\.category\)/);
+    expect(source).toMatch(/optionsFor\(slot\)\.some\(\(asset\) => asset\.id === assetKey\)/);
   });
 });

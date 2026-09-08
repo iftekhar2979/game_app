@@ -1,24 +1,41 @@
 import {
   blinkSourcesFor,
-  categoryOf,
+  characterIdOf,
   describeVariant,
-  groupByCharacter,
-  hasCompatibleGarments,
   resolveBaseById,
   resolveBases,
-  variantsOf,
+  toBase,
+  tonesForBase,
+  tonesOf,
 } from '../src/avatar/baseCatalogue';
 import { BASES } from '../src/avatar/registry';
+import { toCharacter } from '../src/store/api/avatarAssetsTransforms';
 
-const row = (over: any = {}) => ({
-  key: 'new_base_1',
+/**
+ * Base Avatars, as the app resolves them.
+ *
+ * Two paths that must not be confused, and most of this file is about keeping
+ * them apart:
+ *
+ * - The **picker** path lists bodies to choose from, and comes from the server's
+ *   character list. There is deliberately no bundled fallback: a body the server
+ *   cannot describe is a body whose wardrobe cannot be scoped, and offering one
+ *   would mean guessing its garments locally - the leak this replaced.
+ * - The **render** path resolves a saved avatar's body by id, and *does* fall
+ *   back to the bundle, ignores retirement and ignores assignment. A look saved
+ *   months ago must draw the same today.
+ */
+
+const variant = (over: any = {}) => ({
+  key: 'aurora_light',
   slot: 'base' as const,
-  displayName: 'New base',
+  displayName: 'Aurora',
   target: 'female' as const,
-  categories: [7],
+  characterId: 'aurora',
+  bodyColorId: 'light',
   isFullbody: true,
   bundledId: null,
-  imageUrl: 'https://s3/new_base_1.png',
+  imageUrl: 'https://s3/aurora_light.png',
   previewUrl: null,
   isFree: true,
   isOwned: true,
@@ -29,300 +46,228 @@ const row = (over: any = {}) => ({
   ...over,
 });
 
-const lookup = (...rows: any[]) =>
-  rows.reduce((acc, r) => ({ ...acc, [r.key]: r }), {});
+/** A character as the API sends it, through the real transform. */
+const character = (characterId: string, variants: any[], over: any = {}) =>
+  toCharacter({
+    characterId,
+    displayName: characterId,
+    target: 'female',
+    sortOrder: 0,
+    variants,
+    ...over,
+  } as any);
 
-describe('no catalogue', () => {
-  // An unreachable or unseeded catalogue must leave the editor as it was.
-  it('falls back to the bundled bases', () => {
-    expect(resolveBases(undefined).map((b) => b.id)).toEqual(BASES.map((b) => b.id));
-    expect(resolveBases(null)).toHaveLength(BASES.length);
-    expect(resolveBases({})).toHaveLength(BASES.length);
+const AURORA = character('aurora', [
+  variant({ key: 'aurora_light', bodyColorId: 'light', sortOrder: 0 }),
+  variant({ key: 'aurora_dark', bodyColorId: 'dark', sortOrder: 1 }),
+]);
+
+const NOVA = character('nova', [
+  variant({ key: 'nova_light', characterId: 'nova', bodyColorId: 'light' }),
+]);
+
+describe('the picker has no bundled fallback', () => {
+  /**
+   * The deliberate trade. Previously the five bundled bodies were merged in, so
+   * an unreachable catalogue still filled the picker - with bodies whose
+   * wardrobes then had to be guessed at by category number.
+   */
+  it('lists nothing when the character list is unavailable', () => {
+    expect(resolveBases(undefined)).toEqual([]);
+    expect(resolveBases(null)).toEqual([]);
+    expect(resolveBases([])).toEqual([]);
+  });
+
+  it('lists exactly the tones the server described', () => {
+    expect(resolveBases([AURORA, NOVA]).map((b) => b.id)).toEqual([
+      'aurora_light',
+      'aurora_dark',
+      'nova_light',
+    ]);
   });
 });
 
-describe('a base created in the dashboard', () => {
-  // The whole point: it appears with no app release.
-  it('appears in the list', () => {
-    const bases = resolveBases(lookup(row()));
-    expect(bases.map((b) => b.id)).toContain('new_base_1');
+describe('a body created in the dashboard', () => {
+  it('resolves with no app release', () => {
+    const base = toBase(
+      variant({ key: 'brand_new_body', imageUrl: 'https://s3/brand_new_body.png' }),
+    )!;
+
+    expect(base.id).toBe('brand_new_body');
+    expect(base.source).toEqual({ uri: 'https://s3/brand_new_body.png' });
   });
 
   it('carries its metadata across', () => {
-    const base = resolveBases(lookup(row({ categories: [7], isFullbody: false })))
-      .find((b) => b.id === 'new_base_1');
+    const base = toBase(variant({ isFullbody: false, bodyColorId: 'dark' }))!;
 
-    expect(base).toMatchObject({
-      target: 'female',
-      category: 7,
-      isFullbody: false,
-      source: { uri: 'https://s3/new_base_1.png' },
-    });
+    expect(base.target).toBe('female');
+    expect(base.characterId).toBe('aurora');
+    expect(base.bodyColorId).toBe('dark');
+    expect(base.isFullbody).toBe(false);
   });
 
-  // Listing a base nothing can draw puts an invisible body in the picker.
-  it('is skipped when it has no artwork and no bundled fallback', () => {
-    const bases = resolveBases(lookup(row({ imageUrl: null })));
-    expect(bases.map((b) => b.id)).not.toContain('new_base_1');
+  it('is skipped when nothing could draw it', () => {
+    // An invisible body in the picker reads as a broken app rather than as a
+    // missing upload.
+    expect(toBase(variant({ key: 'no_art', imageUrl: null }))).toBeNull();
   });
 
-  it('is skipped when it has no usable category', () => {
-    expect(
-      resolveBases(lookup(row({ categories: [] }))).map((b) => b.id),
-    ).not.toContain('new_base_1');
-  });
-});
-
-describe('bundled bases', () => {
-  const bundled = BASES[0];
-
-  it('are kept when the catalogue does not mention them', () => {
-    const bases = resolveBases(lookup(row()));
-    expect(bases.map((b) => b.id)).toContain(bundled.id);
+  it('is skipped when it belongs to no character', () => {
+    // A body with no character is one no scoped listing can return, and
+    // therefore one whose wardrobe cannot be resolved at all.
+    expect(toBase(variant({ characterId: null }))).toBeNull();
   });
 
-  it('draw from the bundle when the catalogue lists them with no upload', () => {
-    const bases = resolveBases(
-      lookup(row({ key: bundled.id, imageUrl: null, categories: [bundled.category] })),
-    );
-    const resolved = bases.find((b) => b.id === bundled.id);
-    expect(resolved?.source).toBe(bundled.source);
+  it('draws from the bundle when the row carries no upload', () => {
+    const base = toBase(
+      variant({ key: 'base_avatar_3', imageUrl: null, characterId: 'base_avatar_3' }),
+    )!;
+
+    expect(base.source).toBe(BASES.find((b) => b.id === 'base_avatar_3')!.source);
   });
 
-  // An admin re-skinning an existing base must take effect immediately.
-  it('prefer uploaded artwork over the bundled file', () => {
-    const bases = resolveBases(
-      lookup(row({ key: bundled.id, imageUrl: 'https://s3/reskin.png', categories: [bundled.category] })),
-    );
-    expect(bases.find((b) => b.id === bundled.id)?.source).toEqual({
-      uri: 'https://s3/reskin.png',
-    });
-  });
+  it('prefers uploaded artwork over the bundled file of the same id', () => {
+    const base = toBase(
+      variant({ key: 'base_avatar_3', imageUrl: 'https://s3/reskin.png' }),
+    )!;
 
-  it('are re-categorised when the catalogue says so', () => {
-    const bases = resolveBases(lookup(row({ key: bundled.id, categories: [9] })));
-    expect(bases.find((b) => b.id === bundled.id)?.category).toBe(9);
+    expect(base.source).toEqual({ uri: 'https://s3/reskin.png' });
   });
 });
 
 describe('retirement', () => {
-  it('hides a retired base from the picker', () => {
-    const bases = resolveBases(lookup(row({ isRetired: true })));
-    expect(bases.map((b) => b.id)).not.toContain('new_base_1');
+  it('keeps a retired tone out of the picker', () => {
+    const partly = character('aurora', [
+      variant({ key: 'aurora_light', sortOrder: 0 }),
+      variant({ key: 'aurora_dark', sortOrder: 1, lifecycle: 'retired' }),
+    ]);
+
+    expect(tonesOf(partly).map((b) => b.id)).toEqual(['aurora_light']);
   });
 
-  it('hides a retired bundled base too', () => {
-    const bundled = BASES[0];
-    const bases = resolveBases(
-      lookup(row({ key: bundled.id, isRetired: true, categories: [bundled.category] })),
-    );
-    expect(bases.map((b) => b.id)).not.toContain(bundled.id);
-  });
+  it('still resolves a retired body by id, so saved avatars keep rendering', () => {
+    // The render path deliberately ignores retirement: withdrawing a body stops
+    // it being chosen, it does not un-draw the avatars already built on it.
+    const base = resolveBaseById('aurora_dark', {
+      aurora_dark: variant({ key: 'aurora_dark', isRetired: true }) as any,
+    });
 
-  // Withdrawing a base stops it being chosen; it does not un-draw the avatars
-  // already built on it.
-  it('still resolves a retired base by id, so saved avatars keep rendering', () => {
-    const assets = lookup(row({ isRetired: true }));
-    expect(resolveBaseById('new_base_1', assets)?.id).toBe('new_base_1');
+    expect(base?.id).toBe('aurora_dark');
   });
 });
 
-describe('resolving one base by id', () => {
-  it('finds a catalogue-only base', () => {
-    expect(resolveBaseById('new_base_1', lookup(row()))?.category).toBe(7);
+describe('resolving one body by id, for rendering', () => {
+  it('finds a catalogue-only body', () => {
+    expect(
+      resolveBaseById('aurora_light', { aurora_light: variant() as any })?.id,
+    ).toBe('aurora_light');
   });
 
-  it('finds a bundled base with no catalogue at all', () => {
-    expect(resolveBaseById(BASES[0].id, undefined)?.id).toBe(BASES[0].id);
+  it('finds a bundled body with no catalogue at all', () => {
+    // The offline render path: the feed and the wardrobe never load a character
+    // list, and every avatar built on a shipped body must still draw.
+    const base = resolveBaseById('base_avatar_3');
+
+    expect(base?.id).toBe('base_avatar_3');
+    expect(base?.characterId).toBe('base_avatar_3');
   });
 
   it('returns undefined for an id nothing describes', () => {
-    expect(resolveBaseById('nope', lookup(row()))).toBeUndefined();
-    expect(resolveBaseById(null, lookup(row()))).toBeUndefined();
-    expect(resolveBaseById(undefined, undefined)).toBeUndefined();
+    expect(resolveBaseById('never_existed', {})).toBeUndefined();
+    expect(resolveBaseById(null)).toBeUndefined();
   });
 
   it('ignores a row that is not a base', () => {
-    const assets = lookup(row({ key: 'hair2', slot: 'hair' }));
-    expect(resolveBaseById('hair2', assets)).toBeUndefined();
+    expect(
+      resolveBaseById('hair6', { hair6: { ...variant({ key: 'hair6' }), slot: 'hair' } as any }),
+    ).toBeUndefined();
   });
 });
 
-describe('ordering', () => {
-  it('follows the catalogue sort order', () => {
-    const bases = resolveBases(
-      lookup(
-        row({ key: 'b_second', sortOrder: 2 }),
-        row({ key: 'a_first', sortOrder: 1 }),
-      ),
+/**
+ * The thing that makes a wardrobe survive a skin-tone switch.
+ *
+ * Every tone of one character resolves the same `characterId`, so the editor
+ * fetches the same wardrobe whichever tone is worn - and switching tone keeps
+ * the outfit rather than emptying it.
+ */
+describe('tones share a character', () => {
+  it('gives every tone of one character the same characterId', () => {
+    expect(characterIdOf('aurora_light', [AURORA, NOVA])).toBe('aurora');
+    expect(characterIdOf('aurora_dark', [AURORA, NOVA])).toBe('aurora');
+  });
+
+  it('gives a different character a different one', () => {
+    expect(characterIdOf('nova_light', [AURORA, NOVA])).toBe('nova');
+  });
+
+  it('resolves the same tone list from either tone', () => {
+    const fromLight = tonesForBase('aurora_light', [AURORA, NOVA]).map((b) => b.id);
+    const fromDark = tonesForBase('aurora_dark', [AURORA, NOVA]).map((b) => b.id);
+
+    expect(fromLight).toEqual(fromDark);
+    expect(fromLight).toEqual(['aurora_light', 'aurora_dark']);
+  });
+
+  it('never mixes another character’s tones in', () => {
+    expect(tonesForBase('aurora_light', [AURORA, NOVA]).map((b) => b.id)).not.toContain(
+      'nova_light',
     );
-    const ids = bases.map((b) => b.id);
-    expect(ids.indexOf('a_first')).toBeLessThan(ids.indexOf('b_second'));
+  });
+
+  it('falls back to the bundle’s own grouping for an unknown body', () => {
+    expect(characterIdOf('base_avatar_3', [AURORA])).toBe('base_avatar_3');
+    expect(characterIdOf('never_existed', [AURORA])).toBeNull();
   });
 });
 
-describe('garment compatibility', () => {
-  const garment = (over: any = {}) =>
-    row({ key: 'shirt_x', slot: 'outfit', categories: [7], ...over });
-
-  it('reads a base category from its one-element array', () => {
-    expect(categoryOf(row({ categories: [7] }) as any)).toBe(7);
-    expect(categoryOf(row({ categories: [] }) as any)).toBeNull();
+describe('one entry per character', () => {
+  it('collapses the tones of one character into a single entry', () => {
+    expect(AURORA.variants.map((v) => v.key)).toEqual(['aurora_light', 'aurora_dark']);
+    expect(AURORA.primary.key).toBe('aurora_light');
   });
 
-  it('sees a garment drawn for the same category and target', () => {
-    expect(
-      hasCompatibleGarments({ target: 'female', category: 7 }, lookup(garment())),
-    ).toBe(true);
+  it('labels each tone readably', () => {
+    const [light, dark] = tonesOf(AURORA);
+
+    expect(describeVariant(light, 0)).toBe('Light');
+    expect(describeVariant(dark, 1)).toBe('Dark');
   });
 
-  // A new category is exactly the case an admin needs warning about: the base
-  // is undressable until artwork is drawn for it.
-  it('reports none for a category no garment lists', () => {
-    expect(
-      hasCompatibleGarments({ target: 'female', category: 99 }, lookup(garment())),
-    ).toBe(false);
-  });
+  it('falls back to a positional label for a tone with no id', () => {
+    const base = toBase(variant({ bodyColorId: null }))!;
 
-  it('does not count the other gender, a retired garment, or another base', () => {
-    expect(
-      hasCompatibleGarments({ target: 'male', category: 7 }, lookup(garment())),
-    ).toBe(false);
-    expect(
-      hasCompatibleGarments(
-        { target: 'female', category: 7 },
-        lookup(garment({ isRetired: true })),
-      ),
-    ).toBe(false);
-    expect(
-      hasCompatibleGarments({ target: 'female', category: 7 }, lookup(row())),
-    ).toBe(false);
-  });
-});
-
-describe('colour variants of one character', () => {
-  const light = row({ key: 'male_1_light', characterId: 'male_avatar_1', bodyColorId: 'light' });
-  const dark = row({ key: 'male_1_dark', characterId: 'male_avatar_1', bodyColorId: 'dark' });
-  const other = row({ key: 'female_2', characterId: 'female_avatar_2' });
-
-  it('groups every tone of the same character', () => {
-    const bases = resolveBases(lookup(light, dark, other));
-    const resolved = bases.find((b) => b.id === 'male_1_light')!;
-
-    expect(variantsOf(resolved, bases).map((b) => b.id).sort()).toEqual([
-      'male_1_dark',
-      'male_1_light',
-    ]);
-  });
-
-  it('carries the variant identity through', () => {
-    const resolved = resolveBases(lookup(light)).find((b) => b.id === 'male_1_light');
-
-    expect(resolved).toMatchObject({
-      characterId: 'male_avatar_1',
-      bodyColorId: 'light',
-    });
-  });
-
-  // A base with no characterId stands alone; grouping it with everything else
-  // that also has none would merge unrelated bodies.
-  it('treats a base with no character as its own only variant', () => {
-    const bases = resolveBases(lookup(row({ key: 'alone_1' }), row({ key: 'alone_2' })));
-    const resolved = bases.find((b) => b.id === 'alone_1')!;
-
-    expect(variantsOf(resolved, bases).map((b) => b.id)).toEqual(['alone_1']);
+    expect(describeVariant(base, 2)).toBe('Tone 3');
   });
 });
 
 describe('blink configuration', () => {
   it('uses the uploaded closed-eye artwork', () => {
-    const resolved = resolveBases(
-      lookup(row({ blinkEyeUrl: 'https://s3/blink.png' })),
-    ).find((b) => b.id === 'new_base_1')!;
+    const base = toBase(
+      variant({ blinkEyeUrl: 'https://s3/closed.png', normalEyeUrl: 'https://s3/open.png' }),
+    )!;
 
-    expect(blinkSourcesFor(resolved)?.blink).toEqual({ uri: 'https://s3/blink.png' });
+    expect(blinkSourcesFor(base)).toEqual({
+      normal: { uri: 'https://s3/open.png' },
+      blink: { uri: 'https://s3/closed.png' },
+    });
   });
 
-  // The bundled overlays are drawn for the five shipped silhouettes, so a body
-  // without its own falls back to them rather than to nothing.
-  it('leaves the source null so the renderer can fall back', () => {
-    const resolved = resolveBases(lookup(row())).find((b) => b.id === 'new_base_1')!;
+  it('leaves the source null so the renderer can fall back to the bundled pair', () => {
+    const base = toBase(variant())!;
 
-    expect(blinkSourcesFor(resolved)).toEqual({ normal: null, blink: null });
+    expect(blinkSourcesFor(base)).toEqual({ normal: null, blink: null });
   });
 
   it('reports no blinking at all when it is turned off', () => {
-    const resolved = resolveBases(lookup(row({ blinkEnabled: false }))).find(
-      (b) => b.id === 'new_base_1',
-    )!;
+    const base = toBase(variant({ blinkEnabled: false }))!;
 
-    expect(blinkSourcesFor(resolved)).toBeNull();
+    expect(blinkSourcesFor(base)).toBeNull();
   });
 
   it('blinks by default, so migrated bodies are unaffected', () => {
-    const resolved = resolveBases(lookup(row())).find((b) => b.id === 'new_base_1')!;
+    const base = toBase(variant())!;
 
-    expect(resolved.blinkEnabled).toBe(true);
-    expect(blinkSourcesFor(resolved)).not.toBeNull();
-  });
-});
-
-describe('one card per character', () => {
-  const light = row({ key: 'm1_light', characterId: 'male_avatar_1', bodyColorId: 'light', sortOrder: 1 });
-  const dark = row({ key: 'm1_dark', characterId: 'male_avatar_1', bodyColorId: 'dark', sortOrder: 2 });
-  const solo = row({ key: 'lone_body', sortOrder: 3 });
-
-  const groupsFor = (...rows: any[]) => groupByCharacter(resolveBases(lookup(...rows)));
-
-  // Three tones listed side by side read as three different people.
-  it('collapses the tones of one character into a single entry', () => {
-    const groups = groupsFor(light, dark);
-    const male1 = groups.filter((g) => g.characterId === 'male_avatar_1');
-
-    expect(male1).toHaveLength(1);
-    expect(male1[0].variants.map((v) => v.id).sort()).toEqual(['m1_dark', 'm1_light']);
-  });
-
-  it('shows the first variant on the card', () => {
-    expect(groupsFor(light, dark)[0].primary.id).toBe('m1_light');
-  });
-
-  // Lumping every characterless body together would merge unrelated bodies.
-  it('leaves a body with no character standing alone', () => {
-    const groups = groupsFor(solo, row({ key: 'another_lone' }));
-    // Every bundled body is characterless too, so this checks the two by name
-    // rather than counting - and that each is alone in its own group.
-    const lone = groups.filter((g) =>
-      ['lone_body', 'another_lone'].includes(g.primary.id),
-    );
-
-    expect(lone).toHaveLength(2);
-    expect(lone.every((g) => g.characterId === null)).toBe(true);
-    expect(lone.every((g) => g.variants.length === 1)).toBe(true);
-  });
-
-  it('keeps the bundled bodies as their own entries', () => {
-    const ids = groupsFor(light).map((g) => g.primary.id);
-
-    for (const bundled of BASES) expect(ids).toContain(bundled.id);
-  });
-
-  it('preserves catalogue order', () => {
-    const ids = groupsFor(dark, light).map((g) => g.primary.id);
-    // sortOrder puts light first, so it is the face of the character group.
-    expect(ids).toContain('m1_light');
-    expect(ids).not.toContain('m1_dark');
-  });
-});
-
-describe('naming a tone', () => {
-  it('reads a stored id as words', () => {
-    expect(describeVariant({ bodyColorId: 'light_brown' } as any, 0)).toBe('Light brown');
-    expect(describeVariant({ bodyColorId: 'dark' } as any, 1)).toBe('Dark');
-  });
-
-  it('falls back to a position when the tone is unnamed', () => {
-    expect(describeVariant({ bodyColorId: null } as any, 0)).toBe('Tone 1');
-    expect(describeVariant({} as any, 2)).toBe('Tone 3');
+    expect(base.blinkEnabled).toBe(true);
   });
 });

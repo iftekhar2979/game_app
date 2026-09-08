@@ -1,19 +1,23 @@
-import type { AvatarCatalogueAsset } from '../store/api/avatarAssetsTransforms';
-import { BASES, getBaseById } from './registry';
+import type {
+  AvatarCatalogueAsset,
+  AvatarCharacter,
+} from '../store/api/avatarAssetsTransforms';
+import { getBaseById } from './registry';
 import { AssetSource, AvatarBase, AvatarTarget } from './types';
 
 /**
- * The base bodies a player may build on, from the catalogue and the bundle.
+ * The base bodies a player may build on.
  *
- * The base picker read the hardcoded `BASES` array, so a base uploaded through
- * the dashboard was stored and served correctly and simply never appeared. The
- * list is now the catalogue's, with the bundle as its fallback rather than its
- * source of truth.
+ * The catalogue is the source. The bundle used to be merged in as a fallback
+ * list of five bodies, which meant a body could exist in the picker that the
+ * server had never heard of - and therefore one with no wardrobe the server
+ * could scope, whose garments had to be guessed at locally by category number.
+ * That guess is the leak, so the merge is gone and the bundle now only answers
+ * "what does this key draw as".
  *
- * Merging rather than replacing is deliberate. The bundle is what the app can
- * draw with no network at all, and a catalogue that is empty, stale or
- * unreachable must leave the editor exactly as it was - so a bundled base stays
- * listed until the catalogue actively says otherwise.
+ * The trade is deliberate: with no network there are no bodies to choose from,
+ * where previously there were five that could be dressed wrongly. A body the
+ * server cannot describe is a body whose wardrobe cannot be trusted.
  */
 
 /**
@@ -27,39 +31,18 @@ import { AssetSource, AvatarBase, AvatarTarget } from './types';
 export type CatalogueAssets = Record<string, Partial<AvatarCatalogueAsset> | undefined>;
 
 /**
- * A base's category is the single number it *is*, stored as a one-element
- * array so one compatibility check serves every slot (see the schema comment on
- * `AvatarAsset.categories`). Garments list the categories they fit.
- */
-export function categoryOf(asset: Partial<AvatarCatalogueAsset>): number | null {
-  const category = asset.categories?.[0];
-  return typeof category === 'number' && Number.isFinite(category)
-    ? category
-    : null;
-}
-
-/** Every catalogue row that is a usable base, in catalogue order. */
-function catalogueBases(assets: CatalogueAssets): Partial<AvatarCatalogueAsset>[] {
-  return Object.entries(assets)
-    .filter(([, asset]) => !!asset && asset.slot === 'base')
-    .map(([key, asset]) => ({ key, ...(asset as Partial<AvatarCatalogueAsset>) }))
-    .sort(
-      (a, b) =>
-        (a.sortOrder ?? 0) - (b.sortOrder ?? 0) ||
-        String(a.key).localeCompare(String(b.key)),
-    );
-}
-
-/**
- * Turns one catalogue row into a renderable base.
+ * Turns one catalogue row into a renderable body.
  *
  * Returns null when nothing could draw it: no uploaded artwork and no bundled
  * file under that key. Listing a base with no artwork would put an invisible
  * body in the picker, which reads as a broken app rather than a missing upload.
  */
-function toBase(asset: Partial<AvatarCatalogueAsset>): AvatarBase | null {
-  const category = categoryOf(asset);
-  if (category === null || !asset.key || !asset.target) return null;
+export function toBase(
+  asset: Partial<AvatarCatalogueAsset>,
+  characterId?: string,
+): AvatarBase | null {
+  const character = asset.characterId ?? characterId;
+  if (!asset.key || !asset.target || !character) return null;
 
   const bundled = getBaseById(asset.key);
   const source = asset.imageUrl ? { uri: asset.imageUrl } : bundled?.source;
@@ -68,10 +51,9 @@ function toBase(asset: Partial<AvatarCatalogueAsset>): AvatarBase | null {
   return {
     id: asset.key,
     target: asset.target as AvatarTarget,
-    category,
+    characterId: character,
     isFullbody: asset.isFullbody ?? bundled?.isFullbody ?? true,
     source,
-    characterId: asset.characterId ?? null,
     bodyColorId: asset.bodyColorId ?? null,
     blinkEnabled: asset.blinkEnabled ?? true,
     // Absent leaves these null, and the renderer falls back to the bundled
@@ -81,46 +63,29 @@ function toBase(asset: Partial<AvatarCatalogueAsset>): AvatarBase | null {
   };
 }
 
-/**
- * The bases to offer, catalogue first.
- *
- * - A catalogue row wins over the bundled entry of the same key, so an admin
- *   re-skinning or re-categorising an existing base takes effect immediately.
- * - A catalogue-only base is appended, which is the whole point of this.
- * - A retired base is dropped, and so is one nothing can draw.
- * - A bundled base the catalogue has never heard of is kept, because an
- *   unseeded or unreachable catalogue must not empty the picker.
- */
-export function resolveBases(assets?: CatalogueAssets | null): AvatarBase[] {
-  const rows = assets ? catalogueBases(assets) : [];
+/** Every tone of one character, in catalogue order. */
+export function tonesOf(character: AvatarCharacter): AvatarBase[] {
+  return character.variants
+    .map((variant) => toBase(variant, character.characterId))
+    .filter((base): base is AvatarBase => base !== null);
+}
 
-  // No catalogue at all: the bundle is the whole answer.
-  if (!rows.length) return [...BASES];
-
-  const listed = new Set<string>();
-  const resolved: AvatarBase[] = [];
-
-  for (const row of rows) {
-    listed.add(String(row.key));
-    if (row.isRetired) continue;
-
-    const base = toBase(row);
-    if (base) resolved.push(base);
-  }
-
-  // Bundled bases the catalogue does not mention. Retired ones are not here by
-  // definition - the catalogue is the only thing that can retire anything.
-  const unlisted = BASES.filter((base) => !listed.has(base.id));
-
-  return [...resolved, ...unlisted];
+/** Every body across every character, for the picker. */
+export function resolveBases(characters?: AvatarCharacter[] | null): AvatarBase[] {
+  return (characters ?? []).flatMap(tonesOf);
 }
 
 /**
- * One base by id, wherever it is described.
+ * One base by id, from an artwork lookup rather than from the character list.
  *
- * Rendering a *saved* avatar goes through here, so it deliberately ignores
- * retirement: withdrawing a base stops it being chosen, it does not un-draw the
- * avatars already built on it.
+ * This is the *render* path: the feed, the wardrobe and the profile resolve a
+ * saved avatar's body without ever loading a character list, and they must keep
+ * doing so. It therefore takes the same by-key record every other resolver
+ * takes, and falls back to the bundle.
+ *
+ * Deliberately indifferent to retirement and to assignment. Withdrawing a body
+ * stops it being chosen; it does not un-draw the avatars already built on it,
+ * and a look saved months ago must render the same today.
  */
 export function resolveBaseById(
   id?: string | null,
@@ -134,48 +99,49 @@ export function resolveBaseById(
     if (base) return base;
   }
 
-  return getBaseById(id);
+  const bundled = getBaseById(id);
+  if (!bundled) return undefined;
+
+  // A bundled body the catalogue cannot describe still draws, under its own key
+  // as its own character - which is what it was before anyone grouped it.
+  return { ...bundled, characterId: bundled.characterId ?? id };
 }
 
 /**
- * Whether any garment in the catalogue fits this base.
+ * The character a base belongs to, which is what scopes its wardrobe.
  *
- * A base introduced with a category no garment lists has nothing to wear, which
- * is correct - artwork is drawn for a specific silhouette and must not be
- * widened automatically - but it is worth being able to say so out loud rather
- * than leaving an admin to discover an undressable body.
+ * Answered from the character list where there is one, because that is the
+ * authority; the bundle's own grouping is the fallback for a body the server
+ * could not describe.
  */
-export function hasCompatibleGarments(
-  base: Pick<AvatarBase, 'target' | 'category'>,
-  assets?: CatalogueAssets | null,
-): boolean {
-  return Object.values(assets ?? {}).some(
-    (asset) =>
-      !!asset &&
-      asset.slot !== 'base' &&
-      !asset.isRetired &&
-      asset.target === base.target &&
-      (asset.categories ?? []).includes(base.category),
-  );
-}
+export function characterIdOf(
+  baseId?: string | null,
+  characters?: AvatarCharacter[] | null,
+): string | null {
+  if (!baseId) return null;
 
-/**
- * The colour variants of one character, in display order.
- *
- * A character offered in three tones is three bases - three keys to price,
- * retire and save against - which is what lets the app show a skin-tone switch
- * without either key having to encode the other. A base with no `characterId`
- * stands alone and is its own only variant.
- */
-export function variantsOf(
-  base: Pick<AvatarBase, 'id' | 'characterId'>,
-  bases: AvatarBase[],
-): AvatarBase[] {
-  if (!base.characterId) {
-    return bases.filter((candidate) => candidate.id === base.id);
+  for (const character of characters ?? []) {
+    if (character.variants.some((variant) => variant.key === baseId)) {
+      return character.characterId;
+    }
   }
 
-  return bases.filter((candidate) => candidate.characterId === base.characterId);
+  return getBaseById(baseId)?.characterId ?? null;
+}
+
+/** The tones of whichever character this body belongs to. */
+export function tonesForBase(
+  baseId?: string | null,
+  characters?: AvatarCharacter[] | null,
+): AvatarBase[] {
+  const characterId = characterIdOf(baseId, characters);
+  if (!characterId) return [];
+
+  const character = (characters ?? []).find(
+    (candidate) => candidate.characterId === characterId,
+  );
+
+  return character ? tonesOf(character) : [];
 }
 
 /** The phases of a blink, as the renderers step through them. */
@@ -217,56 +183,6 @@ export function blinkSourcesFor(
     normal: base.normalEyeSource ?? null,
     blink: base.blinkEyeSource ?? null,
   };
-}
-
-/**
- * One entry per character, rather than one per body.
- *
- * A character offered in three tones is three bases in the catalogue, and
- * listing all three side by side reads as three different people. Grouping
- * them puts one card on the picker and leaves the tone to be chosen inside,
- * which is what `characterId` was added to make possible.
- *
- * A base with no `characterId` is its own group: it stands alone, and lumping
- * every characterless base together would merge unrelated bodies.
- */
-export interface CharacterGroup {
-  /** Null for a body that stands alone. */
-  characterId: string | null;
-  /** The body to show on the card. */
-  primary: AvatarBase;
-  /** Every tone of this character, in catalogue order. `primary` included. */
-  variants: AvatarBase[];
-}
-
-export function groupByCharacter(bases: AvatarBase[]): CharacterGroup[] {
-  const groups: CharacterGroup[] = [];
-  const byCharacter = new Map<string, CharacterGroup>();
-
-  for (const base of bases) {
-    if (!base.characterId) {
-      groups.push({ characterId: null, primary: base, variants: [base] });
-      continue;
-    }
-
-    const existing = byCharacter.get(base.characterId);
-    if (existing) {
-      existing.variants.push(base);
-      continue;
-    }
-
-    // The first variant seen is the card's face, which keeps the picker in
-    // whatever order the catalogue's sortOrder established.
-    const group: CharacterGroup = {
-      characterId: base.characterId,
-      primary: base,
-      variants: [base],
-    };
-    byCharacter.set(base.characterId, group);
-    groups.push(group);
-  }
-
-  return groups;
 }
 
 /** A short label for one tone, for the editor's variant row. */

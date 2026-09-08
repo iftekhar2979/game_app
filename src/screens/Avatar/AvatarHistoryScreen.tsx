@@ -138,7 +138,9 @@ export default function AvatarHistoryScreen() {
     navigation.navigate('GenerateAvatar', {
       isFullbody: base.isFullbody,
       target: base.target,
-      avatarCategory: base.category,
+      // The body itself, so the editor reopens on the exact tone this look was
+      // built on and scopes its pickers to that body's character.
+      baseId: base.id,
       returnTo: 'AvatarHistory',
       config,
     });

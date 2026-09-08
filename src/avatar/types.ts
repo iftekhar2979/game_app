@@ -32,12 +32,19 @@ export type AvatarSlot = 'bodyColor' | 'skirt' | 'shoes' | 'outfit' | 'hair';
 
 export const AVATAR_SLOTS: AvatarSlot[] = ['bodyColor', 'skirt', 'shoes', 'outfit', 'hair'];
 
-/** One selectable part. `id` is stable and must never be reused for other art. */
+/**
+ * One selectable part. `id` is stable and must never be reused for other art.
+ *
+ * There is deliberately no field here saying which bodies this fits. That used
+ * to be `categories`, and the app matching on it locally is what let one
+ * character's garments appear on another. A part is wearable by exactly the
+ * character whose scoped listing produced it, so the question is answered
+ * before this type exists and cannot be re-asked from it.
+ */
 export interface AvatarAsset {
   id: string;
+  /** Display metadata, carried for labelling. Never compatibility. */
   target: AvatarTarget;
-  /** Which base categories this part fits. */
-  categories: number[];
   /** Bundled artwork. Remote artwork overrides this at resolve time. */
   source: AssetSource;
 }
@@ -45,16 +52,19 @@ export interface AvatarAsset {
 export interface AvatarBase {
   id: string;
   target: AvatarTarget;
-  category: number;
   isFullbody: boolean;
   /** Bundled artwork. Remote artwork overrides this at resolve time. */
   source: AssetSource;
   /**
-   * Groups the colour variants of one character, so `male_avatar_1` in light
-   * and dark reads as one body offered in two tones rather than two bodies.
-   * Absent on a base that stands alone.
+   * The Base Avatar this body belongs to, and the thing its wardrobe is keyed
+   * on. `male_avatar_1` in light and dark is two bodies of one character, so
+   * both resolve the same assets.
+   *
+   * This replaced `category`, a number the body and each garment had to agree
+   * on. The number was only ever a proxy for "these share a wardrobe", and two
+   * unrelated bodies could hold the same one.
    */
-  characterId?: string | null;
+  characterId: string;
   /** Which variant this is within `characterId`, e.g. `light`. */
   bodyColorId?: string | null;
   /** Whether this body blinks. Off leaves the eyes as the artwork drew them. */

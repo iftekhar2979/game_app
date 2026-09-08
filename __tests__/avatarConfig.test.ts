@@ -1,4 +1,4 @@
-import { BASES, getAssetById, getBaseById, listFor, REGISTRY_VERSION } from '../src/avatar/registry';
+import { ASSETS, BASES, getAssetById, getBaseById, REGISTRY_VERSION } from '../src/avatar/registry';
 import {
   baseOf,
   defaultConfig,
@@ -14,13 +14,15 @@ import { AVATAR_SLOTS, AvatarConfig } from '../src/avatar/types';
 const femaleBase = BASES.find((b) => b.id === 'base_avatar_3')!;
 const maleBase = BASES.find((b) => b.id === 'male_avatar_1')!;
 
+/**
+ * The registry is an artwork lookup now, so what is worth asserting about it is
+ * that ids stay unique and resolvable - not which parts it "offers", which it
+ * no longer decides. `listFor` is gone along with the category matching it did.
+ */
 describe('registry', () => {
   it('gives every asset a unique id within its slot', () => {
     for (const slot of AVATAR_SLOTS) {
-      const ids = listFor(slot, 'female', 4)
-        .concat(listFor(slot, 'male', 1), listFor(slot, 'male', 2))
-        .map((asset) => asset.id);
-
+      const ids = (ASSETS[slot] ?? []).map((asset) => asset.id);
       expect(new Set(ids).size).toBe(ids.length);
     }
   });
@@ -29,45 +31,71 @@ describe('registry', () => {
     expect(new Set(BASES.map((b) => b.id)).size).toBe(BASES.length);
   });
 
-  it('only offers parts that match the base target and category', () => {
-    for (const asset of listFor('hair', 'male', 2)) {
-      expect(asset.target).toBe('male');
-      expect(asset.categories).toContain(2);
+  it('gives every bundled body its own character by default', () => {
+    // A body nobody has grouped stands alone, which is what all five are until
+    // an admin says otherwise. Matches what the seed writes.
+    for (const base of BASES) {
+      expect(base.characterId).toBe(base.id);
     }
-  });
-
-  it('does not offer female parts for a male base', () => {
-    const ids = listFor('outfit', 'male', 1).map((a) => a.id);
-    expect(ids).not.toContain('suit1');
   });
 });
 
+/** One character's scoped wardrobe, as the server would send it. */
+const wardrobe = (...keys: string[]) =>
+  keys.reduce<Record<string, any>>((byKey, key) => {
+    const slot = AVATAR_SLOTS.find((candidate) =>
+      (ASSETS[candidate] ?? []).some((asset) => asset.id === key),
+    )!;
+    byKey[key] = {
+      key,
+      slot,
+      target: 'female',
+      isRetired: false,
+      imageUrl: null,
+      sortOrder: 0,
+    };
+    return byKey;
+  }, {});
+
 describe('defaultConfig', () => {
-  it('picks the first available part in each slot', () => {
-    const config = defaultConfig(femaleBase);
+  it('picks the first part this character was assigned in each slot', () => {
+    const config = defaultConfig(femaleBase, wardrobe('hair6', 'suit1'));
 
     expect(config.base).toBe('base_avatar_3');
-    expect(config.parts.hair).toBe(listFor('hair', 'female', 4)[0].id);
+    expect(config.parts.hair).toBe('hair6');
+    expect(config.parts.outfit).toBe('suit1');
     expect(config.version).toBe(REGISTRY_VERSION);
   });
 
-  it('leaves a slot null when the base has no parts for it', () => {
-    // Shoes are female-only artwork today.
-    expect(listFor('shoes', 'male', 1)).toHaveLength(0);
+  it('leaves a slot null when the character was assigned nothing for it', () => {
+    // The default look is assembled out of this character's own wardrobe, so a
+    // slot it owns nothing in stays empty rather than borrowing.
+    const config = defaultConfig(femaleBase, wardrobe('hair6'));
+
+    expect(config.parts.hair).toBe('hair6');
+    expect(config.parts.shoes).toBeNull();
+    expect(config.parts.outfit).toBeNull();
+  });
+
+  it('leaves every slot null with no wardrobe at all', () => {
     expect(defaultConfig(maleBase).parts.shoes).toBeNull();
+    expect(defaultConfig(maleBase).parts.hair).toBeNull();
   });
 });
 
 describe('resolveConfig', () => {
+  /** A dressed look needs a wardrobe: parts come from the character's own. */
+  const dressed = () => defaultConfig(femaleBase, wardrobe('hair6', 'suit1'));
+
   it('puts the base first and hair last', () => {
-    const layers = resolveConfig(defaultConfig(femaleBase));
+    const layers = resolveConfig(dressed());
 
     expect(layers[0].slot).toBe('base');
     expect(layers[layers.length - 1].slot).toBe('hair');
   });
 
   it('carries the hair tint onto the hair layer only', () => {
-    const config = withHairColor(defaultConfig(femaleBase), '#A33327');
+    const config = withHairColor(dressed(), '#A33327');
     const layers = resolveConfig(config);
 
     const hair = layers.find((l) => l.slot === 'hair');
@@ -77,8 +105,8 @@ describe('resolveConfig', () => {
 
   it('drops a layer whose asset no longer exists instead of throwing', () => {
     const config: AvatarConfig = {
-      ...defaultConfig(femaleBase),
-      parts: { ...defaultConfig(femaleBase).parts, hair: 'hair_that_was_deleted' },
+      ...dressed(),
+      parts: { ...dressed().parts, hair: 'hair_that_was_deleted' },
     };
 
     const layers = resolveConfig(config);
@@ -169,14 +197,16 @@ describe('editing helpers', () => {
   });
 
   it('reports renderability', () => {
-    expect(isRenderable(defaultConfig(femaleBase))).toBe(true);
-    expect(isRenderable({ ...defaultConfig(femaleBase), base: 'gone' })).toBe(false);
+    const config = defaultConfig(femaleBase, wardrobe('hair6', 'suit1'));
+
+    expect(isRenderable(config)).toBe(true);
+    expect(isRenderable({ ...config, base: 'gone' })).toBe(false);
   });
 });
 
 describe('lookups', () => {
   it('finds a base and an asset by id', () => {
-    expect(getBaseById('male_avatar_2')?.category).toBe(2);
+    expect(getBaseById('male_avatar_2')?.characterId).toBe('male_avatar_2');
     expect(getAssetById('hair', 'hair2')?.target).toBe('female');
   });
 

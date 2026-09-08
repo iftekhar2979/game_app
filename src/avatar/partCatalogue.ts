@@ -1,110 +1,97 @@
 import type { AvatarCatalogueAsset } from '../store/api/avatarAssetsTransforms';
 import type { CatalogueAssets } from './baseCatalogue';
-import { getAssetById, listFor } from './registry';
+import { getAssetById } from './registry';
 import { AvatarAsset, AvatarSlot, AvatarTarget } from './types';
 
 /**
- * The garments a body can wear, from the catalogue and the bundle.
+ * The garments one Base Avatar can wear.
  *
- * `listFor` reads the bundled arrays, so a shirt, pant, shoe or hairstyle
- * uploaded through the dashboard was served correctly and never appeared in the
- * pickers. This merges the catalogue in, the same way `baseCatalogue` does for
- * bodies.
+ * The catalogue is the whole list. That is the change: this used to start from
+ * `listFor(slot, target, category)` - the hardcoded arrays in `registry.ts` -
+ * and merely *append* catalogue rows to them. The bundled prefix was filtered
+ * by category number alone and never consulted the body being dressed, so every
+ * bundled garment carrying a matching number appeared on any character carrying
+ * it. Two characters that happened to share a number shared a wardrobe, and no
+ * amount of care in the appended half could undo that.
  *
- * The ordering rule matters more here than it does for bases. The editor's
- * pickers hold an **index** into this list, and `idAt`/`indexOfAsset` convert
- * between that index and a stable asset id using the same list. If the order
- * changed when the catalogue arrived, a selection made a moment earlier would
- * silently come to mean a different garment.
+ * So the bundle is now a *renderer* and never a *lister*. `getAssetById` still
+ * resolves artwork for a row whose upload has not happened yet, which is what
+ * keeps every migrated asset drawing exactly as it did; but a row has to be in
+ * the character's scoped response to be offered at all.
  *
- * So the bundled assets keep their exact positions and catalogue-only assets
- * are appended after them. The prefix a selection was made against never moves.
+ * There is deliberately no fallback for an empty or failed response. A
+ * character whose wardrobe could not be fetched shows nothing, which is honest;
+ * falling back to the bundle would mean falling back to the category matching
+ * this exists to remove, and it would do so precisely when nobody is watching.
  */
 
-/**
- * Whether a catalogue row is a garment this body could wear.
- *
- * The catalogue names the bases a garment fits, so that is what decides it.
- * Matching on the category number is the fallback, for rows the server has not
- * backfilled yet - it is the same fact stated by proxy, and was the only form
- * of it before the link existed.
- */
-function fitsBase(
+/** A row that can actually be drawn, in the slot being asked for. */
+function drawable(
   asset: Partial<AvatarCatalogueAsset>,
   slot: AvatarSlot,
-  target: AvatarTarget,
-  category: number,
-  baseId?: string | null,
 ): boolean {
-  if (asset.slot !== slot || asset.target !== target) return false;
+  if (asset.slot !== slot || !asset.key) return false;
 
-  // Artwork is required: a row with neither an upload nor a bundled file would
-  // render as a hole in the picker.
-  const drawable = !!asset.imageUrl || !!getAssetById(slot, asset.key);
-  if (!drawable) return false;
-
-  const links = asset.compatibleBaseKeys ?? [];
-  if (links.length) return !!baseId && links.includes(baseId);
-
-  return (asset.categories ?? []).includes(category);
+  // Uploaded artwork, or a bundled file under the same stable id. A row with
+  // neither would render as a hole in the picker.
+  return !!asset.imageUrl || !!getAssetById(slot, asset.key);
 }
 
 /**
- * Every asset offered for one slot on one body.
+ * Every asset offered for one slot on one character, in the character's order.
  *
- * Bundled first, in registry order, then catalogue-only rows by `sortOrder`.
+ * `assets` is the scoped catalogue for the character currently being dressed -
+ * `useAssetCatalogue` fetches it per character, so there is nothing here that
+ * needs to re-check which body a row belongs to. The scoping already happened,
+ * on the server, and re-deriving it locally is exactly the mistake this file
+ * used to make.
  *
- * A retired *bundled* asset stays listed, because that is what the app already
- * did: the picker dims it through `resolveAssetState` rather than removing it,
- * which keeps indices stable and lets someone who owns it keep wearing it. A
- * retired *catalogue-only* asset is dropped - it never shipped, so nothing is
- * made inconsistent by its absence.
+ * A retired row is dropped: it cannot be chosen for a new look. A saved avatar
+ * wearing one still renders, because rendering goes through `resolveConfig` and
+ * resolves the key directly rather than looking for it in this list.
  */
 export function resolveParts(
   slot: AvatarSlot,
   target: AvatarTarget,
-  category: number,
   assets?: CatalogueAssets | null,
-  baseId?: string | null,
 ): AvatarAsset[] {
-  const bundled = listFor(slot, target, category);
-  if (!assets) return bundled;
+  if (!assets) return [];
 
-  const known = new Set(bundled.map((asset) => asset.id));
-
-  const extra = Object.entries(assets)
+  return Object.entries(assets)
     .map(([key, row]) => ({ key, ...(row ?? {}) }))
-    .filter(
-      (row) =>
-        !known.has(row.key) &&
-        !row.isRetired &&
-        fitsBase(row, slot, target, category, baseId),
-    )
+    .filter((row) => !row.isRetired && drawable(row, slot))
     .sort(
       (a, b) =>
-        (a.sortOrder ?? 0) - (b.sortOrder ?? 0) || a.key.localeCompare(b.key),
+        // The character's own arrangement first: the server sends the
+        // assignment's order, which is what lets a shared garment sit in a
+        // different place for each character wearing it.
+        (a.assignmentSortOrder ?? a.sortOrder ?? 0) -
+          (b.assignmentSortOrder ?? b.sortOrder ?? 0) ||
+        (a.sortOrder ?? 0) - (b.sortOrder ?? 0) ||
+        a.key.localeCompare(b.key),
     )
     .map(
       (row): AvatarAsset => ({
         id: row.key,
         target,
-        categories: row.categories ?? [category],
-        // `imageUrl` is guaranteed by `fitsBase` for a row with no bundled art.
+        // `drawable` guarantees one of these resolves.
         source: row.imageUrl
           ? { uri: row.imageUrl }
-          : (getAssetById(slot, row.key)!.source),
+          : getAssetById(slot, row.key)!.source,
       }),
     );
-
-  return extra.length ? [...bundled, ...extra] : bundled;
 }
 
 /**
  * Whether an asset id is one this app can draw at all.
  *
- * `normaliseConfig` uses it to decide whether a saved part still exists. It has
- * to consult the catalogue as well as the bundle, or a look wearing a
- * dashboard-uploaded shirt would come back with that slot emptied.
+ * `normaliseConfig` uses it to decide whether a saved part still exists, so it
+ * consults the bundle as well as the catalogue - a look wearing a
+ * dashboard-uploaded shirt must not come back with that slot emptied.
+ *
+ * Deliberately a question about *drawability*, not about permission. Whether
+ * the part may be chosen again is `resolveParts`; whether it can be painted is
+ * this, and a saved avatar only needs the second.
  */
 export function isKnownPart(
   slot: AvatarSlot,

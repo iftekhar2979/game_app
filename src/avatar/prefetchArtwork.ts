@@ -71,17 +71,16 @@ export async function prefetchSources(
  */
 export async function prefetchEditorArtwork(
   target: AvatarTarget,
-  category: number,
   baseId: string | null,
   catalogue: ArtworkCatalogue,
 ): Promise<PrefetchOutcome> {
   const sources: (AssetSource | null)[] = [sourceForBase(baseId, catalogue)];
 
   for (const slot of AVATAR_SLOTS) {
-    // Merged, so uploaded garments are warmed too - they are the ones that
-    // actually need it, being fetched over the network rather than read from
-    // the bundle.
-    for (const asset of resolveParts(slot, target, category, catalogue)) {
+    // The character's own wardrobe, so nothing is warmed that this character
+    // cannot wear. Uploaded garments are the ones that need it, being fetched
+    // over the network rather than read from the bundle.
+    for (const asset of resolveParts(slot, target, catalogue)) {
       sources.push(sourceForAsset(slot, asset.id, catalogue));
     }
   }

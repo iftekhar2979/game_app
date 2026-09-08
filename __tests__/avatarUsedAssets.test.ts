@@ -193,12 +193,27 @@ describe('humaniseAssetId', () => {
 });
 
 describe('default look', () => {
-  it('describes every slot the base actually offers', () => {
-    const items = describeUsedAssets(defaultConfig(femaleBase));
+  /** One character's scoped wardrobe, as the server would send it. */
+  const wardrobe = {
+    hair6: { key: 'hair6', slot: 'hair', target: 'female', imageUrl: null, sortOrder: 0 },
+    shoe_1: { key: 'shoe_1', slot: 'shoes', target: 'female', imageUrl: null, sortOrder: 0 },
+  } as any;
+
+  it('describes every slot this character was assigned something in', () => {
+    const items = describeUsedAssets(defaultConfig(femaleBase, wardrobe));
 
     expect(row(items, 'hair').status).toBe('ok');
     expect(row(items, 'shoes').status).toBe('ok');
-    // Female bases have no skin overlay artwork, so that slot stays empty.
+    // Nothing was assigned in this slot, so it stays empty. It used to say the
+    // same thing for a different reason - no female artwork carried the
+    // category - and the reason is what changed.
     expect(row(items, 'bodyColor').status).toBe('none');
+  });
+
+  it('leaves every slot empty for a character with nothing assigned', () => {
+    const items = describeUsedAssets(defaultConfig(femaleBase, {}));
+
+    expect(row(items, 'hair').status).toBe('none');
+    expect(row(items, 'shoes').status).toBe('none');
   });
 });
