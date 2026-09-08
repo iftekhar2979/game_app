@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { View, Text, TouchableOpacity, Image, StyleSheet, ScrollView, Dimensions, Animated, Alert } from 'react-native';
 import Svg, { Defs, LinearGradient, Stop, Rect, Filter, FeColorMatrix, Image as SvgImage } from 'react-native-svg';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
@@ -40,6 +40,7 @@ import { resolveConfig } from '../../avatar/resolveConfig';
 import { prefetchEditorArtwork, prefetchSources } from '../../avatar/prefetchArtwork';
 import { AvatarAsset, AvatarConfig, AvatarSlot } from '../../avatar/types';
 import { hexToTintMatrix } from '../../avatar/hairTint';
+import { resolveBases } from '../../avatar/baseCatalogue';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList, 'GenerateAvatar'>;
 type GenerateAvatarRouteProp = RouteProp<RootStackParamList, 'GenerateAvatar'>;
@@ -105,11 +106,25 @@ const GenerateAvatarScreen = () => {
   const isFullbody = route.params?.isFullbody === true;
 
   /**
-   * The base this look is built on. Derived from the route's target + category
-   * rather than the `require()` handle, so the saved config references a stable
-   * id instead of a bundler-assigned number.
+   * The base this look is built on.
+   *
+   * By id when the caller sent one, which is the only thing that identifies a
+   * base once two can share a category - a dashboard-created base is free to
+   * reuse an existing one. Target + category remain the fallback so anything
+   * that navigates here without an id behaves exactly as before.
+   *
+   * Never the `require()` handle: the saved config stores a stable id, not a
+   * bundler-assigned number.
    */
-  const activeBase = BASES.find((b) => b.target === target && b.category === avatarCategory);
+  const activeBase = useMemo(() => {
+    const bases = resolveBases(catalogue.assets);
+    const byId = route.params?.baseId
+      ? bases.find((b) => b.id === route.params?.baseId)
+      : undefined;
+    return (
+      byId ?? bases.find((b) => b.target === target && b.category === avatarCategory)
+    );
+  }, [catalogue.assets, route.params?.baseId, target, avatarCategory]);
 
   /**
    * The pickers still hold indices into their filtered lists; the registry

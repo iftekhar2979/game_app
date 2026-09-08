@@ -1,7 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef } from 'react';
 
 import { useGetAvatarAssetsQuery } from '../store/api/avatarAssetsApi';
-import { AssetState, resolveAssetState } from '../store/api/avatarAssetsTransforms';
+import {
+  AssetState,
+  AvatarCatalogueAsset,
+  resolveAssetState,
+} from '../store/api/avatarAssetsTransforms';
 import { ArtworkCatalogue } from './assetSource';
 import { describeCatalogueCoverage, formatCoverageWarning } from './catalogueCoverage';
 
@@ -29,6 +33,14 @@ export interface AssetCatalogue {
    * the editor renders identically before the request lands and after it fails.
    */
   artwork: ArtworkCatalogue;
+  /**
+   * Every catalogue row, keyed by asset key.
+   *
+   * `artwork` answers "where does this draw from"; this answers "what exists",
+   * which is what lets a list be built from the catalogue rather than only
+   * decorated by it. Empty until the catalogue answers.
+   */
+  assets: Record<string, AvatarCatalogueAsset>;
   /** True while the first load is in flight. */
   isLoading: boolean;
   /** True when the catalogue could not be fetched. */
@@ -86,14 +98,17 @@ export function useAssetCatalogue(): AssetCatalogue {
 ${warning}`);
   }, [artwork]);
 
+  const assets = useMemo(() => data ?? {}, [data]);
+
   return useMemo(
     () => ({
       stateOf,
       artwork,
+      assets,
       isLoading,
       isUnavailable: !isLoading && (isError || !hasData),
       refetch,
     }),
-    [stateOf, artwork, isLoading, isError, hasData, refetch],
+    [stateOf, artwork, assets, isLoading, isError, hasData, refetch],
   );
 }
