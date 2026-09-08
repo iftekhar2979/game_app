@@ -1,7 +1,7 @@
 import { Image } from 'react-native';
 
 import { ArtworkCatalogue, remoteUrlsOf, sourceForAsset, sourceForBase } from './assetSource';
-import { listFor } from './registry';
+import { resolveParts } from './partCatalogue';
 import { AssetSource, AVATAR_SLOTS, AvatarTarget } from './types';
 
 /**
@@ -78,7 +78,10 @@ export async function prefetchEditorArtwork(
   const sources: (AssetSource | null)[] = [sourceForBase(baseId, catalogue)];
 
   for (const slot of AVATAR_SLOTS) {
-    for (const asset of listFor(slot, target, category)) {
+    // Merged, so uploaded garments are warmed too - they are the ones that
+    // actually need it, being fetched over the network rather than read from
+    // the bundle.
+    for (const asset of resolveParts(slot, target, category, catalogue)) {
       sources.push(sourceForAsset(slot, asset.id, catalogue));
     }
   }

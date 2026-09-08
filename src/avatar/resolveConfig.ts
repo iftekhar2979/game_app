@@ -1,6 +1,7 @@
 import { ArtworkCatalogue, sourceForAsset, sourceForBase } from './assetSource';
 import { getAssetById, getBaseById, listFor, REGISTRY_VERSION } from './registry';
 import { resolveBaseById } from './baseCatalogue';
+import { isKnownPart, resolveParts } from './partCatalogue';
 import { AssetSource, AVATAR_SLOTS, AvatarBase, AvatarConfig, AvatarLayer, AvatarSlot } from './types';
 
 /**
@@ -26,11 +27,14 @@ export function emptyConfig(base: AvatarBase): AvatarConfig {
  * A sensible starting look — the first available part in each slot.
  * Used for the picker previews and as the editor's initial state.
  */
-export function defaultConfig(base: AvatarBase): AvatarConfig {
+export function defaultConfig(
+  base: AvatarBase,
+  catalogue?: ArtworkCatalogue,
+): AvatarConfig {
   const parts: AvatarConfig['parts'] = {};
 
   for (const slot of AVATAR_SLOTS) {
-    const options = listFor(slot, base.target, base.category);
+    const options = resolveParts(slot, base.target, base.category, catalogue);
     parts[slot] = options.length ? options[0].id : null;
   }
 
@@ -105,7 +109,11 @@ export function normaliseConfig(
   const parts: AvatarConfig['parts'] = {};
   for (const slot of AVATAR_SLOTS) {
     const value = raw.parts?.[slot];
-    parts[slot] = typeof value === 'string' && getAssetById(slot, value) ? value : null;
+    // Checked against the catalogue as well as the bundle: a look wearing a
+    // dashboard-uploaded garment would otherwise come back with that slot
+    // emptied, as though the user had never chosen anything.
+    parts[slot] =
+      typeof value === 'string' && isKnownPart(slot, value, catalogue) ? value : null;
   }
 
   const hairColor = typeof raw.hairColor === 'string' ? raw.hairColor : null;

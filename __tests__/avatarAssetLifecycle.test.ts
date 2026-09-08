@@ -184,15 +184,27 @@ describe('the editor screens draw from the registry, not their own copies', () =
   });
 
   /**
-   * `idAt` still maps a picker index to an id through `listFor`, so the lists
-   * the pickers render must be the very same lists - not a filtered copy that
-   * happens to agree today.
+   * `idAt` maps a picker index back to an id through the same list the picker
+   * rendered, so every list must come from one resolver - not a filtered copy
+   * that happens to agree today. `optionsFor` is that single source; it wraps
+   * `resolveParts`, which merges the catalogue over the bundled registry.
    */
-  it('GenerateAvatarScreen builds every picker list with listFor', () => {
+  it('GenerateAvatarScreen builds every picker list with one resolver', () => {
     const source = sourceOf('GenerateAvatarScreen');
 
     for (const slot of ['hair', 'outfit', 'skirt', 'shoes', 'bodyColor']) {
-      expect(source).toContain(`listFor('${slot}', target, avatarCategory)`);
+      expect(source).toContain(`optionsFor('${slot}')`);
     }
+
+    expect(source).toContain('resolveParts');
+    // A second, unmerged source of options would silently desynchronise the
+    // indices from the ids.
+    expect(source).not.toMatch(/listFor\(/);
+  });
+
+  it('GenerateAvatarScreen inverts an index with that same resolver', () => {
+    const source = sourceOf('GenerateAvatarScreen');
+
+    expect(source).toMatch(/optionsFor\(slot, activeBase\.target, activeBase\.category\)/);
   });
 });
