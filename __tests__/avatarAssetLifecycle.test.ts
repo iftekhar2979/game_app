@@ -202,6 +202,21 @@ describe('the editor screens draw from the registry, not their own copies', () =
     expect(source).not.toMatch(/listFor\(/);
   });
 
+  /**
+   * The skin-tone layer was drawn only when `avatarCategory === 1`, because
+   * that was the only body with skin-tone artwork when it was written. Once a
+   * tone can be uploaded for any body, the number stops standing in for "has a
+   * tone" - and the mismatch was invisible in the worst way: the picker
+   * accepted the choice, the config saved it, and the profile and roster drew
+   * it, while the editor that had just refused to show it looked broken.
+   */
+  it('GenerateAvatarScreen draws a skin tone whenever one resolved', () => {
+    const source = sourceOf('GenerateAvatarScreen');
+
+    expect(source).toContain('{bodyColorArt.source && (');
+    expect(source).not.toMatch(/avatarCategory === 1/);
+  });
+
   it('GenerateAvatarScreen inverts an index with that same resolver', () => {
     const source = sourceOf('GenerateAvatarScreen');
 
