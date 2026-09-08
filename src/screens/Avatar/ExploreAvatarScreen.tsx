@@ -9,8 +9,8 @@ import { useDispatch } from 'react-redux';
 import { authService } from '../../services/authService';
 import { ArtworkCatalogue, artworkForAsset, artworkForBase } from '../../avatar/assetSource';
 import ArtworkImage from '../../components/Avatar/ArtworkImage';
-import { listFor } from '../../avatar/registry';
-import { resolveBases } from '../../avatar/baseCatalogue';
+import { resolveParts } from '../../avatar/partCatalogue';
+import { resolveBases, type CatalogueAssets } from '../../avatar/baseCatalogue';
 import { AvatarBase, AvatarSlot } from '../../avatar/types';
 import { useAssetCatalogue } from '../../avatar/useAssetCatalogue';
 
@@ -28,8 +28,12 @@ type NavigationProp = NativeStackNavigationProp<RootStackParamList, 'ExploreAvat
 /** The slots a card layers on top of the body, in paint order. */
 const PREVIEW_SLOTS: AvatarSlot[] = ['skirt', 'shoes', 'outfit', 'hair'];
 
-const randomIdFor = (slot: AvatarSlot, base: AvatarBase): string | null => {
-  const options = listFor(slot, base.target, base.category);
+const randomIdFor = (
+  slot: AvatarSlot,
+  base: AvatarBase,
+  assets?: CatalogueAssets | null,
+): string | null => {
+  const options = resolveParts(slot, base.target, base.category, assets);
   if (!options.length) return null;
 
   return options[Math.floor(Math.random() * options.length)].id;
@@ -68,9 +72,12 @@ const ExploreAvatarScreen = () => {
     () =>
       bases.map((base) => ({
         base,
-        parts: PREVIEW_SLOTS.map((slot) => ({ slot, assetId: randomIdFor(slot, base) })),
+        parts: PREVIEW_SLOTS.map((slot) => ({
+          slot,
+          assetId: randomIdFor(slot, base, assets),
+        })),
       })),
-    [bases],
+    [bases, assets],
   );
 
   const renderCard = (

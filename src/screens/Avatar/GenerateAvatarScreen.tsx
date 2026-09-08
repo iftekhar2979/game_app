@@ -26,8 +26,6 @@ import {
   HAIR_COLORS,
   REGISTRY_VERSION,
   getEyeSource,
-  indexOfAsset,
-  listFor,
 } from '../../avatar/registry';
 import {
   ArtworkWithFallback,
@@ -41,6 +39,7 @@ import { prefetchEditorArtwork, prefetchSources } from '../../avatar/prefetchArt
 import { AvatarAsset, AvatarConfig, AvatarSlot } from '../../avatar/types';
 import { hexToTintMatrix } from '../../avatar/hairTint';
 import { resolveBases } from '../../avatar/baseCatalogue';
+import { resolveParts } from '../../avatar/partCatalogue';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList, 'GenerateAvatar'>;
 type GenerateAvatarRouteProp = RouteProp<RootStackParamList, 'GenerateAvatar'>;
@@ -91,17 +90,34 @@ const GenerateAvatarScreen = () => {
   const avatarCategory = route.params?.avatarCategory || 1;
 
   /**
-   * `listFor` already filters by target and category, which is what the seven
+   * `resolveParts` already filters by target and category, which is what the seven
    * hand-written filters here used to do. Half-body and full-body draw the same
    * hair and outfit lists - they always did, the screen just held two copies.
    */
-  const HAIR_STYLES = listFor('hair', target, avatarCategory);
-  const BLAZERS = listFor('outfit', target, avatarCategory);
+  /**
+   * Options per slot, catalogue included.
+   *
+   * Memoised on the catalogue so the array identity is stable within a render:
+   * the pickers hold indices into these lists and `idAt`/`seed` invert them, so
+   * they have to be the very same list or an index would resolve to a garment
+   * other than the one on screen.
+   */
+  const optionsFor = useMemo(() => {
+    const cache: Partial<Record<AvatarSlot, ReturnType<typeof resolveParts>>> = {};
+    return (slot: AvatarSlot, t = target, c = avatarCategory) => {
+      const key = `${slot}:${t}:${c}` as AvatarSlot;
+      if (!cache[key]) cache[key] = resolveParts(slot, t, c, catalogue.assets);
+      return cache[key]!;
+    };
+  }, [catalogue.assets, target, avatarCategory]);
+
+  const HAIR_STYLES = optionsFor('hair');
+  const BLAZERS = optionsFor('outfit');
   const FULLBODY_HAIR = HAIR_STYLES;
   const FULLBODY_OUTFITS = BLAZERS;
-  const FULLBODY_SKIRTS = listFor('skirt', target, avatarCategory);
-  const SHOES = listFor('shoes', target, avatarCategory);
-  const BODY_COLORS = listFor('bodyColor', target, avatarCategory);
+  const FULLBODY_SKIRTS = optionsFor('skirt');
+  const SHOES = optionsFor('shoes');
+  const BODY_COLORS = optionsFor('bodyColor');
 
   const isFullbody = route.params?.isFullbody === true;
 
@@ -134,7 +150,7 @@ const GenerateAvatarScreen = () => {
    */
   const idAt = (slot: AvatarSlot, index: number | null): string | null => {
     if (index === null || index === undefined || !activeBase) return null;
-    const options = listFor(slot, activeBase.target, activeBase.category);
+    const options = optionsFor(slot, activeBase.target, activeBase.category);
     return options[index]?.id ?? null;
   };
 
@@ -181,7 +197,14 @@ const GenerateAvatarScreen = () => {
    */
   const seed = (slot: AvatarSlot, fallback: number | null): number | null => {
     if (!savedConfig || !activeBase) return fallback;
-    return indexOfAsset(slot, activeBase.target, activeBase.category, savedConfig.parts?.[slot]);
+    // Inverted against the same merged list the pickers render, so a saved
+    // part that came from the catalogue seeds correctly too.
+    const savedId = savedConfig.parts?.[slot];
+    if (!savedId) return null;
+    const index = optionsFor(slot, activeBase.target, activeBase.category).findIndex(
+      (asset) => asset.id === savedId,
+    );
+    return index >= 0 ? index : null;
   };
 
   /**

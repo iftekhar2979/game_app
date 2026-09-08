@@ -1,0 +1,626 @@
+{
+  "base_avatar_3": {
+    "key": "base_avatar_3",
+    "slot": "base",
+    "target": "female",
+    "categories": [
+      4
+    ],
+    "imageUrl": "https://ilmifyhrm.s3.ap-south-1.amazonaws.com/Avatar_Assets/catalog/v1/base/base_avatar_3.e5431d14.png?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Content-Sha256=UNSIGNED-PAYLOAD&X-Amz-Credential=AKIAYZM57LZYE2DVW24Y%2F20260908%2Fap-south-1%2Fs3%2Faws4_request&X-Amz-Date=20260908T062250Z&X-Amz-Expires=3600&X-Amz-Signature=d3eb03e8e575d0c91c36ef928a57ca8609487267ac3f864e92316b1dfa689bb8&X-Amz-SignedHeaders=host&x-amz-checksum-mode=ENABLED&x-id=GetObject",
+    "isRetired": false,
+    "sortOrder": 0
+  },
+  "base_avatar_4": {
+    "key": "base_avatar_4",
+    "slot": "base",
+    "target": "female",
+    "categories": [
+      5
+    ],
+    "imageUrl": "https://ilmifyhrm.s3.ap-south-1.amazonaws.com/Avatar_Assets/catalog/v1/base/base_avatar_4.28a011f3.png?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Content-Sha256=UNSIGNED-PAYLOAD&X-Amz-Credential=AKIAYZM57LZYE2DVW24Y%2F20260908%2Fap-south-1%2Fs3%2Faws4_request&X-Amz-Date=20260908T062250Z&X-Amz-Expires=3600&X-Amz-Signature=174b2dd07965209a2ad75d2ddcde7d01e59947f2f00ad29a1b7e7e3ee36e6698&X-Amz-SignedHeaders=host&x-amz-checksum-mode=ENABLED&x-id=GetObject",
+    "isRetired": false,
+    "sortOrder": 1
+  },
+  "base_avatar_5": {
+    "key": "base_avatar_5",
+    "slot": "base",
+    "target": "female",
+    "categories": [
+      6
+    ],
+    "imageUrl": "https://ilmifyhrm.s3.ap-south-1.amazonaws.com/Avatar_Assets/catalog/v1/base/base_avatar_5.c1a2f53b.png?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Content-Sha256=UNSIGNED-PAYLOAD&X-Amz-Credential=AKIAYZM57LZYE2DVW24Y%2F20260908%2Fap-south-1%2Fs3%2Faws4_request&X-Amz-Date=20260908T062250Z&X-Amz-Expires=3600&X-Amz-Signature=9a4b355740b0cf314cef31b6ac992d12623087c5319950b7efad3c6ceb595a91&X-Amz-SignedHeaders=host&x-amz-checksum-mode=ENABLED&x-id=GetObject",
+    "isRetired": false,
+    "sortOrder": 2
+  },
+  "male_avatar_1": {
+    "key": "male_avatar_1",
+    "slot": "base",
+    "target": "male",
+    "categories": [
+      1
+    ],
+    "imageUrl": "https://ilmifyhrm.s3.ap-south-1.amazonaws.com/Avatar_Assets/catalog/v1/base/male_avatar_1.f478f902.png?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Content-Sha256=UNSIGNED-PAYLOAD&X-Amz-Credential=AKIAYZM57LZYE2DVW24Y%2F20260908%2Fap-south-1%2Fs3%2Faws4_request&X-Amz-Date=20260908T062250Z&X-Amz-Expires=3600&X-Amz-Signature=9a91dc6ac03f4a150e9994ee3f473ac47b41de87557f3d28dfed6f2e6e0b349c&X-Amz-SignedHeaders=host&x-amz-checksum-mode=ENABLED&x-id=GetObject",
+    "isRetired": false,
+    "sortOrder": 3
+  },
+  "male_avatar_2": {
+    "key": "male_avatar_2",
+    "slot": "base",
+    "target": "male",
+    "categories": [
+      2
+    ],
+    "imageUrl": "https://ilmifyhrm.s3.ap-south-1.amazonaws.com/Avatar_Assets/catalog/v1/base/male_avatar_2.8971cb97.png?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Content-Sha256=UNSIGNED-PAYLOAD&X-Amz-Credential=AKIAYZM57LZYE2DVW24Y%2F20260908%2Fap-south-1%2Fs3%2Faws4_request&X-Amz-Date=20260908T062250Z&X-Amz-Expires=3600&X-Amz-Signature=7d910522e47baa02a74daf0b7c36370acb6eaaf3083234b9689b698f43b8eae3&X-Amz-SignedHeaders=host&x-amz-checksum-mode=ENABLED&x-id=GetObject",
+    "isRetired": false,
+    "sortOrder": 4
+  },
+  "brown_yellow": {
+    "key": "brown_yellow",
+    "slot": "bodyColor",
+    "target": "male",
+    "categories": [
+      1
+    ],
+    "imageUrl": "https://ilmifyhrm.s3.ap-south-1.amazonaws.com/Avatar_Assets/catalog/v1/bodyColor/brown_yellow.ba4013d5.png?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Content-Sha256=UNSIGNED-PAYLOAD&X-Amz-Credential=AKIAYZM57LZYE2DVW24Y%2F20260908%2Fap-south-1%2Fs3%2Faws4_request&X-Amz-Date=20260908T062250Z&X-Amz-Expires=3600&X-Amz-Signature=fbd2e9e651d0a6d40c348c6b237704bdb0ecd6d0f5241d4d02bab74059bad8ec&X-Amz-SignedHeaders=host&x-amz-checksum-mode=ENABLED&x-id=GetObject",
+    "isRetired": false,
+    "sortOrder": 0
+  },
+  "hair2": {
+    "key": "hair2",
+    "slot": "hair",
+    "target": "female",
+    "categories": [
+      4,
+      5,
+      6
+    ],
+    "imageUrl": "https://ilmifyhrm.s3.ap-south-1.amazonaws.com/Avatar_Assets/catalog/v1/hair/hair2.e06e68e5.png?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Content-Sha256=UNSIGNED-PAYLOAD&X-Amz-Credential=AKIAYZM57LZYE2DVW24Y%2F20260908%2Fap-south-1%2Fs3%2Faws4_request&X-Amz-Date=20260908T062250Z&X-Amz-Expires=3600&X-Amz-Signature=3ae5b26f01209d75913369a79f43bbdb8aa080ed041f5831cdcdfdb90eb85d15&X-Amz-SignedHeaders=host&x-amz-checksum-mode=ENABLED&x-id=GetObject",
+    "isRetired": false,
+    "sortOrder": 0
+  },
+  "hair6": {
+    "key": "hair6",
+    "slot": "hair",
+    "target": "female",
+    "categories": [
+      4,
+      5,
+      6
+    ],
+    "imageUrl": "https://ilmifyhrm.s3.ap-south-1.amazonaws.com/Avatar_Assets/catalog/v1/hair/hair6.4402dff7.png?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Content-Sha256=UNSIGNED-PAYLOAD&X-Amz-Credential=AKIAYZM57LZYE2DVW24Y%2F20260908%2Fap-south-1%2Fs3%2Faws4_request&X-Amz-Date=20260908T062250Z&X-Amz-Expires=3600&X-Amz-Signature=fc6e8f6256a21daa818ac63cc511dfcab2ccc8d9ac90ad99a4b89e571fd0927f&X-Amz-SignedHeaders=host&x-amz-checksum-mode=ENABLED&x-id=GetObject",
+    "isRetired": false,
+    "sortOrder": 1
+  },
+  "black_hair_1_1": {
+    "key": "black_hair_1_1",
+    "slot": "hair",
+    "target": "male",
+    "categories": [
+      1
+    ],
+    "imageUrl": "https://ilmifyhrm.s3.ap-south-1.amazonaws.com/Avatar_Assets/catalog/v1/hair/black_hair_1_1.c7b4d529.png?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Content-Sha256=UNSIGNED-PAYLOAD&X-Amz-Credential=AKIAYZM57LZYE2DVW24Y%2F20260908%2Fap-south-1%2Fs3%2Faws4_request&X-Amz-Date=20260908T062250Z&X-Amz-Expires=3600&X-Amz-Signature=f1b58cea24988508ae88f9d3091640cc4e091da4686413e6f1da83dafd20a8d3&X-Amz-SignedHeaders=host&x-amz-checksum-mode=ENABLED&x-id=GetObject",
+    "isRetired": false,
+    "sortOrder": 2
+  },
+  "black_hair_1_2": {
+    "key": "black_hair_1_2",
+    "slot": "hair",
+    "target": "male",
+    "categories": [
+      1
+    ],
+    "imageUrl": "https://ilmifyhrm.s3.ap-south-1.amazonaws.com/Avatar_Assets/catalog/v1/hair/black_hair_1_2.0e90a218.png?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Content-Sha256=UNSIGNED-PAYLOAD&X-Amz-Credential=AKIAYZM57LZYE2DVW24Y%2F20260908%2Fap-south-1%2Fs3%2Faws4_request&X-Amz-Date=20260908T062250Z&X-Amz-Expires=3600&X-Amz-Signature=4994ffbabc490894eb6a229ad41425138448001631aa3eed66f2e0463e4aad7a&X-Amz-SignedHeaders=host&x-amz-checksum-mode=ENABLED&x-id=GetObject",
+    "isRetired": false,
+    "sortOrder": 3
+  },
+  "black_hair_1_5": {
+    "key": "black_hair_1_5",
+    "slot": "hair",
+    "target": "male",
+    "categories": [
+      1
+    ],
+    "imageUrl": "https://ilmifyhrm.s3.ap-south-1.amazonaws.com/Avatar_Assets/catalog/v1/hair/black_hair_1_5.9e9f3713.png?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Content-Sha256=UNSIGNED-PAYLOAD&X-Amz-Credential=AKIAYZM57LZYE2DVW24Y%2F20260908%2Fap-south-1%2Fs3%2Faws4_request&X-Amz-Date=20260908T062250Z&X-Amz-Expires=3600&X-Amz-Signature=432b5e20977d07f41f759bfb50e728e078da68b1cc75dcfc7601d557885729dc&X-Amz-SignedHeaders=host&x-amz-checksum-mode=ENABLED&x-id=GetObject",
+    "isRetired": false,
+    "sortOrder": 4
+  },
+  "hair_1_3": {
+    "key": "hair_1_3",
+    "slot": "hair",
+    "target": "male",
+    "categories": [
+      1
+    ],
+    "imageUrl": "https://ilmifyhrm.s3.ap-south-1.amazonaws.com/Avatar_Assets/catalog/v1/hair/hair_1_3.cbff6020.png?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Content-Sha256=UNSIGNED-PAYLOAD&X-Amz-Credential=AKIAYZM57LZYE2DVW24Y%2F20260908%2Fap-south-1%2Fs3%2Faws4_request&X-Amz-Date=20260908T062250Z&X-Amz-Expires=3600&X-Amz-Signature=dffd3f68d07e19885837abeed427c200f7087b5ce34b035aa8afce74f63d6ef4&X-Amz-SignedHeaders=host&x-amz-checksum-mode=ENABLED&x-id=GetObject",
+    "isRetired": false,
+    "sortOrder": 5
+  },
+  "hair_2_1": {
+    "key": "hair_2_1",
+    "slot": "hair",
+    "target": "male",
+    "categories": [
+      2
+    ],
+    "imageUrl": "https://ilmifyhrm.s3.ap-south-1.amazonaws.com/Avatar_Assets/catalog/v1/hair/hair_2_1.b77f183d.png?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Content-Sha256=UNSIGNED-PAYLOAD&X-Amz-Credential=AKIAYZM57LZYE2DVW24Y%2F20260908%2Fap-south-1%2Fs3%2Faws4_request&X-Amz-Date=20260908T062250Z&X-Amz-Expires=3600&X-Amz-Signature=e7be2681b2107e40b8664b71c2450481990f6042d8dae16ce6f3e176d97940c3&X-Amz-SignedHeaders=host&x-amz-checksum-mode=ENABLED&x-id=GetObject",
+    "isRetired": false,
+    "sortOrder": 6
+  },
+  "black_hair_2_3": {
+    "key": "black_hair_2_3",
+    "slot": "hair",
+    "target": "male",
+    "categories": [
+      2
+    ],
+    "imageUrl": "https://ilmifyhrm.s3.ap-south-1.amazonaws.com/Avatar_Assets/catalog/v1/hair/black_hair_2_3.a185d66d.png?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Content-Sha256=UNSIGNED-PAYLOAD&X-Amz-Credential=AKIAYZM57LZYE2DVW24Y%2F20260908%2Fap-south-1%2Fs3%2Faws4_request&X-Amz-Date=20260908T062250Z&X-Amz-Expires=3600&X-Amz-Signature=bf7311a2020da26a229e94c37a4c3f591a32776016472487b9a3f3d7bcba4b1d&X-Amz-SignedHeaders=host&x-amz-checksum-mode=ENABLED&x-id=GetObject",
+    "isRetired": false,
+    "sortOrder": 7
+  },
+  "black_hair_2_4": {
+    "key": "black_hair_2_4",
+    "slot": "hair",
+    "target": "male",
+    "categories": [
+      2
+    ],
+    "imageUrl": "https://ilmifyhrm.s3.ap-south-1.amazonaws.com/Avatar_Assets/catalog/v1/hair/black_hair_2_4.52a6f8fa.png?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Content-Sha256=UNSIGNED-PAYLOAD&X-Amz-Credential=AKIAYZM57LZYE2DVW24Y%2F20260908%2Fap-south-1%2Fs3%2Faws4_request&X-Amz-Date=20260908T062250Z&X-Amz-Expires=3600&X-Amz-Signature=592d47356856fec8fcb677d5ee5fe3dda429109146107c1ae16e6c89bd924a39&X-Amz-SignedHeaders=host&x-amz-checksum-mode=ENABLED&x-id=GetObject",
+    "isRetired": false,
+    "sortOrder": 8
+  },
+  "black_hair_2_5": {
+    "key": "black_hair_2_5",
+    "slot": "hair",
+    "target": "male",
+    "categories": [
+      2
+    ],
+    "imageUrl": "https://ilmifyhrm.s3.ap-south-1.amazonaws.com/Avatar_Assets/catalog/v1/hair/black_hair_2_5.fefc2b4f.png?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Content-Sha256=UNSIGNED-PAYLOAD&X-Amz-Credential=AKIAYZM57LZYE2DVW24Y%2F20260908%2Fap-south-1%2Fs3%2Faws4_request&X-Amz-Date=20260908T062250Z&X-Amz-Expires=3600&X-Amz-Signature=955a4d9e74c0586413da5ea14112a24519195344172edec4a0153c266d42b96e&X-Amz-SignedHeaders=host&x-amz-checksum-mode=ENABLED&x-id=GetObject",
+    "isRetired": false,
+    "sortOrder": 9
+  },
+  "red_hair_2_1": {
+    "key": "red_hair_2_1",
+    "slot": "hair",
+    "target": "male",
+    "categories": [
+      2
+    ],
+    "imageUrl": "https://ilmifyhrm.s3.ap-south-1.amazonaws.com/Avatar_Assets/catalog/v1/hair/red_hair_2_1.2583b6b3.png?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Content-Sha256=UNSIGNED-PAYLOAD&X-Amz-Credential=AKIAYZM57LZYE2DVW24Y%2F20260908%2Fap-south-1%2Fs3%2Faws4_request&X-Amz-Date=20260908T062250Z&X-Amz-Expires=3600&X-Amz-Signature=ff1d88183a69bfc15d907648c533f5becf3857874a0d41cb50110f9dbd7ba4b6&X-Amz-SignedHeaders=host&x-amz-checksum-mode=ENABLED&x-id=GetObject",
+    "isRetired": false,
+    "sortOrder": 10
+  },
+  "white_hair_2_2": {
+    "key": "white_hair_2_2",
+    "slot": "hair",
+    "target": "male",
+    "categories": [
+      2
+    ],
+    "imageUrl": "https://ilmifyhrm.s3.ap-south-1.amazonaws.com/Avatar_Assets/catalog/v1/hair/white_hair_2_2.830db72b.png?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Content-Sha256=UNSIGNED-PAYLOAD&X-Amz-Credential=AKIAYZM57LZYE2DVW24Y%2F20260908%2Fap-south-1%2Fs3%2Faws4_request&X-Amz-Date=20260908T062250Z&X-Amz-Expires=3600&X-Amz-Signature=cd5eca45952393e9aa4d62c838346f5f8ecbc23e197ebd71e97e3e0d4bd09d69&X-Amz-SignedHeaders=host&x-amz-checksum-mode=ENABLED&x-id=GetObject",
+    "isRetired": false,
+    "sortOrder": 11
+  },
+  "probe_hair_zz": {
+    "key": "probe_hair_zz",
+    "slot": "hair",
+    "target": "female",
+    "categories": [
+      4
+    ],
+    "imageUrl": "https://ilmifyhrm.s3.ap-south-1.amazonaws.com/Avatar_Assets/2026/09/08/probe_hair_zz.png?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Content-Sha256=UNSIGNED-PAYLOAD&X-Amz-Credential=AKIAYZM57LZYE2DVW24Y%2F20260908%2Fap-south-1%2Fs3%2Faws4_request&X-Amz-Date=20260908T064959Z&X-Amz-Expires=3600&X-Amz-Signature=17215e16620f41fab1d57b28b9392e946a4203d2b26bb5a671927b605d751c93&X-Amz-SignedHeaders=host&x-amz-checksum-mode=ENABLED&x-id=GetObject",
+    "isRetired": false,
+    "sortOrder": 90
+  },
+  "suit1": {
+    "key": "suit1",
+    "slot": "outfit",
+    "target": "female",
+    "categories": [
+      4,
+      5,
+      6
+    ],
+    "imageUrl": "https://ilmifyhrm.s3.ap-south-1.amazonaws.com/Avatar_Assets/catalog/v1/outfit/suit1.59a25ef9.png?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Content-Sha256=UNSIGNED-PAYLOAD&X-Amz-Credential=AKIAYZM57LZYE2DVW24Y%2F20260908%2Fap-south-1%2Fs3%2Faws4_request&X-Amz-Date=20260908T062250Z&X-Amz-Expires=3600&X-Amz-Signature=b792d25df9ad5b90fe09d64b9a6268069f80048c376a3220f4b5d272953ab325&X-Amz-SignedHeaders=host&x-amz-checksum-mode=ENABLED&x-id=GetObject",
+    "isRetired": false,
+    "sortOrder": 0
+  },
+  "half_sleve_blouse_1": {
+    "key": "half_sleve_blouse_1",
+    "slot": "outfit",
+    "target": "female",
+    "categories": [
+      4,
+      5,
+      6
+    ],
+    "imageUrl": "https://ilmifyhrm.s3.ap-south-1.amazonaws.com/Avatar_Assets/catalog/v1/outfit/half_sleve_blouse_1.a69d9eb0.png?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Content-Sha256=UNSIGNED-PAYLOAD&X-Amz-Credential=AKIAYZM57LZYE2DVW24Y%2F20260908%2Fap-south-1%2Fs3%2Faws4_request&X-Amz-Date=20260908T062250Z&X-Amz-Expires=3600&X-Amz-Signature=f26cc9bbb502e5d13ac7c520aa26581021d41c95a0018a313dfca6bfd8bfdcb3&X-Amz-SignedHeaders=host&x-amz-checksum-mode=ENABLED&x-id=GetObject",
+    "isRetired": false,
+    "sortOrder": 1
+  },
+  "full_sleve_1": {
+    "key": "full_sleve_1",
+    "slot": "outfit",
+    "target": "female",
+    "categories": [
+      4,
+      5,
+      6
+    ],
+    "imageUrl": "https://ilmifyhrm.s3.ap-south-1.amazonaws.com/Avatar_Assets/catalog/v1/outfit/full_sleve_1.10c1fc00.png?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Content-Sha256=UNSIGNED-PAYLOAD&X-Amz-Credential=AKIAYZM57LZYE2DVW24Y%2F20260908%2Fap-south-1%2Fs3%2Faws4_request&X-Amz-Date=20260908T062250Z&X-Amz-Expires=3600&X-Amz-Signature=6010911e31d24837a63d4a5469d1f29fc2c4cda52037519194ecabbfdc5758c4&X-Amz-SignedHeaders=host&x-amz-checksum-mode=ENABLED&x-id=GetObject",
+    "isRetired": false,
+    "sortOrder": 2
+  },
+  "necksleb_1": {
+    "key": "necksleb_1",
+    "slot": "outfit",
+    "target": "female",
+    "categories": [
+      4,
+      5,
+      6
+    ],
+    "imageUrl": "https://ilmifyhrm.s3.ap-south-1.amazonaws.com/Avatar_Assets/catalog/v1/outfit/necksleb_1.323dd4c6.png?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Content-Sha256=UNSIGNED-PAYLOAD&X-Amz-Credential=AKIAYZM57LZYE2DVW24Y%2F20260908%2Fap-south-1%2Fs3%2Faws4_request&X-Amz-Date=20260908T062250Z&X-Amz-Expires=3600&X-Amz-Signature=cc8f59ce29d00cd70852d026603ed963657c883d19d9ac8c2c935d12ff0aded3&X-Amz-SignedHeaders=host&x-amz-checksum-mode=ENABLED&x-id=GetObject",
+    "isRetired": false,
+    "sortOrder": 3
+  },
+  "neckless_sleve_2": {
+    "key": "neckless_sleve_2",
+    "slot": "outfit",
+    "target": "female",
+    "categories": [
+      4,
+      5,
+      6
+    ],
+    "imageUrl": "https://ilmifyhrm.s3.ap-south-1.amazonaws.com/Avatar_Assets/catalog/v1/outfit/neckless_sleve_2.ffa56867.png?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Content-Sha256=UNSIGNED-PAYLOAD&X-Amz-Credential=AKIAYZM57LZYE2DVW24Y%2F20260908%2Fap-south-1%2Fs3%2Faws4_request&X-Amz-Date=20260908T062250Z&X-Amz-Expires=3600&X-Amz-Signature=17bbaa26bb15624eeeccc0b8cbbecdce42de5a7b58d66c8b2e1ac447c6662b2c&X-Amz-SignedHeaders=host&x-amz-checksum-mode=ENABLED&x-id=GetObject",
+    "isRetired": false,
+    "sortOrder": 4
+  },
+  "blue_shirt_1_1": {
+    "key": "blue_shirt_1_1",
+    "slot": "outfit",
+    "target": "male",
+    "categories": [
+      1
+    ],
+    "imageUrl": "https://ilmifyhrm.s3.ap-south-1.amazonaws.com/Avatar_Assets/catalog/v1/outfit/blue_shirt_1_1.ad1d6855.png?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Content-Sha256=UNSIGNED-PAYLOAD&X-Amz-Credential=AKIAYZM57LZYE2DVW24Y%2F20260908%2Fap-south-1%2Fs3%2Faws4_request&X-Amz-Date=20260908T062250Z&X-Amz-Expires=3600&X-Amz-Signature=087956d4aaf8b30ebb62b8fc84880d4fabc23a9fb08754652551177e605171f0&X-Amz-SignedHeaders=host&x-amz-checksum-mode=ENABLED&x-id=GetObject",
+    "isRetired": false,
+    "sortOrder": 5
+  },
+  "blue_shirt_1_2": {
+    "key": "blue_shirt_1_2",
+    "slot": "outfit",
+    "target": "male",
+    "categories": [
+      1
+    ],
+    "imageUrl": "https://ilmifyhrm.s3.ap-south-1.amazonaws.com/Avatar_Assets/catalog/v1/outfit/blue_shirt_1_2.3092d00b.png?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Content-Sha256=UNSIGNED-PAYLOAD&X-Amz-Credential=AKIAYZM57LZYE2DVW24Y%2F20260908%2Fap-south-1%2Fs3%2Faws4_request&X-Amz-Date=20260908T062250Z&X-Amz-Expires=3600&X-Amz-Signature=650aeed7fa7ace64bd279480849318f5a65f24ceec1820edd94e71590ebd7de1&X-Amz-SignedHeaders=host&x-amz-checksum-mode=ENABLED&x-id=GetObject",
+    "isRetired": false,
+    "sortOrder": 6
+  },
+  "green_shirt_1_1": {
+    "key": "green_shirt_1_1",
+    "slot": "outfit",
+    "target": "male",
+    "categories": [
+      1
+    ],
+    "imageUrl": "https://ilmifyhrm.s3.ap-south-1.amazonaws.com/Avatar_Assets/catalog/v1/outfit/green_shirt_1_1.8b6484d7.png?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Content-Sha256=UNSIGNED-PAYLOAD&X-Amz-Credential=AKIAYZM57LZYE2DVW24Y%2F20260908%2Fap-south-1%2Fs3%2Faws4_request&X-Amz-Date=20260908T062250Z&X-Amz-Expires=3600&X-Amz-Signature=6735769b41fded45bda3b8d6bc8d893ed70f5730eb97ed996376fa9497bd3d1a&X-Amz-SignedHeaders=host&x-amz-checksum-mode=ENABLED&x-id=GetObject",
+    "isRetired": false,
+    "sortOrder": 7
+  },
+  "red_shirt_1_1": {
+    "key": "red_shirt_1_1",
+    "slot": "outfit",
+    "target": "male",
+    "categories": [
+      1
+    ],
+    "imageUrl": "https://ilmifyhrm.s3.ap-south-1.amazonaws.com/Avatar_Assets/catalog/v1/outfit/red_shirt_1_1.a40c1d07.png?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Content-Sha256=UNSIGNED-PAYLOAD&X-Amz-Credential=AKIAYZM57LZYE2DVW24Y%2F20260908%2Fap-south-1%2Fs3%2Faws4_request&X-Amz-Date=20260908T062250Z&X-Amz-Expires=3600&X-Amz-Signature=9350cb04d8d1faa803b58412ed53841f906a5909d9588d0eefee73d31d4aae0f&X-Amz-SignedHeaders=host&x-amz-checksum-mode=ENABLED&x-id=GetObject",
+    "isRetired": false,
+    "sortOrder": 8
+  },
+  "black_shirt_2_1": {
+    "key": "black_shirt_2_1",
+    "slot": "outfit",
+    "target": "male",
+    "categories": [
+      2
+    ],
+    "imageUrl": "https://ilmifyhrm.s3.ap-south-1.amazonaws.com/Avatar_Assets/catalog/v1/outfit/black_shirt_2_1.f7b0ef79.png?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Content-Sha256=UNSIGNED-PAYLOAD&X-Amz-Credential=AKIAYZM57LZYE2DVW24Y%2F20260908%2Fap-south-1%2Fs3%2Faws4_request&X-Amz-Date=20260908T062250Z&X-Amz-Expires=3600&X-Amz-Signature=0a163dc1703b7c2f3c181aa301608e3c6b320443ef561c6e0f76a9b93879d3b6&X-Amz-SignedHeaders=host&x-amz-checksum-mode=ENABLED&x-id=GetObject",
+    "isRetired": false,
+    "sortOrder": 9
+  },
+  "black_undershirt_2_1": {
+    "key": "black_undershirt_2_1",
+    "slot": "outfit",
+    "target": "male",
+    "categories": [
+      2
+    ],
+    "imageUrl": "https://ilmifyhrm.s3.ap-south-1.amazonaws.com/Avatar_Assets/catalog/v1/outfit/black_undershirt_2_1.ae2f1b2b.png?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Content-Sha256=UNSIGNED-PAYLOAD&X-Amz-Credential=AKIAYZM57LZYE2DVW24Y%2F20260908%2Fap-south-1%2Fs3%2Faws4_request&X-Amz-Date=20260908T062250Z&X-Amz-Expires=3600&X-Amz-Signature=e08caf97b8f8bda0b9a0914eed163bac2f7a9f8b6cf3d8886f5f486fff398e0d&X-Amz-SignedHeaders=host&x-amz-checksum-mode=ENABLED&x-id=GetObject",
+    "isRetired": false,
+    "sortOrder": 10
+  },
+  "blue_shirt_2_1": {
+    "key": "blue_shirt_2_1",
+    "slot": "outfit",
+    "target": "male",
+    "categories": [
+      2
+    ],
+    "imageUrl": "https://ilmifyhrm.s3.ap-south-1.amazonaws.com/Avatar_Assets/catalog/v1/outfit/blue_shirt_2_1.63fb0d1a.png?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Content-Sha256=UNSIGNED-PAYLOAD&X-Amz-Credential=AKIAYZM57LZYE2DVW24Y%2F20260908%2Fap-south-1%2Fs3%2Faws4_request&X-Amz-Date=20260908T062250Z&X-Amz-Expires=3600&X-Amz-Signature=07e6ca191aaeb74d0642990c3d5555b29d8cd643edd0d18c047db9d7005eb890&X-Amz-SignedHeaders=host&x-amz-checksum-mode=ENABLED&x-id=GetObject",
+    "isRetired": false,
+    "sortOrder": 11
+  },
+  "blue_undershirt_2_1": {
+    "key": "blue_undershirt_2_1",
+    "slot": "outfit",
+    "target": "male",
+    "categories": [
+      2
+    ],
+    "imageUrl": "https://ilmifyhrm.s3.ap-south-1.amazonaws.com/Avatar_Assets/catalog/v1/outfit/blue_undershirt_2_1.915e6733.png?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Content-Sha256=UNSIGNED-PAYLOAD&X-Amz-Credential=AKIAYZM57LZYE2DVW24Y%2F20260908%2Fap-south-1%2Fs3%2Faws4_request&X-Amz-Date=20260908T062250Z&X-Amz-Expires=3600&X-Amz-Signature=90477f44b5225618f79a0e10c7b2323902f260d10a4accd91afb3235ce617d04&X-Amz-SignedHeaders=host&x-amz-checksum-mode=ENABLED&x-id=GetObject",
+    "isRetired": false,
+    "sortOrder": 12
+  },
+  "green_shirt_2_1": {
+    "key": "green_shirt_2_1",
+    "slot": "outfit",
+    "target": "male",
+    "categories": [
+      2
+    ],
+    "imageUrl": "https://ilmifyhrm.s3.ap-south-1.amazonaws.com/Avatar_Assets/catalog/v1/outfit/green_shirt_2_1.0d46ab26.png?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Content-Sha256=UNSIGNED-PAYLOAD&X-Amz-Credential=AKIAYZM57LZYE2DVW24Y%2F20260908%2Fap-south-1%2Fs3%2Faws4_request&X-Amz-Date=20260908T062250Z&X-Amz-Expires=3600&X-Amz-Signature=a3c5a8063e05dffb16bddb799cb38c03f47b07b0822de25e6e1fa8c58111b385&X-Amz-SignedHeaders=host&x-amz-checksum-mode=ENABLED&x-id=GetObject",
+    "isRetired": false,
+    "sortOrder": 13
+  },
+  "green_undershirt_2_1": {
+    "key": "green_undershirt_2_1",
+    "slot": "outfit",
+    "target": "male",
+    "categories": [
+      2
+    ],
+    "imageUrl": "https://ilmifyhrm.s3.ap-south-1.amazonaws.com/Avatar_Assets/catalog/v1/outfit/green_undershirt_2_1.4d388f0c.png?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Content-Sha256=UNSIGNED-PAYLOAD&X-Amz-Credential=AKIAYZM57LZYE2DVW24Y%2F20260908%2Fap-south-1%2Fs3%2Faws4_request&X-Amz-Date=20260908T062250Z&X-Amz-Expires=3600&X-Amz-Signature=694f06f6144822d554feda812f93026084b9c385c3697783c917a69b76613bba&X-Amz-SignedHeaders=host&x-amz-checksum-mode=ENABLED&x-id=GetObject",
+    "isRetired": false,
+    "sortOrder": 14
+  },
+  "red_undershirt_2_1": {
+    "key": "red_undershirt_2_1",
+    "slot": "outfit",
+    "target": "male",
+    "categories": [
+      2
+    ],
+    "imageUrl": "https://ilmifyhrm.s3.ap-south-1.amazonaws.com/Avatar_Assets/catalog/v1/outfit/red_undershirt_2_1.4516b5b8.png?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Content-Sha256=UNSIGNED-PAYLOAD&X-Amz-Credential=AKIAYZM57LZYE2DVW24Y%2F20260908%2Fap-south-1%2Fs3%2Faws4_request&X-Amz-Date=20260908T062250Z&X-Amz-Expires=3600&X-Amz-Signature=54e848902a8ff4b361faa8da9c5a041efaff3165607d4163b1f9b87927e57fc1&X-Amz-SignedHeaders=host&x-amz-checksum-mode=ENABLED&x-id=GetObject",
+    "isRetired": false,
+    "sortOrder": 15
+  },
+  "probe_shirt_zz": {
+    "key": "probe_shirt_zz",
+    "slot": "outfit",
+    "target": "female",
+    "categories": [
+      4
+    ],
+    "imageUrl": "https://ilmifyhrm.s3.ap-south-1.amazonaws.com/Avatar_Assets/2026/09/08/probe_shirt_zz.png?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Content-Sha256=UNSIGNED-PAYLOAD&X-Amz-Credential=AKIAYZM57LZYE2DVW24Y%2F20260908%2Fap-south-1%2Fs3%2Faws4_request&X-Amz-Date=20260908T064955Z&X-Amz-Expires=3600&X-Amz-Signature=456bbea093f0e28a88d712848043d2ab350d22fae45638adbee6ef28aa015dc9&X-Amz-SignedHeaders=host&x-amz-checksum-mode=ENABLED&x-id=GetObject",
+    "isRetired": false,
+    "sortOrder": 90
+  },
+  "green_shoe_1": {
+    "key": "green_shoe_1",
+    "slot": "shoes",
+    "target": "female",
+    "categories": [
+      4,
+      5,
+      6
+    ],
+    "imageUrl": "https://ilmifyhrm.s3.ap-south-1.amazonaws.com/Avatar_Assets/catalog/v1/shoes/green_shoe_1.f5388ed3.png?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Content-Sha256=UNSIGNED-PAYLOAD&X-Amz-Credential=AKIAYZM57LZYE2DVW24Y%2F20260908%2Fap-south-1%2Fs3%2Faws4_request&X-Amz-Date=20260908T062250Z&X-Amz-Expires=3600&X-Amz-Signature=13fa6c51e66bc582cd966c63bd06557857c24b58ff3441b3fcf95bb9095aa394&X-Amz-SignedHeaders=host&x-amz-checksum-mode=ENABLED&x-id=GetObject",
+    "isRetired": false,
+    "sortOrder": 0
+  },
+  "green_shoe_14": {
+    "key": "green_shoe_14",
+    "slot": "shoes",
+    "target": "female",
+    "categories": [
+      4,
+      5,
+      6
+    ],
+    "imageUrl": "https://ilmifyhrm.s3.ap-south-1.amazonaws.com/Avatar_Assets/catalog/v1/shoes/green_shoe_14.c2e05ae3.png?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Content-Sha256=UNSIGNED-PAYLOAD&X-Amz-Credential=AKIAYZM57LZYE2DVW24Y%2F20260908%2Fap-south-1%2Fs3%2Faws4_request&X-Amz-Date=20260908T062250Z&X-Amz-Expires=3600&X-Amz-Signature=0819888b83a9a63ed9b23cb7a1f291c06a9809051e537da12d679e61800680d9&X-Amz-SignedHeaders=host&x-amz-checksum-mode=ENABLED&x-id=GetObject",
+    "isRetired": false,
+    "sortOrder": 1
+  },
+  "green_shoes_41": {
+    "key": "green_shoes_41",
+    "slot": "shoes",
+    "target": "female",
+    "categories": [
+      4,
+      5,
+      6
+    ],
+    "imageUrl": "https://ilmifyhrm.s3.ap-south-1.amazonaws.com/Avatar_Assets/catalog/v1/shoes/green_shoes_41.d541592c.png?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Content-Sha256=UNSIGNED-PAYLOAD&X-Amz-Credential=AKIAYZM57LZYE2DVW24Y%2F20260908%2Fap-south-1%2Fs3%2Faws4_request&X-Amz-Date=20260908T062250Z&X-Amz-Expires=3600&X-Amz-Signature=d4ccaa9f3304a2313755712dad069883d11f0a65a1ed72efbab594f99b45c410&X-Amz-SignedHeaders=host&x-amz-checksum-mode=ENABLED&x-id=GetObject",
+    "isRetired": false,
+    "sortOrder": 2
+  },
+  "shoe_1": {
+    "key": "shoe_1",
+    "slot": "shoes",
+    "target": "female",
+    "categories": [
+      4,
+      5,
+      6
+    ],
+    "imageUrl": "https://ilmifyhrm.s3.ap-south-1.amazonaws.com/Avatar_Assets/catalog/v1/shoes/shoe_1.99a4f909.png?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Content-Sha256=UNSIGNED-PAYLOAD&X-Amz-Credential=AKIAYZM57LZYE2DVW24Y%2F20260908%2Fap-south-1%2Fs3%2Faws4_request&X-Amz-Date=20260908T062250Z&X-Amz-Expires=3600&X-Amz-Signature=7df97a50156188f4560c7a71136c7192d538610e385a5a3be29604dde41ef464&X-Amz-SignedHeaders=host&x-amz-checksum-mode=ENABLED&x-id=GetObject",
+    "isRetired": false,
+    "sortOrder": 3
+  },
+  "probe_shoe_zz": {
+    "key": "probe_shoe_zz",
+    "slot": "shoes",
+    "target": "female",
+    "categories": [
+      4
+    ],
+    "imageUrl": "https://ilmifyhrm.s3.ap-south-1.amazonaws.com/Avatar_Assets/2026/09/08/probe_shoe_zz.png?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Content-Sha256=UNSIGNED-PAYLOAD&X-Amz-Credential=AKIAYZM57LZYE2DVW24Y%2F20260908%2Fap-south-1%2Fs3%2Faws4_request&X-Amz-Date=20260908T064959Z&X-Amz-Expires=3600&X-Amz-Signature=60251379d7ab97328a528fd926ce421822c2bcbbeaaebe96f45742528e29812a&X-Amz-SignedHeaders=host&x-amz-checksum-mode=ENABLED&x-id=GetObject",
+    "isRetired": false,
+    "sortOrder": 90
+  },
+  "full_pant_33": {
+    "key": "full_pant_33",
+    "slot": "skirt",
+    "target": "female",
+    "categories": [
+      4,
+      5,
+      6
+    ],
+    "imageUrl": "https://ilmifyhrm.s3.ap-south-1.amazonaws.com/Avatar_Assets/catalog/v1/skirt/full_pant_33.d63e2a77.png?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Content-Sha256=UNSIGNED-PAYLOAD&X-Amz-Credential=AKIAYZM57LZYE2DVW24Y%2F20260908%2Fap-south-1%2Fs3%2Faws4_request&X-Amz-Date=20260908T062250Z&X-Amz-Expires=3600&X-Amz-Signature=15f377f34a2ee4b85c1d4807c3b8163b913f002b8f5bc313ab3dcb8084ffe4f7&X-Amz-SignedHeaders=host&x-amz-checksum-mode=ENABLED&x-id=GetObject",
+    "isRetired": false,
+    "sortOrder": 0
+  },
+  "short_pant_1": {
+    "key": "short_pant_1",
+    "slot": "skirt",
+    "target": "female",
+    "categories": [
+      4,
+      5,
+      6
+    ],
+    "imageUrl": "https://ilmifyhrm.s3.ap-south-1.amazonaws.com/Avatar_Assets/catalog/v1/skirt/short_pant_1.f132a2d6.png?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Content-Sha256=UNSIGNED-PAYLOAD&X-Amz-Credential=AKIAYZM57LZYE2DVW24Y%2F20260908%2Fap-south-1%2Fs3%2Faws4_request&X-Amz-Date=20260908T062250Z&X-Amz-Expires=3600&X-Amz-Signature=b3e06b0e8a9a43c3f655d95fb203ef87c452e876a18d606dc51863553923f4c4&X-Amz-SignedHeaders=host&x-amz-checksum-mode=ENABLED&x-id=GetObject",
+    "isRetired": false,
+    "sortOrder": 1
+  },
+  "short_pant_2": {
+    "key": "short_pant_2",
+    "slot": "skirt",
+    "target": "female",
+    "categories": [
+      4,
+      5,
+      6
+    ],
+    "imageUrl": "https://ilmifyhrm.s3.ap-south-1.amazonaws.com/Avatar_Assets/catalog/v1/skirt/short_pant_2.84a8e073.png?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Content-Sha256=UNSIGNED-PAYLOAD&X-Amz-Credential=AKIAYZM57LZYE2DVW24Y%2F20260908%2Fap-south-1%2Fs3%2Faws4_request&X-Amz-Date=20260908T062250Z&X-Amz-Expires=3600&X-Amz-Signature=323db64d7c4045d084bed009125f79bc52121a3de8cca524d1ca0737ad5c1a8a&X-Amz-SignedHeaders=host&x-amz-checksum-mode=ENABLED&x-id=GetObject",
+    "isRetired": false,
+    "sortOrder": 2
+  },
+  "short_pant_3": {
+    "key": "short_pant_3",
+    "slot": "skirt",
+    "target": "female",
+    "categories": [
+      4,
+      5,
+      6
+    ],
+    "imageUrl": "https://ilmifyhrm.s3.ap-south-1.amazonaws.com/Avatar_Assets/catalog/v1/skirt/short_pant_3.d6513a81.png?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Content-Sha256=UNSIGNED-PAYLOAD&X-Amz-Credential=AKIAYZM57LZYE2DVW24Y%2F20260908%2Fap-south-1%2Fs3%2Faws4_request&X-Amz-Date=20260908T062250Z&X-Amz-Expires=3600&X-Amz-Signature=576f0ce2f9c5fef111fdf4b7ff4ef7606a6eae72435ce92cc2fad65d266ec13c&X-Amz-SignedHeaders=host&x-amz-checksum-mode=ENABLED&x-id=GetObject",
+    "isRetired": false,
+    "sortOrder": 3
+  },
+  "black_short_pant_1_1": {
+    "key": "black_short_pant_1_1",
+    "slot": "skirt",
+    "target": "male",
+    "categories": [
+      1
+    ],
+    "imageUrl": "https://ilmifyhrm.s3.ap-south-1.amazonaws.com/Avatar_Assets/catalog/v1/skirt/black_short_pant_1_1.a8715e43.png?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Content-Sha256=UNSIGNED-PAYLOAD&X-Amz-Credential=AKIAYZM57LZYE2DVW24Y%2F20260908%2Fap-south-1%2Fs3%2Faws4_request&X-Amz-Date=20260908T062250Z&X-Amz-Expires=3600&X-Amz-Signature=13061bef7943c17ccc62592b06eb636856f62396d5104347984c3dcc8fd763b0&X-Amz-SignedHeaders=host&x-amz-checksum-mode=ENABLED&x-id=GetObject",
+    "isRetired": false,
+    "sortOrder": 4
+  },
+  "blue_short_pant_1_1": {
+    "key": "blue_short_pant_1_1",
+    "slot": "skirt",
+    "target": "male",
+    "categories": [
+      1
+    ],
+    "imageUrl": "https://ilmifyhrm.s3.ap-south-1.amazonaws.com/Avatar_Assets/catalog/v1/skirt/blue_short_pant_1_1.1b6b13f1.png?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Content-Sha256=UNSIGNED-PAYLOAD&X-Amz-Credential=AKIAYZM57LZYE2DVW24Y%2F20260908%2Fap-south-1%2Fs3%2Faws4_request&X-Amz-Date=20260908T062250Z&X-Amz-Expires=3600&X-Amz-Signature=1ae05ee6ae750ada254dfa1117596469d0857c32458a4177062747adf5b554c9&X-Amz-SignedHeaders=host&x-amz-checksum-mode=ENABLED&x-id=GetObject",
+    "isRetired": false,
+    "sortOrder": 5
+  },
+  "green_short_pant_1_1": {
+    "key": "green_short_pant_1_1",
+    "slot": "skirt",
+    "target": "male",
+    "categories": [
+      1
+    ],
+    "imageUrl": "https://ilmifyhrm.s3.ap-south-1.amazonaws.com/Avatar_Assets/catalog/v1/skirt/green_short_pant_1_1.71bb3f77.png?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Content-Sha256=UNSIGNED-PAYLOAD&X-Amz-Credential=AKIAYZM57LZYE2DVW24Y%2F20260908%2Fap-south-1%2Fs3%2Faws4_request&X-Amz-Date=20260908T062250Z&X-Amz-Expires=3600&X-Amz-Signature=119c5088c9caffb79e87b6e9a943fdfc16aaa8081cef79454b324f180168e7f2&X-Amz-SignedHeaders=host&x-amz-checksum-mode=ENABLED&x-id=GetObject",
+    "isRetired": false,
+    "sortOrder": 6
+  },
+  "green_pant_1_1": {
+    "key": "green_pant_1_1",
+    "slot": "skirt",
+    "target": "male",
+    "categories": [
+      1
+    ],
+    "imageUrl": "https://ilmifyhrm.s3.ap-south-1.amazonaws.com/Avatar_Assets/catalog/v1/skirt/green_pant_1_1.48c71a1d.png?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Content-Sha256=UNSIGNED-PAYLOAD&X-Amz-Credential=AKIAYZM57LZYE2DVW24Y%2F20260908%2Fap-south-1%2Fs3%2Faws4_request&X-Amz-Date=20260908T062250Z&X-Amz-Expires=3600&X-Amz-Signature=1ffbf3c05fc9928077713fa34ca0bd57719fdaae99b7ec32883f62e97a969324&X-Amz-SignedHeaders=host&x-amz-checksum-mode=ENABLED&x-id=GetObject",
+    "isRetired": false,
+    "sortOrder": 7
+  },
+  "red_short_pant_1_1": {
+    "key": "red_short_pant_1_1",
+    "slot": "skirt",
+    "target": "male",
+    "categories": [
+      1
+    ],
+    "imageUrl": "https://ilmifyhrm.s3.ap-south-1.amazonaws.com/Avatar_Assets/catalog/v1/skirt/red_short_pant_1_1.8a0372ba.png?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Content-Sha256=UNSIGNED-PAYLOAD&X-Amz-Credential=AKIAYZM57LZYE2DVW24Y%2F20260908%2Fap-south-1%2Fs3%2Faws4_request&X-Amz-Date=20260908T062250Z&X-Amz-Expires=3600&X-Amz-Signature=7aa2fe36b3a343e910483012ea3535ee6f59ab7eea57b7a1d09e495c6bc2f486&X-Amz-SignedHeaders=host&x-amz-checksum-mode=ENABLED&x-id=GetObject",
+    "isRetired": false,
+    "sortOrder": 8
+  },
+  "green_short_pant_2": {
+    "key": "green_short_pant_2",
+    "slot": "skirt",
+    "target": "male",
+    "categories": [
+      1
+    ],
+    "imageUrl": "https://ilmifyhrm.s3.ap-south-1.amazonaws.com/Avatar_Assets/catalog/v1/skirt/green_short_pant_2.09cf53b9.png?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Content-Sha256=UNSIGNED-PAYLOAD&X-Amz-Credential=AKIAYZM57LZYE2DVW24Y%2F20260908%2Fap-south-1%2Fs3%2Faws4_request&X-Amz-Date=20260908T062250Z&X-Amz-Expires=3600&X-Amz-Signature=568f03b408106f6811eb2086046fd580f91566d9b826161dd4f7b5587b8d9474&X-Amz-SignedHeaders=host&x-amz-checksum-mode=ENABLED&x-id=GetObject",
+    "isRetired": false,
+    "sortOrder": 9
+  },
+  "blue_short_pant_2_1": {
+    "key": "blue_short_pant_2_1",
+    "slot": "skirt",
+    "target": "male",
+    "categories": [
+      2
+    ],
+    "imageUrl": "https://ilmifyhrm.s3.ap-south-1.amazonaws.com/Avatar_Assets/catalog/v1/skirt/blue_short_pant_2_1.f16f4596.png?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Content-Sha256=UNSIGNED-PAYLOAD&X-Amz-Credential=AKIAYZM57LZYE2DVW24Y%2F20260908%2Fap-south-1%2Fs3%2Faws4_request&X-Amz-Date=20260908T062250Z&X-Amz-Expires=3600&X-Amz-Signature=78ad4097909147b05cdbf4e2d2cf96ab078029311aa082e0c5a08b00decca16a&X-Amz-SignedHeaders=host&x-amz-checksum-mode=ENABLED&x-id=GetObject",
+    "isRetired": false,
+    "sortOrder": 10
+  },
+  "red_short_pant_2_1": {
+    "key": "red_short_pant_2_1",
+    "slot": "skirt",
+    "target": "male",
+    "categories": [
+      2
+    ],
+    "imageUrl": "https://ilmifyhrm.s3.ap-south-1.amazonaws.com/Avatar_Assets/catalog/v1/skirt/red_short_pant_2_1.5d755573.png?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Content-Sha256=UNSIGNED-PAYLOAD&X-Amz-Credential=AKIAYZM57LZYE2DVW24Y%2F20260908%2Fap-south-1%2Fs3%2Faws4_request&X-Amz-Date=20260908T062250Z&X-Amz-Expires=3600&X-Amz-Signature=c5b3b167d5723a8e2786556f2e2997bba315931ade1cc33bbebf73761d6a7849&X-Amz-SignedHeaders=host&x-amz-checksum-mode=ENABLED&x-id=GetObject",
+    "isRetired": false,
+    "sortOrder": 11
+  },
+  "probe_pant_zz": {
+    "key": "probe_pant_zz",
+    "slot": "skirt",
+    "target": "female",
+    "categories": [
+      4
+    ],
+    "imageUrl": "https://ilmifyhrm.s3.ap-south-1.amazonaws.com/Avatar_Assets/2026/09/08/probe_pant_zz.png?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Content-Sha256=UNSIGNED-PAYLOAD&X-Amz-Credential=AKIAYZM57LZYE2DVW24Y%2F20260908%2Fap-south-1%2Fs3%2Faws4_request&X-Amz-Date=20260908T064957Z&X-Amz-Expires=3600&X-Amz-Signature=7dc44fefbd517effa568775eda431506de0387f87b5307a7afdeeb59b84719b0&X-Amz-SignedHeaders=host&x-amz-checksum-mode=ENABLED&x-id=GetObject",
+    "isRetired": false,
+    "sortOrder": 90
+  }
+}

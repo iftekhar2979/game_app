@@ -102,3 +102,86 @@ describe('coverage against a catalogue', () => {
     expect(warning.split('\n')).toHaveLength(2);
   });
 });
+
+/**
+ * The reverse direction: a catalogue asset the app can draw but can never put
+ * in front of anyone. Now that the pickers merge the catalogue in, an uploaded
+ * asset normally appears on its own - one that cannot is a data problem, and
+ * silent without this.
+ */
+describe('assets the app cannot list', () => {
+  const drawable = (over: any = {}) => ({
+    imageUrl: 'https://s3/x.png',
+    slot: 'outfit',
+    target: 'female',
+    categories: [4],
+    isRetired: false,
+    ...over,
+  });
+
+  it('reports a slot the app has no picker for', () => {
+    const coverage = describeCatalogueCoverage({
+      mystery: drawable({ slot: 'cape' }),
+    } as any);
+
+    expect(coverage.unlistable).toEqual(['mystery']);
+    expect(coverage.isComplete).toBe(false);
+  });
+
+  it('reports a row with no categories to match against', () => {
+    const coverage = describeCatalogueCoverage({
+      orphan: drawable({ categories: [] }),
+    } as any);
+
+    expect(coverage.unlistable).toEqual(['orphan']);
+  });
+
+  it('reports a row with no target', () => {
+    const coverage = describeCatalogueCoverage({
+      genderless: drawable({ target: undefined }),
+    } as any);
+
+    expect(coverage.unlistable).toEqual(['genderless']);
+  });
+
+  it('accepts a well-formed uploaded garment', () => {
+    const coverage = describeCatalogueCoverage({ good: drawable() } as any);
+
+    expect(coverage.unlistable).toEqual([]);
+  });
+
+  it('accepts a base, which is listable too', () => {
+    const coverage = describeCatalogueCoverage({
+      body: drawable({ slot: 'base' }),
+    } as any);
+
+    expect(coverage.unlistable).toEqual([]);
+  });
+
+  it('ignores a retired asset, which is meant not to be listed', () => {
+    const coverage = describeCatalogueCoverage({
+      old: drawable({ slot: 'cape', isRetired: true }),
+    } as any);
+
+    expect(coverage.unlistable).toEqual([]);
+  });
+
+  // ArtworkCatalogue promises only artwork. Judging rows that never claimed to
+  // describe themselves would flag the entire catalogue.
+  it('does not judge a lookup that carries only artwork', () => {
+    const coverage = describeCatalogueCoverage({
+      hair6: { imageUrl: 'https://s3/hair6.png' },
+    } as any);
+
+    expect(coverage.unlistable).toEqual([]);
+  });
+
+  it('says so in the warning text', () => {
+    const warning = formatCoverageWarning(
+      describeCatalogueCoverage({ mystery: drawable({ slot: 'cape' }) } as any),
+    );
+
+    expect(warning).toMatch(/can never be shown/);
+    expect(warning).toContain('mystery');
+  });
+});
