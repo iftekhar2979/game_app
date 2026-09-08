@@ -178,11 +178,35 @@ export function variantsOf(
   return bases.filter((candidate) => candidate.characterId === base.characterId);
 }
 
+/** The phases of a blink, as the renderers step through them. */
+export type EyeState = 'open' | 'half_closed' | 'closed';
+
+/**
+ * How far closed the eye overlay is drawn in each phase.
+ *
+ * A catalogue base supplies one closed frame, but the blink has two closed
+ * phases - the bundled bodies ship separate half and full artwork for them.
+ * Fading the one frame stands in for the missing half: a mid-blink is roughly a
+ * partly drawn closed eye, and it reads as a blink rather than the on/off
+ * flicker a single opacity gives.
+ */
+export const HALF_CLOSED_OPACITY = 0.55;
+
+export function blinkOpacity(state: EyeState): number {
+  if (state === 'closed') return 1;
+  if (state === 'half_closed') return HALF_CLOSED_OPACITY;
+  return 0;
+}
+
 /**
  * The eye overlays to blink with, catalogue first.
  *
  * Returns null when the body does not blink at all, which is a real choice an
  * admin can make rather than a missing asset.
+ *
+ * `normal` is the open eye, and is genuinely optional: it exists for a body
+ * drawn without eyes of its own. Every bundled body has them painted into its
+ * artwork, which is why there is no bundled counterpart to fall back to.
  */
 export function blinkSourcesFor(
   base: Pick<AvatarBase, 'blinkEnabled' | 'normalEyeSource' | 'blinkEyeSource'>,

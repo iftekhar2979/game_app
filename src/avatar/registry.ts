@@ -121,13 +121,23 @@ const EYES = {
   },
 };
 
+/**
+ * The bundled blink overlay for a body, chosen by target first.
+ *
+ * Category only picks between the two male sets. It used to be tested before
+ * the target, so any male body whose category was not 1 or 2 fell through to
+ * the female overlay - which is every male base created since a category
+ * stopped being a number an admin types.
+ */
 export function getEyeSource(
   state: 'half' | 'full',
   target: AvatarTarget,
   category: number,
 ): number {
-  if (target === 'male' && category === 2) return EYES[state].male_2;
-  if (target === 'male' && category === 1) return EYES[state].male_1;
+  if (target === 'male') {
+    return category === 2 ? EYES[state].male_2 : EYES[state].male_1;
+  }
+
   return EYES[state].female_all;
 }
 
