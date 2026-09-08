@@ -10,7 +10,11 @@ import { authService } from '../../services/authService';
 import { ArtworkCatalogue, artworkForAsset, artworkForBase } from '../../avatar/assetSource';
 import ArtworkImage from '../../components/Avatar/ArtworkImage';
 import { resolveParts } from '../../avatar/partCatalogue';
-import { resolveBases, type CatalogueAssets } from '../../avatar/baseCatalogue';
+import {
+  groupByCharacter,
+  resolveBases,
+  type CatalogueAssets,
+} from '../../avatar/baseCatalogue';
 import { AvatarBase, AvatarSlot } from '../../avatar/types';
 import { useAssetCatalogue } from '../../avatar/useAssetCatalogue';
 
@@ -61,6 +65,15 @@ const ExploreAvatarScreen = () => {
   const bases = useMemo(() => resolveBases(assets), [assets]);
 
   /**
+   * One card per character, not per body.
+   *
+   * A character offered in several tones is several bases in the catalogue,
+   * and listing them side by side reads as several different people. The tone
+   * is chosen inside the editor instead.
+   */
+  const characters = useMemo(() => groupByCharacter(bases), [bases]);
+
+  /**
    * Which parts each card wears, chosen once per mount.
    *
    * Only the *ids* are randomised here; the artwork for them is resolved during
@@ -70,14 +83,14 @@ const ExploreAvatarScreen = () => {
    */
   const cardParts = useMemo(
     () =>
-      bases.map((base) => ({
-        base,
+      characters.map((character) => ({
+        base: character.primary,
         parts: PREVIEW_SLOTS.map((slot) => ({
           slot,
-          assetId: randomIdFor(slot, base, assets),
+          assetId: randomIdFor(slot, character.primary, assets),
         })),
       })),
-    [bases, assets],
+    [characters, assets],
   );
 
   const renderCard = (
