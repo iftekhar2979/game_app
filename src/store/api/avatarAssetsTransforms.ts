@@ -21,6 +21,12 @@ export interface AvatarAssetResponse {
   target: 'female' | 'male';
   categories: number[];
   isFullbody: boolean;
+  /** Base only. See `AvatarBase` for what each of these means. */
+  characterId?: string | null;
+  bodyColorId?: string | null;
+  blinkEnabled?: boolean;
+  normalEyeUrl?: string | null;
+  blinkEyeUrl?: string | null;
   /** Set when the artwork ships inside the app. */
   bundledId: string | null;
   /** Signed URL for uploaded artwork. Null for bundled assets. */
@@ -55,6 +61,11 @@ export interface AvatarCatalogueAsset {
    * in the bundle and is not once a base can arrive from the catalogue alone.
    */
   isFullbody: boolean;
+  characterId?: string | null;
+  bodyColorId?: string | null;
+  blinkEnabled?: boolean;
+  normalEyeUrl?: string | null;
+  blinkEyeUrl?: string | null;
   bundledId: string | null;
   /** Uploaded full-resolution artwork. Null while the asset is bundle-only. */
   imageUrl: string | null;
@@ -83,6 +94,11 @@ export const toCatalogueAsset = (raw: AvatarAssetResponse): AvatarCatalogueAsset
     target: raw.target,
     categories: raw.categories ?? [],
     isFullbody: raw.isFullbody ?? true,
+    characterId: raw.characterId ?? null,
+    bodyColorId: raw.bodyColorId ?? null,
+    blinkEnabled: raw.blinkEnabled ?? true,
+    normalEyeUrl: raw.normalEyeUrl ?? null,
+    blinkEyeUrl: raw.blinkEyeUrl ?? null,
     bundledId: raw.bundledId ?? null,
     imageUrl: raw.imageUrl ?? null,
     previewUrl: raw.previewUrl ?? null,

@@ -49,6 +49,22 @@ export interface AvatarBase {
   isFullbody: boolean;
   /** Bundled artwork. Remote artwork overrides this at resolve time. */
   source: AssetSource;
+  /**
+   * Groups the colour variants of one character, so `male_avatar_1` in light
+   * and dark reads as one body offered in two tones rather than two bodies.
+   * Absent on a base that stands alone.
+   */
+  characterId?: string | null;
+  /** Which variant this is within `characterId`, e.g. `light`. */
+  bodyColorId?: string | null;
+  /** Whether this body blinks. Off leaves the eyes as the artwork drew them. */
+  blinkEnabled?: boolean;
+  /**
+   * Eye overlays from the catalogue. Absent falls back to the bundled ones,
+   * which is what every body that shipped with the app does.
+   */
+  normalEyeSource?: AssetSource | null;
+  blinkEyeSource?: AssetSource | null;
 }
 
 /**

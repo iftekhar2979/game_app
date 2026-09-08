@@ -1,6 +1,6 @@
 import type { AvatarCatalogueAsset } from '../store/api/avatarAssetsTransforms';
 import { BASES, getBaseById } from './registry';
-import { AvatarBase, AvatarTarget } from './types';
+import { AssetSource, AvatarBase, AvatarTarget } from './types';
 
 /**
  * The base bodies a player may build on, from the catalogue and the bundle.
@@ -71,6 +71,13 @@ function toBase(asset: Partial<AvatarCatalogueAsset>): AvatarBase | null {
     category,
     isFullbody: asset.isFullbody ?? bundled?.isFullbody ?? true,
     source,
+    characterId: asset.characterId ?? null,
+    bodyColorId: asset.bodyColorId ?? null,
+    blinkEnabled: asset.blinkEnabled ?? true,
+    // Absent leaves these null, and the renderer falls back to the bundled
+    // overlays - which is what every body that shipped with the app uses.
+    normalEyeSource: asset.normalEyeUrl ? { uri: asset.normalEyeUrl } : null,
+    blinkEyeSource: asset.blinkEyeUrl ? { uri: asset.blinkEyeUrl } : null,
   };
 }
 
@@ -150,4 +157,40 @@ export function hasCompatibleGarments(
       asset.target === base.target &&
       (asset.categories ?? []).includes(base.category),
   );
+}
+
+/**
+ * The colour variants of one character, in display order.
+ *
+ * A character offered in three tones is three bases - three keys to price,
+ * retire and save against - which is what lets the app show a skin-tone switch
+ * without either key having to encode the other. A base with no `characterId`
+ * stands alone and is its own only variant.
+ */
+export function variantsOf(
+  base: Pick<AvatarBase, 'id' | 'characterId'>,
+  bases: AvatarBase[],
+): AvatarBase[] {
+  if (!base.characterId) {
+    return bases.filter((candidate) => candidate.id === base.id);
+  }
+
+  return bases.filter((candidate) => candidate.characterId === base.characterId);
+}
+
+/**
+ * The eye overlays to blink with, catalogue first.
+ *
+ * Returns null when the body does not blink at all, which is a real choice an
+ * admin can make rather than a missing asset.
+ */
+export function blinkSourcesFor(
+  base: Pick<AvatarBase, 'blinkEnabled' | 'normalEyeSource' | 'blinkEyeSource'>,
+): { normal: AssetSource | null; blink: AssetSource | null } | null {
+  if (base.blinkEnabled === false) return null;
+
+  return {
+    normal: base.normalEyeSource ?? null,
+    blink: base.blinkEyeSource ?? null,
+  };
 }
