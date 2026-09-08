@@ -6,7 +6,7 @@ import { ArtworkCatalogue, sourceForAsset, sourceForBase } from '../../avatar/as
 import ArtworkImage from '../Avatar/ArtworkImage';
 import { FULLBODY_STAGE_SCALE, getEyeSource } from '../../avatar/registry';
 import { baseOf, resolveConfig } from '../../avatar/resolveConfig';
-import { blinkSourcesFor } from '../../avatar/baseCatalogue';
+import { blinkOpacity, blinkSourcesFor } from '../../avatar/baseCatalogue';
 import { AvatarConfig, AvatarLayer, AvatarSlot } from '../../avatar/types';
 import { hexToTintMatrix } from '../../avatar/hairTint';
 import Avatar from './Avatar';
@@ -171,19 +171,36 @@ export default function AvatarPreview({
             artwork, since the bundled overlays are drawn for the five shipped
             silhouettes and would not sit on anything else. Without one it falls
             back to those, and a body with blinking turned off draws neither. */}
+        {/* Open eyes, for a body drawn without any. Always visible; the closed
+            frames are painted over it. Every bundled body has its eyes in the
+            base artwork, so there is nothing to draw here for those. */}
+        {blink?.normal ? (
+          <Image source={blink.normal} style={styles.layer} resizeMode="contain" />
+        ) : null}
+
         {blink ? (
-          <>
+          blink.blink ? (
+            /* One uploaded frame serves both closed phases, faded for the
+               half - see blinkOpacity. */
             <Image
-              source={blink.blink ?? getEyeSource('half', base.target, base.category)}
-              style={[styles.layer, { opacity: eyeState === 'half_closed' ? 1 : 0 }]}
+              source={blink.blink}
+              style={[styles.layer, { opacity: blinkOpacity(eyeState) }]}
               resizeMode="contain"
             />
-            <Image
-              source={blink.blink ?? getEyeSource('full', base.target, base.category)}
-              style={[styles.layer, { opacity: eyeState === 'closed' ? 1 : 0 }]}
-              resizeMode="contain"
-            />
-          </>
+          ) : (
+            <>
+              <Image
+                source={getEyeSource('half', base.target, base.category)}
+                style={[styles.layer, { opacity: eyeState === 'half_closed' ? 1 : 0 }]}
+                resizeMode="contain"
+              />
+              <Image
+                source={getEyeSource('full', base.target, base.category)}
+                style={[styles.layer, { opacity: eyeState === 'closed' ? 1 : 0 }]}
+                resizeMode="contain"
+              />
+            </>
+          )
         ) : null}
 
         {/* Clothing, in the registry's paint order. */}

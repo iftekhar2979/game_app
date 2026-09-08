@@ -39,6 +39,7 @@ import { prefetchEditorArtwork, prefetchSources } from '../../avatar/prefetchArt
 import { AvatarAsset, AvatarConfig, AvatarSlot } from '../../avatar/types';
 import { hexToTintMatrix } from '../../avatar/hairTint';
 import {
+  blinkOpacity,
   blinkSourcesFor,
   describeVariant,
   resolveBases,
@@ -333,10 +334,14 @@ const GenerateAvatarScreen = () => {
    * those; with blinking turned off it draws neither.
    */
   const blink = activeBase ? blinkSourcesFor(activeBase) : null;
-  const halfClosedEyeSource =
-    blink?.blink ?? getEyeSource('half', target, avatarCategory);
-  const fullClosedEyeSource =
-    blink?.blink ?? getEyeSource('full', target, avatarCategory);
+
+  // The bundled pair, used only when this body brought no closed frame of its
+  // own. Resolved from the body actually being worn rather than the route, so a
+  // catalogue base with no artwork still gets overlays drawn for its target.
+  const eyeTarget = activeBase?.target ?? target;
+  const eyeCategory = activeBase?.category ?? avatarCategory;
+  const halfClosedEyeSource = getEyeSource('half', eyeTarget, eyeCategory);
+  const fullClosedEyeSource = getEyeSource('full', eyeTarget, eyeCategory);
 
   // Every picker is seeded in its useState initializer, so edit mode's first
   // paint is already the saved look. Hydrating in an effect instead would flash
@@ -532,19 +537,43 @@ const GenerateAvatarScreen = () => {
                   />
                 )}
 
-                {/* Eye Blinking Animation Overlay - Opacity toggled to prevent load lag */}
-                <Image
-                  source={halfClosedEyeSource}
-                  className="absolute w-full h-full"
-                  resizeMode="contain"
-                  style={{ opacity: eyeState === 'half_closed' ? 1 : 0 }}
-                />
-                <Image
-                  source={fullClosedEyeSource}
-                  className="absolute w-full h-full"
-                  resizeMode="contain"
-                  style={{ opacity: eyeState === 'closed' ? 1 : 0 }}
-                />
+                {/* Open eyes, for a body drawn without any. Bundled bodies
+                    have them in the base artwork, so this draws nothing there. */}
+                {blink?.normal ? (
+                  <Image
+                    source={blink.normal}
+                    className="absolute w-full h-full"
+                    resizeMode="contain"
+                  />
+                ) : null}
+
+                {/* Blink overlays. Both frames stay mounted so neither pops in
+                    late; only opacity changes. A body that brought its own
+                    closed frame uses that one for both phases, faded for the
+                    half - see blinkOpacity. */}
+                {blink?.blink ? (
+                  <Image
+                    source={blink.blink}
+                    className="absolute w-full h-full"
+                    resizeMode="contain"
+                    style={{ opacity: blinkOpacity(eyeState) }}
+                  />
+                ) : (
+                  <>
+                    <Image
+                      source={halfClosedEyeSource}
+                      className="absolute w-full h-full"
+                      resizeMode="contain"
+                      style={{ opacity: eyeState === 'half_closed' ? 1 : 0 }}
+                    />
+                    <Image
+                      source={fullClosedEyeSource}
+                      className="absolute w-full h-full"
+                      resizeMode="contain"
+                      style={{ opacity: eyeState === 'closed' ? 1 : 0 }}
+                    />
+                  </>
+                )}
 
                 {/* --- HALF BODY LAYERS --- */}
                 {!isFullbody && halfOutfitArt.source && (
