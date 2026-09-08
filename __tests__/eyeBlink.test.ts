@@ -38,10 +38,10 @@ describe('the bundled eye fallback', () => {
   it('gives an unrecognised male body the male overlay, not the female one', () => {
     for (const baseId of ['new_male_body', 'male_avatar_9', null]) {
       expect(getEyeSource('half', 'male', baseId)).toBe(
-        getEyeSource('half', 'male', 1),
+        getEyeSource('half', 'male', 'male_avatar_1'),
       );
       expect(getEyeSource('full', 'male', baseId)).toBe(
-        getEyeSource('full', 'male', 1),
+        getEyeSource('full', 'male', 'male_avatar_1'),
       );
     }
   });
@@ -49,7 +49,7 @@ describe('the bundled eye fallback', () => {
   it('never hands a male body the female overlay', () => {
     for (const baseId of ['male_avatar_1', 'male_avatar_2', 'new_male_body']) {
       expect(getEyeSource('half', 'male', baseId)).not.toBe(
-        getEyeSource('half', 'female', 4),
+        getEyeSource('half', 'female', 'base_avatar_3'),
       );
     }
   });
@@ -67,14 +67,14 @@ describe('the bundled eye fallback', () => {
 
     for (const baseId of ['base_avatar_3', 'base_avatar_4', 'new_female_body']) {
       expect(getEyeSource('half', 'female', baseId)).toBe(
-        getEyeSource('half', 'female', 4),
+        getEyeSource('half', 'female', 'base_avatar_3'),
       );
     }
   });
 
   it('serves a distinct frame for each phase', () => {
-    expect(getEyeSource('half', 'male', 1)).not.toBe(getEyeSource('full', 'male', 1));
-    expect(getEyeSource('half', 'female', 4)).not.toBe(getEyeSource('full', 'female', 4));
+    expect(getEyeSource('half', 'male', 'male_avatar_1')).not.toBe(getEyeSource('full', 'male', 'male_avatar_1'));
+    expect(getEyeSource('half', 'female', 'base_avatar_3')).not.toBe(getEyeSource('full', 'female', 'base_avatar_3'));
   });
 
   it('resolves for every bundled body', () => {
