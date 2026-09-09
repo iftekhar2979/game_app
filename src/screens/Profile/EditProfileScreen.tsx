@@ -8,6 +8,7 @@ import { RootState } from '../../store';
 import Avatar from '../../components/common/Avatar';
 import { updateUser } from '../../store/slices/authSlice';
 import { useGetMeQuery, useUpdateMeMutation } from '../../store/api/usersApi';
+import { stateName } from '../../constants/usStates';
 import { showToast } from '../../utils/toast';
 import { ActivityIndicator, Alert } from 'react-native';
 
@@ -22,6 +23,7 @@ export default function EditProfileScreen() {
   // show rather than ids to look up.
   const favoriteGym = (userData as any)?.favoriteGym ?? null;
   const favoriteTeam = (userData as any)?.favoriteTeam ?? null;
+  const state = (userData as any)?.state ?? null;
   const [updateMe, { isLoading: isUpdating }] = useUpdateMeMutation();
 
   const [fullName, setFullName] = useState('');
@@ -35,10 +37,16 @@ export default function EditProfileScreen() {
     }
   }, [userData, authUser?.fullName, authUser?.username]);
 
-  // Server first: the local draft slice used to win here, so a freshly built
-  // avatar shadowed the saved one and a `file://` path could be written back
-  // into auth.user.avatarUrl.
-  const userAvatarUri = userData?.data?.avatarUrl || userData?.avatarUrl || authUser?.avatarUrl || null;
+  /**
+   * Server first: the local draft slice used to win here, so a freshly built
+   * avatar shadowed the saved one and a `file://` path could be written back
+   * into `auth.user.avatarUrl`.
+   *
+   * `getMe` already unwraps the response envelope, so `userData` *is* the user -
+   * the old `userData?.data?.avatarUrl` arm could never match and only made the
+   * chain look like it handled a shape it never sees.
+   */
+  const userAvatarUri = userData?.avatarUrl || authUser?.avatarUrl || null;
 
   const handleSave = async () => {
     try {
@@ -95,14 +103,24 @@ export default function EditProfileScreen() {
             </View>
           </ImageBackground>
 
-          {/* Avatar over the Banner edge */}
+          {/*
+            Avatar over the banner edge.
+            
+            `size` is the frame minus its border on both sides. It was 96 inside
+            a 120 frame, which left the picture floating in a ring it did not
+            touch - a gap that reads as a broken image rather than as a border.
+          */}
           <View className="absolute -bottom-[60px] left-1/2 -ml-[60px] items-center justify-center z-10">
             <View className="w-[120px] h-[120px] rounded-full border-[4px] border-black overflow-hidden relative">
-              <Avatar uri={userAvatarUri} name={fullName} size={96} />
+              <Avatar uri={userAvatarUri} name={fullName} size={112} />
             </View>
-            <TouchableOpacity 
+            <TouchableOpacity
               className="absolute bottom-1 right-2 w-8 h-8 bg-black rounded-full justify-center items-center border-[2px] border-[#FFB84D]"
-              onPress={() => (navigation as any).navigate('ExploreAvatar', { returnTo: 'EditProfile' })}
+              onPress={() =>
+                (navigation as any).navigate('ExploreAvatar', { returnTo: 'EditProfile' })
+              }
+              accessibilityRole="button"
+              accessibilityLabel="Change profile picture"
             >
               <Edit2 color="#FFB84D" size={12} />
             </TouchableOpacity>
@@ -138,10 +156,21 @@ export default function EditProfileScreen() {
             />
           </View>
 
-          {/* State Input */}
-          <TouchableOpacity className="flex-row items-center border border-[#6B21A8] rounded-[16px] px-4 py-3.5 mb-4 bg-transparent">
+          {/*
+            The state. Stored as a two-letter code and shown by name, so the row
+            reads as a place rather than as an abbreviation.
+          */}
+          <TouchableOpacity
+            className="flex-row items-center border border-[#6B21A8] rounded-[16px] px-4 py-3.5 mb-4 bg-transparent"
+            onPress={() =>
+              (navigation as any).navigate('StatePicker', { currentCode: state })
+            }
+            accessibilityRole="button"
+          >
             <Home color="#999" size={20} className="mr-3" />
-            <Text className="flex-1 text-white text-[15px]">Select your state</Text>
+            <Text className="flex-1 text-white text-[15px]" numberOfLines={1}>
+              {stateName(state) || 'Select your state'}
+            </Text>
             <MapPin color="#999" size={20} />
           </TouchableOpacity>
 

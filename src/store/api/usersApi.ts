@@ -27,6 +27,8 @@ export const usersApi = baseApi.injectEndpoints({
        */
       favoriteOrganizationId?: string | null;
       favoriteTeamId?: string | null;
+      /** Two-letter USPS state code, or null to clear it. */
+      state?: string | null;
     }>({
       query: (data) => ({
         url: '/users/me',
