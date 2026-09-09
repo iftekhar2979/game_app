@@ -1,8 +1,16 @@
 import React from 'react';
-import { ActivityIndicator, Image, Text, TouchableOpacity, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Image,
+  Text,
+  TouchableOpacity,
+  View,
+} from 'react-native';
 import { Lock } from 'lucide-react-native';
 
 import { AssetState } from '../../avatar/useAssetCatalogue';
+import { framingFor, TILE_FRAME } from '../../avatar/tileCrop';
+import { AvatarSlot } from '../../avatar/types';
 
 /**
  * One asset in the editor's pickers.
@@ -19,10 +27,20 @@ import { AssetState } from '../../avatar/useAssetCatalogue';
 interface AssetPickerTileProps {
   source: any;
   /**
-   * Per-slot zoom and offset. Part artwork sits on a full-body canvas, so hair
-   * and shoes need different crops; these are the editor's existing values.
+   * Which layer this is, which decides how the artwork is framed.
+   *
+   * The caller used to pass the crop itself, as a class string written out at
+   * each of the six call sites. Passing the slot instead means a slot is framed
+   * identically wherever it appears - see `tileCrop.ts`.
    */
-  imageClassName: string;
+  slot: AvatarSlot;
+  /**
+   * Whether `source` is an uploaded thumbnail rather than the full artwork.
+   *
+   * Decides the framing: a thumbnail is drawn whole, artwork is cropped to the
+   * band its slot occupies.
+   */
+  hasThumbnail?: boolean;
   state: AssetState;
   isSelected: boolean;
   onSelect: () => void;
@@ -36,7 +54,8 @@ interface AssetPickerTileProps {
 
 export default function AssetPickerTile({
   source,
-  imageClassName,
+  slot,
+  hasThumbnail,
   state,
   isSelected,
   onSelect,
@@ -64,16 +83,19 @@ export default function AssetPickerTile({
       disabled={isPurchasing}
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel}
-      accessibilityState={{ selected: isSelected, disabled: !state.isSelectable && !isLocked }}
+      accessibilityState={{
+        selected: isSelected,
+        disabled: !state.isSelectable && !isLocked,
+      }}
     >
       <View
-        className={`w-[72px] h-[90px] rounded-xl border overflow-hidden items-center ${
+        className={`${TILE_FRAME} rounded-xl border overflow-hidden items-center ${
           isSelected ? 'border-[#B366FF] border-2' : 'border-[#5B1F7D]'
         } bg-[#1A0B2E]`}
       >
         <Image
           source={source}
-          className={imageClassName}
+          className={framingFor(slot, hasThumbnail)}
           resizeMode="contain"
           // Dimmed rather than hidden: the user should still see what it is.
           style={isDimmed ? { opacity: 0.35 } : undefined}
@@ -82,7 +104,9 @@ export default function AssetPickerTile({
         {availability === 'retired' && (
           <View className="absolute inset-0 items-center justify-center">
             <View className="bg-black/70 px-1.5 py-0.5 rounded">
-              <Text className="text-[#B9B0C9] text-[8px] font-bold">RETIRED</Text>
+              <Text className="text-[#B9B0C9] text-[8px] font-bold">
+                RETIRED
+              </Text>
             </View>
           </View>
         )}

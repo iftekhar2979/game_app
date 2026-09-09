@@ -1,6 +1,24 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { View, Text, TouchableOpacity, Image, StyleSheet, ScrollView, Dimensions, Animated, Alert } from 'react-native';
-import Svg, { Defs, LinearGradient, Stop, Rect, Filter, FeColorMatrix, Image as SvgImage } from 'react-native-svg';
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  Image,
+  StyleSheet,
+  ScrollView,
+  Dimensions,
+  Animated,
+  Alert,
+} from 'react-native';
+import Svg, {
+  Defs,
+  LinearGradient,
+  Stop,
+  Rect,
+  Filter,
+  FeColorMatrix,
+  Image as SvgImage,
+} from 'react-native-svg';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { ChevronLeft } from 'lucide-react-native';
@@ -11,7 +29,10 @@ import { RootStackParamList } from '../../../App';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLazyGetPreSignedUrlQuery } from '../../store/api/usersApi';
 import { useSaveAvatarMutation } from '../../store/api/avatarApi';
-import { useGetAvatarCharactersQuery, usePurchaseAvatarAssetMutation } from '../../store/api/avatarAssetsApi';
+import {
+  useGetAvatarCharactersQuery,
+  usePurchaseAvatarAssetMutation,
+} from '../../store/api/avatarAssetsApi';
 import { describePurchaseError } from '../../store/api/avatarAssetsTransforms';
 import { useAssetCatalogue } from '../../avatar/useAssetCatalogue';
 import AssetPickerTile from '../../components/Avatar/AssetPickerTile';
@@ -35,7 +56,16 @@ import {
 } from '../../avatar/assetSource';
 import ArtworkImage from '../../components/Avatar/ArtworkImage';
 import { resolveConfig } from '../../avatar/resolveConfig';
-import { prefetchEditorArtwork, prefetchSources } from '../../avatar/prefetchArtwork';
+import {
+  prefetchEditorArtwork,
+  prefetchSources,
+} from '../../avatar/prefetchArtwork';
+import { framingFor, TILE_FRAME, TONE_CROP } from '../../avatar/tileCrop';
+import {
+  type EditorPartChoices,
+  previewPartsOf,
+  resolveEditorPart,
+} from '../../avatar/editorSelection';
 import { AvatarAsset, AvatarConfig, AvatarSlot } from '../../avatar/types';
 import { hexToTintMatrix } from '../../avatar/hairTint';
 import {
@@ -43,17 +73,20 @@ import {
   blinkSourcesFor,
   describeVariant,
   characterIdOf,
+  resolveBaseById,
   tonesForBase,
 } from '../../avatar/baseCatalogue';
 import { resolveParts } from '../../avatar/partCatalogue';
 
-type NavigationProp = NativeStackNavigationProp<RootStackParamList, 'GenerateAvatar'>;
+type NavigationProp = NativeStackNavigationProp<
+  RootStackParamList,
+  'GenerateAvatar'
+>;
 type GenerateAvatarRouteProp = RouteProp<RootStackParamList, 'GenerateAvatar'>;
 
 const { height } = Dimensions.get('window');
 const PREVIEW_HEIGHT = 320;
 const FULLBODY_PREVIEW_HEIGHT = Math.min(560, height * 0.68);
-
 
 /**
  * Every part list on this screen comes from `avatar/registry`.
@@ -77,7 +110,8 @@ const GenerateAvatarScreen = () => {
   const dispatch = useDispatch();
   const viewShotRef = useRef<any>(null);
 
-  const [saveAvatarToServer, { isLoading: isUpdating }] = useSaveAvatarMutation();
+  const [saveAvatarToServer, { isLoading: isUpdating }] =
+    useSaveAvatarMutation();
   const [getPreSignedUrl] = useLazyGetPreSignedUrlQuery();
   const [isSaving, setIsSaving] = useState(false);
 
@@ -144,11 +178,53 @@ const GenerateAvatarScreen = () => {
 
   const activeBase = useMemo(
     () =>
-      bodyVariants.find((base) => base.id === chosenBaseId) ?? bodyVariants[0],
+      bodyVariants.find(base => base.id === chosenBaseId) ??
+      bodyVariants[0] ??
+      resolveBaseById(chosenBaseId),
     [bodyVariants, chosenBaseId],
   );
 
   const activeBaseId = activeBase?.id ?? chosenBaseId ?? null;
+
+  /**
+   * The exact look advertised on the Explore card.
+   *
+   * The character response carries these layers specifically so opening a
+   * card can continue from the dressed preview the player tapped. The scoped
+   * wardrobe request normally arrives a render or two later, so this data is
+   * also the only source that can paint a complete first frame instead of a
+   * bare base body.
+   */
+  const activeCharacter = useMemo(
+    () =>
+      characterList.data?.find(
+        character => character.characterId === characterId,
+      ),
+    [characterId, characterList.data],
+  );
+
+  const previewParts = useMemo(
+    () => previewPartsOf(activeCharacter?.previewLayers),
+    [activeCharacter],
+  );
+
+  const previewArtwork = useMemo(
+    () =>
+      Object.fromEntries(
+        (activeCharacter?.previewLayers ?? []).map(layer => [
+          layer.key,
+          { imageUrl: layer.imageUrl, previewUrl: layer.imageUrl },
+        ]),
+      ),
+    [activeCharacter],
+  );
+
+  // Prefer the scoped wardrobe once it arrives, while retaining the card's
+  // artwork during the request (and as a graceful fallback if it fails).
+  const editorArtwork = useMemo(
+    () => ({ ...previewArtwork, ...catalogue.artwork }),
+    [catalogue.artwork, previewArtwork],
+  );
 
   /**
    * Options per slot.
@@ -162,7 +238,11 @@ const GenerateAvatarScreen = () => {
     const cache: Partial<Record<AvatarSlot, AvatarAsset[]>> = {};
     return (slot: AvatarSlot): AvatarAsset[] => {
       if (!cache[slot]) {
-        cache[slot] = resolveParts(slot, activeBase?.target ?? target, catalogue.assets);
+        cache[slot] = resolveParts(
+          slot,
+          activeBase?.target ?? target,
+          catalogue.assets,
+        );
       }
       return cache[slot]!;
     };
@@ -213,23 +293,33 @@ const GenerateAvatarScreen = () => {
    */
   const keyIn = (slot: AvatarSlot, assetKey: string | null): string | null => {
     if (!assetKey) return null;
-    return optionsFor(slot).some((asset) => asset.id === assetKey) ? assetKey : null;
+    return optionsFor(slot).some((asset) => asset.id === assetKey)
+      ? assetKey
+      : null;
   };
 
   /**
    * Artwork for a selected key, uploaded where the catalogue has any.
    *
    * `layerArtwork` feeds the preview stage and needs the full-resolution image;
-   * `tileArtwork` feeds the 72px picker tiles and prefers the smaller preview,
+   * `tileArtwork` feeds the picker tiles and prefers the smaller preview,
    * because a layer PNG is painted on a full-body canvas and the bases run to
    * half a megabyte each.
    */
-  const layerArtwork = (slot: AvatarSlot, assetKey: string | null): ArtworkWithFallback =>
-    artworkForAsset(slot, keyIn(slot, assetKey), catalogue.artwork);
+  const layerArtwork = (
+    slot: AvatarSlot,
+    assetKey: string | null,
+  ): ArtworkWithFallback => artworkForAsset(slot, assetKey, editorArtwork);
 
-  const tileArtwork = (slot: AvatarSlot, asset: AvatarAsset): ArtworkWithFallback => {
+  const tileArtwork = (
+    slot: AvatarSlot,
+    asset: AvatarAsset,
+  ): ArtworkWithFallback => {
     const artwork = previewArtworkForAsset(slot, asset.id, catalogue.artwork);
-    return { source: artwork.source ?? asset.source, fallback: artwork.fallback ?? asset.source };
+    return {
+      source: artwork.source ?? asset.source,
+      fallback: artwork.fallback ?? asset.source,
+    };
   };
 
   /** The body itself, resolved by the same rule as every other layer. */
@@ -244,29 +334,6 @@ const GenerateAvatarScreen = () => {
    * Explore started a new one, which leaves every seed below on its default.
    */
   const savedConfig = route.params?.config ?? null;
-
-  /**
-   * The saved key for a slot, confirmed against this character's wardrobe.
-   *
-   * A slot the user deliberately left empty stays empty. A part that has since
-   * been retired, or unassigned from this character, resolves to null rather
-   * than to whatever now sits where it used to - which is what an index-based
-   * seed did, and why reopening a look could silently redress it.
-   *
-   * `fallbackToFirst` is what a brand-new look wants: the first thing this
-   * character was assigned in that slot.
-   */
-  const seed = (slot: AvatarSlot, fallbackToFirst: boolean): string | null => {
-    const options = optionsFor(slot);
-
-    if (savedConfig) {
-      const savedId = savedConfig.parts?.[slot];
-      if (!savedId) return null;
-      return options.some((asset) => asset.id === savedId) ? savedId : null;
-    }
-
-    return fallbackToFirst && options.length ? options[0].id : null;
-  };
 
   /**
    * Buys a locked asset. The backend debits the coins inside a transaction and
@@ -330,7 +397,10 @@ const GenerateAvatarScreen = () => {
       bodyColor: keyIn('bodyColor', selectedBodyColor),
       skirt: keyIn('skirt', isFullbody ? selectedFullbodySkirt : null),
       shoes: keyIn('shoes', isFullbody ? selectedShoes : null),
-      outfit: keyIn('outfit', isFullbody ? selectedFullbodyOutfit : selectedBody),
+      outfit: keyIn(
+        'outfit',
+        isFullbody ? selectedFullbodyOutfit : selectedBody,
+      ),
       hair: keyIn('hair', isFullbody ? selectedFullbodyHair : selectedHair),
     },
     hairColor: selectedHairColor,
@@ -350,9 +420,9 @@ const GenerateAvatarScreen = () => {
     prefetchEditorArtwork(
       activeBase.target,
       activeBase.id,
-      catalogue.artwork,
+      editorArtwork,
     ).catch(() => undefined);
-  }, [activeBase, catalogue.artwork, catalogue.isLoading]);
+  }, [activeBase, catalogue.isLoading, editorArtwork]);
 
   /**
    * Blink overlays.
@@ -371,44 +441,77 @@ const GenerateAvatarScreen = () => {
   const halfClosedEyeSource = getEyeSource('half', eyeTarget, activeBaseId);
   const fullClosedEyeSource = getEyeSource('full', eyeTarget, activeBaseId);
 
-  // Every picker is seeded in its useState initializer, so edit mode's first
-  // paint is already the saved look. Hydrating in an effect instead would flash
-  // the defaults for a frame and would clobber a fast first tap.
-
   // Shared state
   const [selectedHairColor, setSelectedHairColor] = useState<string | null>(
     () => savedConfig?.hairColor ?? null,
   );
+
+  /**
+   * Only choices the player actually changes are stored.
+   *
+   * Deriving untouched choices is important here: `useState(() => seed())`
+   * used to run while the scoped wardrobe was still empty, permanently
+   * storing null for every layer. The preview therefore opened as the bare
+   * base even though the card the player tapped was fully dressed. Keeping
+   * overrides separate lets the preview defaults become available as the
+   * character query resolves, without an effect that could overwrite a fast
+   * tap.
+   */
+  const [partChoices, setPartChoices] = useState<EditorPartChoices>({});
+  const choosePart = (slot: AvatarSlot, assetKey: string | null) => {
+    setPartChoices(current => ({ ...current, [slot]: assetKey }));
+  };
+
+  const canValidateSelections =
+    Boolean(characterId) && !catalogue.isLoading && !catalogue.isUnavailable;
+
+  const selectionFor = (
+    slot: AvatarSlot,
+    fallbackToFirst: boolean,
+  ): string | null =>
+    resolveEditorPart({
+      slot,
+      choices: partChoices,
+      savedConfig,
+      previewParts,
+      options: optionsFor(slot),
+      canValidate: canValidateSelections,
+      fallbackToFirst,
+    });
+
   // A skin overlay only exists for a character that was assigned one, so the
   // list being empty is the whole test - no number stands in for it any more.
-  const [selectedBodyColor, setSelectedBodyColor] = useState<string | null>(
-    () => seed('bodyColor', true),
-  );
+  const selectedBodyColor = selectionFor('bodyColor', true);
+  const setSelectedBodyColor = (assetKey: string | null) =>
+    choosePart('bodyColor', assetKey);
 
-  // Half body state
-  const [selectedHair, setSelectedHair] = useState<string | null>(
-    () => (!isFullbody ? seed('hair', true) : null),
-  );
-  const [selectedBody, setSelectedBody] = useState<string | null>(
-    () => (!isFullbody ? seed('outfit', true) : null),
-  );
-
-  // Full body state
-  const [selectedFullbodyHair, setSelectedFullbodyHair] = useState<string | null>(
-    () => (isFullbody ? seed('hair', true) : null),
-  );
-  const [selectedFullbodySkirt, setSelectedFullbodySkirt] = useState<string | null>(
-    () => (isFullbody ? seed('skirt', true) : null),
-  );
-  const [selectedFullbodyOutfit, setSelectedFullbodyOutfit] = useState<string | null>(
-    () => (isFullbody ? seed('outfit', true) : null),
-  );
-  const [selectedShoes, setSelectedShoes] = useState<string | null>(
-    () => (isFullbody ? seed('shoes', true) : null),
-  );
+  // Both editor layouts read the same slot choices. The aliases keep the JSX
+  // descriptive while ensuring the card preview is identical in either mode.
+  const selectedHair = !isFullbody ? selectionFor('hair', true) : null;
+  const setSelectedHair = (assetKey: string | null) =>
+    choosePart('hair', assetKey);
+  const selectedBody = !isFullbody ? selectionFor('outfit', true) : null;
+  const setSelectedBody = (assetKey: string | null) =>
+    choosePart('outfit', assetKey);
+  const selectedFullbodyHair = isFullbody ? selectionFor('hair', true) : null;
+  const setSelectedFullbodyHair = (assetKey: string | null) =>
+    choosePart('hair', assetKey);
+  const selectedFullbodySkirt = isFullbody ? selectionFor('skirt', true) : null;
+  const setSelectedFullbodySkirt = (assetKey: string | null) =>
+    choosePart('skirt', assetKey);
+  const selectedFullbodyOutfit = isFullbody
+    ? selectionFor('outfit', true)
+    : null;
+  const setSelectedFullbodyOutfit = (assetKey: string | null) =>
+    choosePart('outfit', assetKey);
+  const selectedShoes = isFullbody ? selectionFor('shoes', true) : null;
+  const setSelectedShoes = (assetKey: string | null) =>
+    choosePart('shoes', assetKey);
 
   // Eye Animation State
-  const [eyeState, setEyeState] = useState<'open' | 'half_closed' | 'closed'>('open');
+  const [eyeState, setEyeState] = useState<'open' | 'half_closed' | 'closed'>(
+    'open',
+  );
 
   useEffect(() => {
     // A body with blinking turned off stays open-eyed rather than running a
@@ -444,13 +547,13 @@ const GenerateAvatarScreen = () => {
           duration: 2000,
           useNativeDriver: true,
         }),
-      ])
+      ]),
     ).start();
   }, [breatheAnim]);
 
   const breatheScaleY = breatheAnim.interpolate({
     inputRange: [0, 1],
-    outputRange: [1, 1.010],
+    outputRange: [1, 1.01],
   });
 
   const breatheScaleX = breatheAnim.interpolate({
@@ -483,15 +586,32 @@ const GenerateAvatarScreen = () => {
     FULLBODY_SKIRTS.length > 0 ||
     SHOES.length > 0 ||
     BODY_COLORS.length > 0;
-  const halfOutfitArt = layerArtwork('outfit', isFullbody ? null : selectedBody);
+  const halfOutfitArt = layerArtwork(
+    'outfit',
+    isFullbody ? null : selectedBody,
+  );
   const halfHairArt = layerArtwork('hair', isFullbody ? null : selectedHair);
-  const fullSkirtArt = layerArtwork('skirt', isFullbody ? selectedFullbodySkirt : null);
+  const fullSkirtArt = layerArtwork(
+    'skirt',
+    isFullbody ? selectedFullbodySkirt : null,
+  );
   const fullShoesArt = layerArtwork('shoes', isFullbody ? selectedShoes : null);
-  const fullOutfitArt = layerArtwork('outfit', isFullbody ? selectedFullbodyOutfit : null);
-  const fullHairArt = layerArtwork('hair', isFullbody ? selectedFullbodyHair : null);
+  const fullOutfitArt = layerArtwork(
+    'outfit',
+    isFullbody ? selectedFullbodyOutfit : null,
+  );
+  const fullHairArt = layerArtwork(
+    'hair',
+    isFullbody ? selectedFullbodyHair : null,
+  );
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
+    <View
+      style={[
+        styles.container,
+        { paddingTop: insets.top, paddingBottom: insets.bottom },
+      ]}
+    >
       {/* Header */}
       <View className="flex-row items-center px-6 mb-8 mt-2">
         <TouchableOpacity
@@ -501,11 +621,16 @@ const GenerateAvatarScreen = () => {
         >
           <ChevronLeft color="white" size={24} />
         </TouchableOpacity>
-        <Text className="text-white text-xl font-medium ml-4">Customize Avatar</Text>
+        <Text className="text-white text-xl font-medium ml-4">
+          Customize Avatar
+        </Text>
       </View>
 
-      <ScrollView className="flex-1" showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 100 }}>
-
+      <ScrollView
+        className="flex-1"
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ paddingBottom: 100 }}
+      >
         {/* Large Avatar Preview */}
         <View className="px-6 mb-8">
           <ViewShot
@@ -530,13 +655,13 @@ const GenerateAvatarScreen = () => {
                 style={[
                   isFullbody ? styles.fullbodyStage : styles.avatarStage,
                   {
-                  transform: [
-                    { scaleX: breatheScaleX },
-                    { scaleY: breatheScaleY },
-                    ...(isFullbody ? [{ scale: FULLBODY_STAGE_SCALE }] : []),
-                  ],
-                  transformOrigin: 'bottom center' as any,
-                }
+                    transform: [
+                      { scaleX: breatheScaleX },
+                      { scaleY: breatheScaleY },
+                      ...(isFullbody ? [{ scale: FULLBODY_STAGE_SCALE }] : []),
+                    ],
+                    transformOrigin: 'bottom center' as any,
+                  },
                 ]}
               >
                 {/* Base Head / Base Body */}
@@ -671,8 +796,6 @@ const GenerateAvatarScreen = () => {
                   />
                 )}
 
-
-
                 {isFullbody && fullHairArt.source && (
                   <View className="absolute w-full h-full">
                     {selectedHairColor ? (
@@ -703,22 +826,21 @@ const GenerateAvatarScreen = () => {
                     )}
                   </View>
                 )}
-
               </Animated.View>
 
               {/* Gradient Overlay to hide edge artifacts */}
               {!isCapturing && (
-              <View className="absolute bottom-0 w-full h-24 pointer-events-none">
-                <Svg height="100%" width="100%">
-                  <Defs>
-                    <LinearGradient id="grad" x1="0" y1="0" x2="0" y2="1">
-                      <Stop offset="0" stopColor="#1A0B2E" stopOpacity="0" />
-                      <Stop offset="1" stopColor="#1A0B2E" stopOpacity="1" />
-                    </LinearGradient>
-                  </Defs>
-                  <Rect width="100%" height="100%" fill="url(#grad)" />
-                </Svg>
-              </View>
+                <View className="absolute bottom-0 w-full h-24 pointer-events-none">
+                  <Svg height="100%" width="100%">
+                    <Defs>
+                      <LinearGradient id="grad" x1="0" y1="0" x2="0" y2="1">
+                        <Stop offset="0" stopColor="#1A0B2E" stopOpacity="0" />
+                        <Stop offset="1" stopColor="#1A0B2E" stopOpacity="1" />
+                      </LinearGradient>
+                    </Defs>
+                    <Rect width="100%" height="100%" fill="url(#grad)" />
+                  </Svg>
+                </View>
               )}
             </View>
           </ViewShot>
@@ -733,9 +855,12 @@ const GenerateAvatarScreen = () => {
         {catalogue.isUnavailable && (
           <View className="mx-6 mb-6 px-4 py-3 rounded-xl border border-[#5B1F7D] bg-[#1A0B2E] flex-row items-center justify-between">
             <View className="flex-1 pr-3">
-              <Text className="text-white text-[13px] font-semibold">Parts unavailable</Text>
+              <Text className="text-white text-[13px] font-semibold">
+                Parts unavailable
+              </Text>
               <Text className="text-gray-400 text-[11px] mt-0.5">
-                Could not load the asset catalogue, so nothing new can be selected.
+                Could not load the asset catalogue, so nothing new can be
+                selected.
               </Text>
             </View>
             <TouchableOpacity
@@ -744,7 +869,9 @@ const GenerateAvatarScreen = () => {
               accessibilityRole="button"
               accessibilityLabel="Retry loading avatar assets"
             >
-              <Text className="text-[#B366FF] text-[11px] font-bold">Retry</Text>
+              <Text className="text-[#B366FF] text-[11px] font-bold">
+                Retry
+              </Text>
             </TouchableOpacity>
           </View>
         )}
@@ -770,33 +897,47 @@ const GenerateAvatarScreen = () => {
                 artwork nobody has drawn yet. */}
             {HAIR_STYLES.length > 0 && (
               <View className="mb-6">
-                <Text className="text-white text-base font-medium px-6 mb-4">Hair style</Text>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 24 }}>
-                {HAIR_STYLES.map((hair, index) => (
-                  <TouchableOpacity
-                    key={`hair-${index}`}
-                    activeOpacity={0.8}
-                    className="mr-3 items-center"
-                    onPress={() => setSelectedHair(hair.id)}
-                  >
-                    <View className="w-[72px] h-[90px] rounded-xl border border-[#5B1F7D] bg-[#1A0B2E] overflow-hidden justify-end pb-6">
-                      <ArtworkImage
-                        source={tileArtwork('hair', hair).source}
-                        fallback={tileArtwork('hair', hair).fallback}
-                        className="w-[180%] h-[180%] absolute top-[-40%] left-[-40%]"
-                        resizeMode="cover"
-                      />
-                    </View>
-                  </TouchableOpacity>
-                ))}
-              </ScrollView>
+                <Text className="text-white text-base font-medium px-6 mb-4">
+                  Hair style
+                </Text>
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={{ paddingHorizontal: 24 }}
+                >
+                  {HAIR_STYLES.map((hair, index) => (
+                    <TouchableOpacity
+                      key={`hair-${index}`}
+                      activeOpacity={0.8}
+                      className="mr-3 items-center"
+                      onPress={() => setSelectedHair(hair.id)}
+                    >
+                      <View
+                        className={`${TILE_FRAME} rounded-xl border border-[#5B1F7D] bg-[#1A0B2E] overflow-hidden items-center`}
+                      >
+                        <ArtworkImage
+                          source={tileArtwork('hair', hair).source}
+                          fallback={tileArtwork('hair', hair).fallback}
+                          className={framingFor('hair', hair.hasThumbnail)}
+                          resizeMode="contain"
+                        />
+                      </View>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
               </View>
             )}
 
             {/* Hair Color */}
             <View className="mb-6">
-              <Text className="text-white text-base font-medium px-6 mb-4">Hair color</Text>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 24 }}>
+              <Text className="text-white text-base font-medium px-6 mb-4">
+                Hair color
+              </Text>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={{ paddingHorizontal: 24 }}
+              >
                 {HAIR_COLORS.map((color, index) => (
                   <TouchableOpacity
                     key={`color-${index}`}
@@ -805,7 +946,11 @@ const GenerateAvatarScreen = () => {
                     onPress={() => setSelectedHairColor(color)}
                   >
                     <View
-                      className={`w-[60px] h-[60px] rounded-full mb-3 border-2 ${selectedHairColor === color ? 'border-white' : 'border-[#5B1F7D]'}`}
+                      className={`w-[60px] h-[60px] rounded-full mb-3 border-2 ${
+                        selectedHairColor === color
+                          ? 'border-white'
+                          : 'border-[#5B1F7D]'
+                      }`}
                       style={{ backgroundColor: color }}
                     />
                   </TouchableOpacity>
@@ -818,26 +963,34 @@ const GenerateAvatarScreen = () => {
                 artwork nobody has drawn yet. */}
             {BLAZERS.length > 0 && (
               <View className="mb-6">
-                <Text className="text-white text-base font-medium px-6 mb-4">Blazer</Text>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 24 }}>
-                {BLAZERS.map((blazer, index) => (
-                  <TouchableOpacity
-                    key={`blazer-${index}`}
-                    activeOpacity={0.8}
-                    className="mr-3 items-center opacity-80"
-                    onPress={() => setSelectedBody(blazer.id)}
-                  >
-                    <View className="w-[72px] h-[90px] rounded-xl border border-[#3A144E] bg-black/40 overflow-hidden justify-center items-center pb-4">
-                      <ArtworkImage
-                        source={tileArtwork('outfit', blazer).source}
-                        fallback={tileArtwork('outfit', blazer).fallback}
-                        className="w-[50%] h-[50%]"
-                        resizeMode="contain"
-                      />
-                    </View>
-                  </TouchableOpacity>
-                ))}
-              </ScrollView>
+                <Text className="text-white text-base font-medium px-6 mb-4">
+                  Blazer
+                </Text>
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={{ paddingHorizontal: 24 }}
+                >
+                  {BLAZERS.map((blazer, index) => (
+                    <TouchableOpacity
+                      key={`blazer-${index}`}
+                      activeOpacity={0.8}
+                      className="mr-3 items-center opacity-80"
+                      onPress={() => setSelectedBody(blazer.id)}
+                    >
+                      <View
+                        className={`${TILE_FRAME} rounded-xl border border-[#3A144E] bg-black/40 overflow-hidden items-center`}
+                      >
+                        <ArtworkImage
+                          source={tileArtwork('outfit', blazer).source}
+                          fallback={tileArtwork('outfit', blazer).fallback}
+                          className={framingFor('outfit', blazer.hasThumbnail)}
+                          resizeMode="contain"
+                        />
+                      </View>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
               </View>
             )}
 
@@ -863,21 +1016,26 @@ const GenerateAvatarScreen = () => {
                       activeOpacity={0.8}
                       className="mr-3 items-center"
                       accessibilityRole="button"
-                      accessibilityLabel={`Body colour ${describeVariant(variant, index)}`}
-                      accessibilityState={{ selected: activeBase?.id === variant.id }}
+                      accessibilityLabel={`Body colour ${describeVariant(
+                        variant,
+                        index,
+                      )}`}
+                      accessibilityState={{
+                        selected: activeBase?.id === variant.id,
+                      }}
                       onPress={() => setChosenBaseId(variant.id)}
                     >
                       <View
-                        className={`w-[72px] h-[90px] rounded-xl border-2 ${
+                        className={`${TILE_FRAME} rounded-xl border-2 ${
                           activeBase?.id === variant.id
                             ? 'border-[#B366FF]'
                             : 'border-[#5B1F7D]'
-                        } bg-[#1A0B2E] overflow-hidden items-center justify-center`}
+                        } bg-[#1A0B2E] overflow-hidden items-center`}
                       >
                         <ArtworkImage
                           source={variant.source}
                           fallback={variant.source}
-                          className="w-full h-full"
+                          className={TONE_CROP}
                           resizeMode="contain"
                         />
                       </View>
@@ -892,8 +1050,14 @@ const GenerateAvatarScreen = () => {
 
             {BODY_COLORS.length > 0 && (
               <View className="mb-6">
-                <Text className="text-white text-base font-medium px-6 mb-4">Skin tone</Text>
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 24 }}>
+                <Text className="text-white text-base font-medium px-6 mb-4">
+                  Skin tone
+                </Text>
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={{ paddingHorizontal: 24 }}
+                >
                   {/* Clearing a tone is a choice of its own, not a second tap
                       on the one you already picked. */}
                   <NoneOptionTile
@@ -907,13 +1071,16 @@ const GenerateAvatarScreen = () => {
                       <AssetPickerTile
                         key={`fb-body-color-${assetKey ?? index}`}
                         source={tileArtwork('bodyColor', bodyColor).source}
-                        imageClassName="w-full h-full"
+                        slot="bodyColor"
+                        hasThumbnail={bodyColor.hasThumbnail}
                         state={catalogue.stateOf(assetKey)}
                         isSelected={selectedBodyColor === bodyColor.id}
                         onSelect={() => setSelectedBodyColor(bodyColor.id)}
                         onPurchase={() => handlePurchase('bodyColor', assetKey)}
                         onBlocked={() => explainBlocked('bodyColor', assetKey)}
-                        isPurchasing={purchasingKey !== null && purchasingKey === assetKey}
+                        isPurchasing={
+                          purchasingKey !== null && purchasingKey === assetKey
+                        }
                         accessibilityLabel="Skin tone"
                       />
                     );
@@ -929,33 +1096,48 @@ const GenerateAvatarScreen = () => {
                 artwork nobody has drawn yet. */}
             {FULLBODY_HAIR.length > 0 && (
               <View className="mb-6">
-                <Text className="text-white text-base font-medium px-6 mb-4">Full Body Hair</Text>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 24 }}>
-                {FULLBODY_HAIR.map((hair, index) => {
-                  const assetKey = hair.id;
-                  return (
-                    <AssetPickerTile
-                      key={`fb-hair-${assetKey ?? index}`}
-                      source={tileArtwork('hair', hair).source}
-                      imageClassName="w-[250%] h-[250%] absolute top-[-10%]"
-                      state={catalogue.stateOf(assetKey)}
-                      isSelected={selectedFullbodyHair === hair.id}
-                      onSelect={() => setSelectedFullbodyHair(hair.id)}
-                      onPurchase={() => handlePurchase('hair', assetKey)}
-                      onBlocked={() => explainBlocked('hair', assetKey)}
-                      isPurchasing={purchasingKey !== null && purchasingKey === assetKey}
-                      accessibilityLabel="Hair style"
-                    />
-                  );
-                })}
-              </ScrollView>
+                <Text className="text-white text-base font-medium px-6 mb-4">
+                  Full Body Hair
+                </Text>
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={{ paddingHorizontal: 24 }}
+                >
+                  {FULLBODY_HAIR.map((hair, index) => {
+                    const assetKey = hair.id;
+                    return (
+                      <AssetPickerTile
+                        key={`fb-hair-${assetKey ?? index}`}
+                        source={tileArtwork('hair', hair).source}
+                        slot="hair"
+                        hasThumbnail={hair.hasThumbnail}
+                        state={catalogue.stateOf(assetKey)}
+                        isSelected={selectedFullbodyHair === hair.id}
+                        onSelect={() => setSelectedFullbodyHair(hair.id)}
+                        onPurchase={() => handlePurchase('hair', assetKey)}
+                        onBlocked={() => explainBlocked('hair', assetKey)}
+                        isPurchasing={
+                          purchasingKey !== null && purchasingKey === assetKey
+                        }
+                        accessibilityLabel="Hair style"
+                      />
+                    );
+                  })}
+                </ScrollView>
               </View>
             )}
 
             {/* Hair Color (Shared) */}
             <View className="mb-6">
-              <Text className="text-white text-base font-medium px-6 mb-4">Hair color</Text>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 24 }}>
+              <Text className="text-white text-base font-medium px-6 mb-4">
+                Hair color
+              </Text>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={{ paddingHorizontal: 24 }}
+              >
                 {HAIR_COLORS.map((color, index) => (
                   <TouchableOpacity
                     key={`fb-color-${index}`}
@@ -964,7 +1146,11 @@ const GenerateAvatarScreen = () => {
                     onPress={() => setSelectedHairColor(color)}
                   >
                     <View
-                      className={`w-[60px] h-[60px] rounded-full mb-3 border-2 ${selectedHairColor === color ? 'border-white' : 'border-[#5B1F7D]'}`}
+                      className={`w-[60px] h-[60px] rounded-full mb-3 border-2 ${
+                        selectedHairColor === color
+                          ? 'border-white'
+                          : 'border-[#5B1F7D]'
+                      }`}
                       style={{ backgroundColor: color }}
                     />
                   </TouchableOpacity>
@@ -994,21 +1180,26 @@ const GenerateAvatarScreen = () => {
                       activeOpacity={0.8}
                       className="mr-3 items-center"
                       accessibilityRole="button"
-                      accessibilityLabel={`Body colour ${describeVariant(variant, index)}`}
-                      accessibilityState={{ selected: activeBase?.id === variant.id }}
+                      accessibilityLabel={`Body colour ${describeVariant(
+                        variant,
+                        index,
+                      )}`}
+                      accessibilityState={{
+                        selected: activeBase?.id === variant.id,
+                      }}
                       onPress={() => setChosenBaseId(variant.id)}
                     >
                       <View
-                        className={`w-[72px] h-[90px] rounded-xl border-2 ${
+                        className={`${TILE_FRAME} rounded-xl border-2 ${
                           activeBase?.id === variant.id
                             ? 'border-[#B366FF]'
                             : 'border-[#5B1F7D]'
-                        } bg-[#1A0B2E] overflow-hidden items-center justify-center`}
+                        } bg-[#1A0B2E] overflow-hidden items-center`}
                       >
                         <ArtworkImage
                           source={variant.source}
                           fallback={variant.source}
-                          className="w-full h-full"
+                          className={TONE_CROP}
                           resizeMode="contain"
                         />
                       </View>
@@ -1023,8 +1214,14 @@ const GenerateAvatarScreen = () => {
 
             {BODY_COLORS.length > 0 && (
               <View className="mb-6">
-                <Text className="text-white text-base font-medium px-6 mb-4">Skin tone</Text>
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 24 }}>
+                <Text className="text-white text-base font-medium px-6 mb-4">
+                  Skin tone
+                </Text>
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={{ paddingHorizontal: 24 }}
+                >
                   {/* Clearing a tone is a choice of its own, not a second tap
                       on the one you already picked. */}
                   <NoneOptionTile
@@ -1038,13 +1235,16 @@ const GenerateAvatarScreen = () => {
                       <AssetPickerTile
                         key={`fb-body-color-${assetKey ?? index}`}
                         source={tileArtwork('bodyColor', bodyColor).source}
-                        imageClassName="w-full h-full"
+                        slot="bodyColor"
+                        hasThumbnail={bodyColor.hasThumbnail}
                         state={catalogue.stateOf(assetKey)}
                         isSelected={selectedBodyColor === bodyColor.id}
                         onSelect={() => setSelectedBodyColor(bodyColor.id)}
                         onPurchase={() => handlePurchase('bodyColor', assetKey)}
                         onBlocked={() => explainBlocked('bodyColor', assetKey)}
-                        isPurchasing={purchasingKey !== null && purchasingKey === assetKey}
+                        isPurchasing={
+                          purchasingKey !== null && purchasingKey === assetKey
+                        }
                         accessibilityLabel="Skin tone"
                       />
                     );
@@ -1055,46 +1255,64 @@ const GenerateAvatarScreen = () => {
 
             {FULLBODY_SKIRTS.length > 0 && (
               <View className="mb-6">
-                <Text className="text-white text-base font-medium px-6 mb-4">Skirt</Text>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 24 }}>
-                {FULLBODY_SKIRTS.map((skirt, index) => {
-                  const assetKey = skirt.id;
-                  return (
-                    <AssetPickerTile
-                      key={`fb-skirt-${assetKey ?? index}`}
-                      source={tileArtwork('skirt', skirt).source}
-                      imageClassName="w-[220%] h-[220%] absolute top-[-40%]"
-                      state={catalogue.stateOf(assetKey)}
-                      isSelected={selectedFullbodySkirt === skirt.id}
-                      onSelect={() => setSelectedFullbodySkirt(skirt.id)}
-                      onPurchase={() => handlePurchase('skirt', assetKey)}
-                      onBlocked={() => explainBlocked('skirt', assetKey)}
-                      isPurchasing={purchasingKey !== null && purchasingKey === assetKey}
-                      accessibilityLabel="Skirt"
-                    />
-                  );
-                })}
-              </ScrollView>
+                <Text className="text-white text-base font-medium px-6 mb-4">
+                  Skirt
+                </Text>
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={{ paddingHorizontal: 24 }}
+                >
+                  {FULLBODY_SKIRTS.map((skirt, index) => {
+                    const assetKey = skirt.id;
+                    return (
+                      <AssetPickerTile
+                        key={`fb-skirt-${assetKey ?? index}`}
+                        source={tileArtwork('skirt', skirt).source}
+                        slot="skirt"
+                        hasThumbnail={skirt.hasThumbnail}
+                        state={catalogue.stateOf(assetKey)}
+                        isSelected={selectedFullbodySkirt === skirt.id}
+                        onSelect={() => setSelectedFullbodySkirt(skirt.id)}
+                        onPurchase={() => handlePurchase('skirt', assetKey)}
+                        onBlocked={() => explainBlocked('skirt', assetKey)}
+                        isPurchasing={
+                          purchasingKey !== null && purchasingKey === assetKey
+                        }
+                        accessibilityLabel="Skirt"
+                      />
+                    );
+                  })}
+                </ScrollView>
               </View>
             )}
 
             {FULLBODY_OUTFITS.length > 0 && (
               <View className="mb-6">
-                <Text className="text-white text-base font-medium px-6 mb-4">Full Body Outfit</Text>
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 24 }}>
+                <Text className="text-white text-base font-medium px-6 mb-4">
+                  Full Body Outfit
+                </Text>
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={{ paddingHorizontal: 24 }}
+                >
                   {FULLBODY_OUTFITS.map((outfit, index) => {
                     const assetKey = outfit.id;
                     return (
                       <AssetPickerTile
                         key={`fb-outfit-${assetKey ?? index}`}
                         source={tileArtwork('outfit', outfit).source}
-                        imageClassName="w-[220%] h-[220%] absolute top-[-25%]"
+                        slot="outfit"
+                        hasThumbnail={outfit.hasThumbnail}
                         state={catalogue.stateOf(assetKey)}
                         isSelected={selectedFullbodyOutfit === outfit.id}
                         onSelect={() => setSelectedFullbodyOutfit(outfit.id)}
                         onPurchase={() => handlePurchase('outfit', assetKey)}
                         onBlocked={() => explainBlocked('outfit', assetKey)}
-                        isPurchasing={purchasingKey !== null && purchasingKey === assetKey}
+                        isPurchasing={
+                          purchasingKey !== null && purchasingKey === assetKey
+                        }
                         accessibilityLabel="Outfit"
                       />
                     );
@@ -1105,21 +1323,30 @@ const GenerateAvatarScreen = () => {
 
             {SHOES.length > 0 && (
               <View className="mb-6">
-                <Text className="text-white text-base font-medium px-6 mb-4">Shoes</Text>
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 24 }}>
+                <Text className="text-white text-base font-medium px-6 mb-4">
+                  Shoes
+                </Text>
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={{ paddingHorizontal: 24 }}
+                >
                   {SHOES.map((shoe, index) => {
                     const assetKey = shoe.id;
                     return (
                       <AssetPickerTile
                         key={`fb-shoe-${assetKey ?? index}`}
                         source={tileArtwork('shoes', shoe).source}
-                        imageClassName="w-[280%] h-[280%] absolute bottom-[0%]"
+                        slot="shoes"
+                        hasThumbnail={shoe.hasThumbnail}
                         state={catalogue.stateOf(assetKey)}
                         isSelected={selectedShoes === shoe.id}
                         onSelect={() => setSelectedShoes(shoe.id)}
                         onPurchase={() => handlePurchase('shoes', assetKey)}
                         onBlocked={() => explainBlocked('shoes', assetKey)}
-                        isPurchasing={purchasingKey !== null && purchasingKey === assetKey}
+                        isPurchasing={
+                          purchasingKey !== null && purchasingKey === assetKey
+                        }
                         accessibilityLabel="Shoes"
                       />
                     );
@@ -1129,7 +1356,6 @@ const GenerateAvatarScreen = () => {
             )}
           </>
         )}
-
       </ScrollView>
 
       {/* Floating Create Avatar Button */}
@@ -1162,9 +1388,10 @@ const GenerateAvatarScreen = () => {
                * Failing the save is the right outcome here: an avatar missing
                * its outfit is worse than one the user has to save twice.
                */
-              const pending = resolveConfig(buildConfig(), catalogue.artwork).map(
-                (layer) => layer.source,
-              );
+              const pending = resolveConfig(
+                buildConfig(),
+                catalogue.artwork,
+              ).map(layer => layer.source);
               const artwork = await prefetchSources(pending);
 
               if (!artwork.ok) {
@@ -1180,7 +1407,7 @@ const GenerateAvatarScreen = () => {
               // deterministic and has a transparent background.
               setEyeState('open');
               setIsCapturing(true);
-              await new Promise((resolve) => setTimeout(resolve, 120));
+              await new Promise(resolve => setTimeout(resolve, 120));
 
               let uri: string;
               try {
@@ -1194,7 +1421,11 @@ const GenerateAvatarScreen = () => {
               // returns the S3 *key*. The key is what gets persisted - a signed
               // URL expires, and the backend re-signs on every read.
               const avatarKey = await uploadImage(
-                { uri, fileName: `avatar_${Date.now()}.png`, type: 'image/png' },
+                {
+                  uri,
+                  fileName: `avatar_${Date.now()}.png`,
+                  type: 'image/png',
+                },
                 getPreSignedUrl as any,
                 0,
                 'Profile_Images',
@@ -1244,7 +1475,10 @@ const GenerateAvatarScreen = () => {
               // The backend validates the config on save, so a rejection here
               // is a real answer about the parts rather than a transport fault.
               if (error?.status === 403) {
-                showToast.error('You do not own every part', error?.data?.message);
+                showToast.error(
+                  'You do not own every part',
+                  error?.data?.message,
+                );
                 return;
               }
 
@@ -1252,13 +1486,18 @@ const GenerateAvatarScreen = () => {
               const detail =
                 error?.data?.message || error?.message || 'Unexpected error';
               console.error('[avatar] save failed', error);
-              showToast.error('Could not save your avatar', `${detail}${status}`);
+              showToast.error(
+                'Could not save your avatar',
+                `${detail}${status}`,
+              );
             } finally {
               setIsSaving(false);
             }
           }}
         >
-          <Text className="text-white font-semibold text-base">{isUpdating || isSaving ? 'Saving...' : 'Create avatar'}</Text>
+          <Text className="text-white font-semibold text-base">
+            {isUpdating || isSaving ? 'Saving...' : 'Create avatar'}
+          </Text>
         </TouchableOpacity>
       </View>
     </View>

@@ -132,6 +132,37 @@ describe('isolation', () => {
   });
 });
 
+describe('thumbnails', () => {
+  it('carries the flag through, so the picker knows how to frame it', () => {
+    const withThumb = resolveParts(
+      'outfit',
+      TARGET,
+      lookup(row({ hasThumbnail: true })),
+    );
+
+    expect(withThumb[0].hasThumbnail).toBe(true);
+  });
+
+  it('reports no thumbnail when the server did not say there was one', () => {
+    // Absent must read as false rather than undefined-and-truthy-later: the
+    // framing rule falls back to the crop only when this is falsy.
+    expect(resolveParts('outfit', TARGET, lookup(row()))[0].hasThumbnail).toBe(false);
+  });
+
+  it('is independent of which artwork draws the tile', () => {
+    // A bundled asset can have a thumbnail uploaded for it, and a
+    // storage-backed one can have none. The two facts are unrelated.
+    const bundled = resolveParts(
+      'outfit',
+      TARGET,
+      lookup(row({ key: 'suit1', imageUrl: null, bundledId: 'suit1', hasThumbnail: true })),
+    );
+
+    expect(bundled[0].hasThumbnail).toBe(true);
+    expect(bundled[0].source).toBe(getAssetById('outfit', 'suit1')!.source);
+  });
+});
+
 describe('ordering', () => {
   it('follows this character’s arrangement, not the asset’s own', () => {
     // The point of a per-assignment order: a shared garment can sit first for
