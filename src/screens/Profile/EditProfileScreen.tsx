@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, TextInput, ImageBackground, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { ChevronLeft, Settings, Edit2, User, MapPin, Users, ChevronDown, Home } from 'lucide-react-native';
+import { ChevronLeft, Settings, Edit2, User, MapPin, Users, ChevronDown, Home, Trophy } from 'lucide-react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useSelector, useDispatch } from 'react-redux';
 import { RootState } from '../../store';
@@ -17,6 +17,11 @@ export default function EditProfileScreen() {
   const authUser = useSelector((state: RootState) => state.auth.user);
 
   const { data: userData, isLoading: isFetchingMe } = useGetMeQuery();
+
+  // Already resolved to an organization by `/users/me`, so these are names to
+  // show rather than ids to look up.
+  const favoriteGym = (userData as any)?.favoriteGym ?? null;
+  const favoriteTeam = (userData as any)?.favoriteTeam ?? null;
   const [updateMe, { isLoading: isUpdating }] = useUpdateMeMutation();
 
   const [fullName, setFullName] = useState('');
@@ -140,10 +145,46 @@ export default function EditProfileScreen() {
             <MapPin color="#999" size={20} />
           </TouchableOpacity>
 
-          {/* Cheer Program Input */}
-          <TouchableOpacity className="flex-row items-center border border-[#6B21A8] rounded-[16px] px-4 py-3.5 mb-4 bg-transparent">
+          {/*
+            The gym, under the name this screen already used for it.
+            "Cheer program" and "Favorite GYM" on the profile were the same idea
+            written twice; both now set the one field rather than implying a
+            third concept nothing stores.
+          */}
+          <TouchableOpacity
+            className="flex-row items-center border border-[#6B21A8] rounded-[16px] px-4 py-3.5 mb-4 bg-transparent"
+            onPress={() =>
+              (navigation as any).navigate('OrganizationPicker', {
+                field: 'favoriteOrganizationId',
+                title: 'Favourite gym',
+                currentId: favoriteGym?.id ?? null,
+              })
+            }
+            accessibilityRole="button"
+          >
             <Users color="#999" size={20} className="mr-3" />
-            <Text className="flex-1 text-white text-[15px]">Select favorite cheer program</Text>
+            <Text className="flex-1 text-white text-[15px]" numberOfLines={1}>
+              {favoriteGym?.name || 'Select favorite cheer program'}
+            </Text>
+            <ChevronDown color="#999" size={20} />
+          </TouchableOpacity>
+
+          {/* The team, the other half of the pair shown on the profile. */}
+          <TouchableOpacity
+            className="flex-row items-center border border-[#6B21A8] rounded-[16px] px-4 py-3.5 mb-4 bg-transparent"
+            onPress={() =>
+              (navigation as any).navigate('OrganizationPicker', {
+                field: 'favoriteTeamId',
+                title: 'Favourite team',
+                currentId: favoriteTeam?.id ?? null,
+              })
+            }
+            accessibilityRole="button"
+          >
+            <Trophy color="#999" size={20} className="mr-3" />
+            <Text className="flex-1 text-white text-[15px]" numberOfLines={1}>
+              {favoriteTeam?.name || 'Select favorite team'}
+            </Text>
             <ChevronDown color="#999" size={20} />
           </TouchableOpacity>
         </View>
