@@ -84,11 +84,16 @@ export default function ProfileScreen() {
   const xpPercent = Math.min(100, Math.round((xpInLevel / xpNeeded) * 100));
 
   // Real dynamic favorites and location
-  const favoriteGym = me?.favoriteGym || user?.favoriteGym || null;
-  const favoriteTeam = me?.favoriteTeam || user?.favoriteTeam || null;
-  const userLocation =
-    me?.state || user?.state || me?.location || user?.location || null;
-
+  /**
+   * Both come from `/users/me`, already resolved to an organization.
+   *
+   * The server sends `{ id, name, shortName, logoUrl, location }` or null, so
+   * there is nothing to look up here and nothing to fall back to - a favourite
+   * pointing at an organization since removed already reads as null, which
+   * renders as "Not set".
+   */
+  const favoriteGym = me?.favoriteGym ?? null;
+  const favoriteTeam = me?.favoriteTeam ?? null;
   // Real dynamic stats
   const wins = Number(me?.stats?.wins ?? me?.wins ?? user?.wins ?? 0);
   const championships = Number(
@@ -269,7 +274,15 @@ export default function ProfileScreen() {
           <TouchableOpacity
             className="flex-1 border border-[#331166] rounded-[24px] p-4 mr-2 flex-row items-center bg-[#1a0533]"
             activeOpacity={0.75}
-            onPress={() => navigation.navigate('EditProfile')}
+            onPress={() =>
+              navigation.navigate('OrganizationPicker', {
+                field: 'favoriteOrganizationId',
+                title: 'Favourite gym',
+                currentId: favoriteGym?.id ?? null,
+              })
+            }
+            accessibilityRole="button"
+            accessibilityLabel={`Favourite gym, ${favoriteGym?.name ?? 'not set'}`}
           >
             <Dumbbell color="#00FFFF" size={28} className="mr-3" />
             <View className="flex-1">
@@ -280,10 +293,10 @@ export default function ProfileScreen() {
                 className="text-[#FFB84D] text-[12px] font-semibold mb-0.5"
                 numberOfLines={1}
               >
-                {favoriteGym?.name || favoriteGym || 'Not set'}
+                {favoriteGym?.name || 'Not set'}
               </Text>
               <Text className="text-gray-400 text-[11px]" numberOfLines={1}>
-                {favoriteGym?.location || userLocation || 'Tap to choose'}
+                {favoriteGym?.location || 'Tap to choose'}
               </Text>
             </View>
           </TouchableOpacity>
@@ -291,7 +304,15 @@ export default function ProfileScreen() {
           <TouchableOpacity
             className="flex-1 border border-[#331166] rounded-[24px] p-4 ml-2 flex-row items-center bg-[#1a0533]"
             activeOpacity={0.75}
-            onPress={() => navigation.navigate('EditProfile')}
+            onPress={() =>
+              navigation.navigate('OrganizationPicker', {
+                field: 'favoriteTeamId',
+                title: 'Favourite team',
+                currentId: favoriteTeam?.id ?? null,
+              })
+            }
+            accessibilityRole="button"
+            accessibilityLabel={`Favourite team, ${favoriteTeam?.name ?? 'not set'}`}
           >
             <Trophy color="#00FFFF" size={28} className="mr-3" />
             <View className="flex-1">
@@ -302,10 +323,10 @@ export default function ProfileScreen() {
                 className="text-[#FFB84D] text-[12px] font-semibold mb-0.5"
                 numberOfLines={1}
               >
-                {favoriteTeam?.name || favoriteTeam || 'Not set'}
+                {favoriteTeam?.name || 'Not set'}
               </Text>
               <Text className="text-gray-400 text-[11px]" numberOfLines={1}>
-                {favoriteTeam?.location || userLocation || 'Tap to choose'}
+                {favoriteTeam?.location || 'Tap to choose'}
               </Text>
             </View>
           </TouchableOpacity>

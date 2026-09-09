@@ -35,6 +35,7 @@ import CoinStoreScreen from './src/screens/Profile/CoinStoreScreen';
 import WalletScreen from './src/screens/Profile/WalletScreen';
 import AllPostsScreen from './src/screens/Profile/AllPostsScreen';
 import EditProfileScreen from './src/screens/Profile/EditProfileScreen';
+import OrganizationPickerScreen from './src/screens/Profile/OrganizationPickerScreen';
 import SettingsScreen from './src/screens/Profile/SettingsScreen';
 import AboutUsScreen from './src/screens/Profile/AboutUsScreen';
 import PrivacyPolicyScreen from './src/screens/Profile/PrivacyPolicyScreen';
@@ -108,6 +109,16 @@ export type RootStackParamList = {
   Wallet: undefined;
   AllPosts: undefined;
   EditProfile: undefined;
+  /**
+   * Choosing a favourite gym or team. One screen for both, so `field` says
+   * which one is being set - the two lists are otherwise identical and picking
+   * the wrong one would be invisible.
+   */
+  OrganizationPicker: {
+    field: 'favoriteOrganizationId' | 'favoriteTeamId';
+    title: string;
+    currentId?: string | null;
+  };
   Settings: undefined;
   AboutUs: undefined;
   PrivacyPolicy: undefined;
@@ -239,6 +250,10 @@ function AppContent() {
             <Stack.Screen name="Wallet" component={WalletScreen} />
             <Stack.Screen name="AllPosts" component={AllPostsScreen} />
             <Stack.Screen name="EditProfile" component={EditProfileScreen} />
+            <Stack.Screen
+              name="OrganizationPicker"
+              component={OrganizationPickerScreen}
+            />
             <Stack.Screen name="Settings" component={SettingsScreen} />
             <Stack.Screen name="AboutUs" component={AboutUsScreen} />
             <Stack.Screen

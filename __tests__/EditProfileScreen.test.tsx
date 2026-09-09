@@ -42,6 +42,8 @@ jest.mock('lucide-react-native', () => {
     Users: Icon,
     ChevronDown: Icon,
     Home: Icon,
+    // The favourite-team row, which the screen now offers alongside the gym.
+    Trophy: Icon,
   };
 });
 
