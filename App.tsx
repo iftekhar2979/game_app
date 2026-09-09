@@ -36,6 +36,7 @@ import WalletScreen from './src/screens/Profile/WalletScreen';
 import AllPostsScreen from './src/screens/Profile/AllPostsScreen';
 import EditProfileScreen from './src/screens/Profile/EditProfileScreen';
 import OrganizationPickerScreen from './src/screens/Profile/OrganizationPickerScreen';
+import StatePickerScreen from './src/screens/Profile/StatePickerScreen';
 import SettingsScreen from './src/screens/Profile/SettingsScreen';
 import AboutUsScreen from './src/screens/Profile/AboutUsScreen';
 import PrivacyPolicyScreen from './src/screens/Profile/PrivacyPolicyScreen';
@@ -119,6 +120,8 @@ export type RootStackParamList = {
     title: string;
     currentId?: string | null;
   };
+  /** Choosing a US state. `currentCode` is the two-letter code, or null. */
+  StatePicker: { currentCode?: string | null } | undefined;
   Settings: undefined;
   AboutUs: undefined;
   PrivacyPolicy: undefined;
@@ -254,6 +257,7 @@ function AppContent() {
               name="OrganizationPicker"
               component={OrganizationPickerScreen}
             />
+            <Stack.Screen name="StatePicker" component={StatePickerScreen} />
             <Stack.Screen name="Settings" component={SettingsScreen} />
             <Stack.Screen name="AboutUs" component={AboutUsScreen} />
             <Stack.Screen
