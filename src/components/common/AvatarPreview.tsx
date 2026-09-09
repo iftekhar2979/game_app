@@ -106,9 +106,32 @@ export default function AvatarPreview({
     return () => loop.stop();
   }, [animated, base, breatheAnim]);
 
-  // Nothing resolvable to draw: fall back to the snapshot, then to initials.
+  /**
+   * Nothing resolvable to draw: fall back to the snapshot, then to initials.
+   *
+   * The snapshot is fitted to the stage rather than handed to `Avatar`, which
+   * draws a circle of `size x size` and crops to fill it. Passing the stage's
+   * *height* as that size made a tall stage overflow a narrower parent, so a
+   * full-body snapshot arrived with its head and both sides cut off - the
+   * failure looked like a rendering bug rather than a fallback.
+   *
+   * `contain` because a snapshot is a whole avatar: there is no part of it that
+   * is safe to crop.
+   */
   if (!base || !layers.length) {
-    return <Avatar uri={fallbackUri} name={fallbackName} size={height} />;
+    if (!fallbackUri) {
+      return <Avatar uri={null} name={fallbackName} size={height} />;
+    }
+
+    return (
+      <View style={[styles.stageFrame, framed && styles.framed, { height }]}>
+        <Image
+          source={{ uri: fallbackUri }}
+          style={styles.layer}
+          resizeMode="contain"
+        />
+      </View>
+    );
   }
 
   const scaleY = breatheAnim.interpolate({ inputRange: [0, 1], outputRange: [1, 1.01] });

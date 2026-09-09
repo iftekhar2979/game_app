@@ -18,7 +18,6 @@ import UsedAssets from '../../components/Avatar/UsedAssets';
 import CustomLoader from '../../components/Loader/CustomLoader';
 import { getBaseById } from '../../avatar/registry';
 import { describeUsedAssets, normaliseConfig } from '../../avatar/resolveConfig';
-import { useAssetCatalogue } from '../../avatar/useAssetCatalogue';
 import {
   SavedAvatarEntry,
   useApplyAvatarMutation,
@@ -58,12 +57,6 @@ export default function AvatarHistoryScreen() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
   const { data, isLoading, isFetching, refetch } = useGetMyAvatarsQuery({ page: 1, limit: 30 });
-  /**
-   * Only its artwork lookup is wanted here. The wardrobe shows looks the user
-   * has already saved, so ownership and pricing are irrelevant - a part stays
-   * on an avatar that wears it even once it is retired or no longer owned.
-   */
-  const { artwork } = useAssetCatalogue();
   const [applyAvatar] = useApplyAvatarMutation();
   const [deleteAvatar] = useDeleteAvatarMutation();
 
@@ -78,6 +71,29 @@ export default function AvatarHistoryScreen() {
         entry,
         config: normaliseConfig(entry.avatarConfig),
       })),
+    [data],
+  );
+
+  /**
+   * Artwork for every look on the page, from the wardrobe response itself.
+   *
+   * This used to come from `useAssetCatalogue`, which fetched the whole
+   * catalogue. That hook is now scoped to one character - the editor asks it
+   * "what may this body wear" - and a wardrobe is the wrong shape for that
+   * question: its looks can span several Base Avatars, and one built on a body
+   * since retired belongs to no current wardrobe at all. Asking it unscoped
+   * returned nothing, so every avatar wearing dashboard-uploaded artwork fell
+   * back to its flat snapshot.
+   *
+   * The server sends each row the artwork that row references, so this is a
+   * merge rather than a fetch.
+   */
+  const artwork = useMemo(
+    () =>
+      (data?.avatars ?? []).reduce<Record<string, any>>(
+        (byKey, entry) => Object.assign(byKey, entry.artwork),
+        {},
+      ),
     [data],
   );
 

@@ -10,6 +10,16 @@ export interface SavedAvatarEntry {
   /** The raw S3 key, re-submittable without re-uploading. */
   avatarKey: string;
   avatarConfig: AvatarConfig | null;
+  /**
+   * How to draw this look, keyed by asset.
+   *
+   * Sent with the row because a saved avatar's parts can span several Base
+   * Avatars - one built months ago, on a body since retired - so the wardrobe
+   * cannot ask for "one character's wardrobe" the way the editor does. It needs
+   * "how do I draw these particular keys", and the server already knows which
+   * this row references.
+   */
+  artwork: Record<string, { imageUrl?: string | null; previewUrl?: string | null }>;
   isCurrent: boolean;
   createdAt: string;
 }
@@ -35,6 +45,7 @@ const normalise = (raw: any): SavedAvatarEntry => ({
   ...raw,
   id: raw.id || raw._id,
   avatarConfig: raw.avatarConfig ?? null,
+  artwork: raw.artwork ?? {},
   isCurrent: Boolean(raw.isCurrent),
 });
 
