@@ -74,6 +74,7 @@ export function resolveParts(
       (row): AvatarAsset => ({
         id: row.key,
         target,
+        hasThumbnail: !!row.hasThumbnail,
         // `drawable` guarantees one of these resolves.
         source: row.imageUrl
           ? { uri: row.imageUrl }

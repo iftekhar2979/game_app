@@ -42,6 +42,8 @@ export interface AvatarAssetResponse {
   /** Present only on a character-scoped listing. See `AvatarCatalogueAsset`. */
   assignmentSortOrder?: number;
   isShared?: boolean;
+  /** Whether a separate thumbnail was uploaded for this asset. */
+  hasThumbnail?: boolean;
 }
 
 /**
@@ -97,6 +99,15 @@ export interface AvatarCatalogueAsset {
   assignmentSortOrder?: number;
   /** Whether this asset is deliberately worn by more than one character. */
   isShared?: boolean;
+  /**
+   * Whether `previewUrl` is a purpose-made thumbnail or the artwork standing in.
+   *
+   * The server falls `previewUrl` back to `imageUrl` so every list has
+   * something to draw, which means the URL alone cannot answer this - and the
+   * pickers must know, because a thumbnail is framed already while full-body
+   * artwork has to be cropped to the part it depicts.
+   */
+  hasThumbnail: boolean;
   /** Whether this may be chosen for a *new* configuration. */
   isSelectable: boolean;
 }
@@ -129,6 +140,7 @@ export const toCatalogueAsset = (raw: AvatarAssetResponse): AvatarCatalogueAsset
     sortOrder: raw.sortOrder ?? 0,
     assignmentSortOrder: raw.assignmentSortOrder,
     isShared: raw.isShared,
+    hasThumbnail: raw.hasThumbnail ?? false,
     // Retirement withdraws an asset from new selections; ownership gates the
     // rest. Neither affects whether an already-saved avatar renders it.
     isSelectable: !isRetired && isOwned,

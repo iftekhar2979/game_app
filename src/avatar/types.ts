@@ -47,6 +47,14 @@ export interface AvatarAsset {
   target: AvatarTarget;
   /** Bundled artwork. Remote artwork overrides this at resolve time. */
   source: AssetSource;
+  /**
+   * Whether an admin uploaded a thumbnail for this asset.
+   *
+   * Decides how a picker frames it: a thumbnail is drawn whole because somebody
+   * framed it deliberately, while the artwork is a full-body canvas that has to
+   * be cropped to the part it depicts.
+   */
+  hasThumbnail?: boolean;
 }
 
 export interface AvatarBase {

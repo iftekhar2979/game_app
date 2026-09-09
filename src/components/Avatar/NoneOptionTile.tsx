@@ -2,6 +2,8 @@ import React from 'react';
 import { Text, TouchableOpacity, View } from 'react-native';
 import { Ban } from 'lucide-react-native';
 
+import { TILE_FRAME } from '../../avatar/tileCrop';
+
 /**
  * An explicit "none" choice at the head of a picker.
  *
@@ -35,11 +37,11 @@ export default function NoneOptionTile({
       onPress={onSelect}
     >
       <View
-        className={`w-[72px] h-[90px] rounded-xl border-2 ${
+        className={`${TILE_FRAME} rounded-xl border-2 ${
           isSelected ? 'border-[#B366FF]' : 'border-[#5B1F7D]'
         } bg-[#1A0B2E] items-center justify-center`}
       >
-        <Ban color={isSelected ? '#B366FF' : '#7A5AA0'} size={22} />
+        <Ban color={isSelected ? '#B366FF' : '#7A5AA0'} size={26} />
         <Text
           className={`${
             isSelected ? 'text-[#B366FF]' : 'text-[#7A5AA0]'
