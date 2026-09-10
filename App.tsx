@@ -1,5 +1,10 @@
 import React, { useEffect } from 'react';
-import { StatusBar, useColorScheme } from 'react-native';
+import {
+  View,
+  ActivityIndicator,
+  StatusBar,
+  useColorScheme,
+} from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
@@ -50,7 +55,6 @@ import AdminCheerFormScreen, {
 import CheerEventsScreen from './src/screens/Events/CheerEventsScreen';
 import CheerEventDetailScreen from './src/screens/Events/CheerEventDetailScreen';
 import NotificationScreen from './src/screens/Notification/NotificationScreen';
-import LoadingAnimation from './src/components/common/LoadingAnimation';
 
 export type RootStackParamList = {
   Onboarding1: undefined;
@@ -146,10 +150,19 @@ function AppContent() {
     authService.restoreSession(dispatch);
   }, [dispatch]);
 
-  // The first thing the app shows while the session is restored. One shared
-  // component, so the loading look is the same wherever it appears.
   if (isInitializing) {
-    return <LoadingAnimation fullScreen />;
+    return (
+      <View
+        style={{
+          flex: 1,
+          backgroundColor: '#000',
+          justifyContent: 'center',
+          alignItems: 'center',
+        }}
+      >
+        <ActivityIndicator size="large" color="#E0B566" />
+      </View>
+    );
   }
 
   return (
