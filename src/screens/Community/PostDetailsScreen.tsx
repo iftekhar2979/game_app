@@ -14,6 +14,10 @@ import { useSelector } from 'react-redux';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { ChevronLeft, CornerDownRight, Send, Trash2, X } from 'lucide-react-native';
 import { RootStackParamList } from '../../../App';
+import {
+  CommentListSkeleton,
+  PostDetailSkeleton,
+} from '../../components/Skeleton';
 import { RootState } from '../../store';
 import CustomLoader from '../../components/Loader/CustomLoader';
 import Avatar from '../../components/common/Avatar';
@@ -238,8 +242,8 @@ export default function PostDetailsScreen() {
 
   if (isLoadingPost) {
     return (
-      <SafeAreaView className="flex-1 bg-[#0a0a0a] justify-center items-center">
-        <CustomLoader size={40} />
+      <SafeAreaView className="flex-1 bg-[#0a0a0a]" edges={['top', 'bottom']}>
+        <PostDetailSkeleton />
       </SafeAreaView>
     );
   }
@@ -322,9 +326,7 @@ export default function PostDetailsScreen() {
           )}
           ListEmptyComponent={
             isLoadingComments || isFetchingComments ? (
-              <View className="py-10 items-center">
-                <CustomLoader size={26} />
-              </View>
+              <CommentListSkeleton />
             ) : (
               <View className="py-10 items-center px-10">
                 <Text className="text-gray-500 text-[13px] text-center">

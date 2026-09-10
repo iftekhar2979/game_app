@@ -15,7 +15,7 @@ import { Check, ChevronLeft, Pencil, Plus, Sparkles, Trash2 } from 'lucide-react
 import { RootStackParamList } from '../../../App';
 import AvatarPreview from '../../components/common/AvatarPreview';
 import UsedAssets from '../../components/Avatar/UsedAssets';
-import CustomLoader from '../../components/Loader/CustomLoader';
+import { AvatarHistorySkeleton } from '../../components/Skeleton';
 import { getBaseById } from '../../avatar/registry';
 import { describeUsedAssets, normaliseConfig } from '../../avatar/resolveConfig';
 import {
@@ -180,9 +180,7 @@ export default function AvatarHistoryScreen() {
       </View>
 
       {isLoading ? (
-        <View className="flex-1 justify-center items-center">
-          <CustomLoader size={40} />
-        </View>
+        <AvatarHistorySkeleton />
       ) : !selected ? (
         <EmptyState onCreate={() => navigation.navigate('ExploreAvatar', { returnTo: 'AvatarHistory' })} />
       ) : (

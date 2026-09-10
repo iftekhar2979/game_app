@@ -17,7 +17,7 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../../../App';
 import { useSelector, useDispatch } from 'react-redux';
 import { RootState } from '../../store';
-import CustomLoader from '../../components/Loader/CustomLoader';
+import { FeedSkeleton } from '../../components/Skeleton';
 import { PostCard } from '../../components/Community/PostCard';
 import Avatar from '../../components/common/Avatar';
 import { useGetMeQuery } from '../../store/api/usersApi';
@@ -574,9 +574,7 @@ export default function HomeScreen() {
           </View>
 
           {isLoadingFeed ? (
-            <View style={styles.feedPlaceholder}>
-              <CustomLoader size={30} />
-            </View>
+            <FeedSkeleton count={2} />
           ) : previewPosts.length === 0 ? (
             <View style={styles.feedPlaceholder}>
               <Text style={styles.feedEmptyText}>
