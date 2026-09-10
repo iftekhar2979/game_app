@@ -10,6 +10,7 @@ import {
 import { AppDispatch } from '../store';
 import { API_URL } from '../config';
 import { clearSocialSessions } from './socialAuthService';
+import { unregisterDeviceToken } from '../notifications/pushService';
 
 export class AuthService {
   /** Keeps the short-lived registration token available without opening the app. */
@@ -104,6 +105,11 @@ export class AuthService {
     } catch {
       // Ignore network failures on logout
     }
+
+    // Drop the push token as well. On a shared phone the next person would
+    // otherwise keep receiving notifications addressed to the account that
+    // just signed out.
+    await unregisterDeviceToken();
 
     // Drop the Google/Facebook sessions too, otherwise the next sign-in silently
     // reuses the account that just logged out instead of showing the picker.

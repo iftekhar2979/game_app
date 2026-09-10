@@ -15,6 +15,10 @@ buildscript {
         classpath("com.android.tools.build:gradle")
         classpath("com.facebook.react:react-native-gradle-plugin")
         classpath("org.jetbrains.kotlin:kotlin-gradle-plugin")
+        // Reads android/app/google-services.json at build time and turns it
+        // into the resources the Firebase SDK looks up at runtime. Without
+        // the plugin the app compiles and then cannot find its project.
+        classpath("com.google.gms:google-services:4.4.2")
     }
 }
 

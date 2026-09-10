@@ -147,7 +147,24 @@ export const notificationApi = baseApi.injectEndpoints({
       ],
     }),
 
-    registerDevice: builder.mutation<any, { token: string; platform: string; deviceId?: string; appVersion?: string }>({
+    /**
+     * Tell the server which device this is and how to reach it.
+     *
+     * The field names are the server's `RegisterDeviceDto` exactly. They used
+     * to be `token` and `appVersion`, which the API rejects outright - the
+     * global validation pipe runs with `forbidNonWhitelisted`, so an unknown
+     * key is a 400 rather than a silently dropped field. Nothing called this
+     * mutation before, so the mismatch had never been exercised.
+     */
+    registerDevice: builder.mutation<
+      { message: string },
+      {
+        fcmToken: string;
+        platform: 'ios' | 'android' | 'web';
+        deviceId?: string;
+        userAgent?: string;
+      }
+    >({
       query: (body) => ({
         url: '/notifications/devices',
         method: 'POST',
