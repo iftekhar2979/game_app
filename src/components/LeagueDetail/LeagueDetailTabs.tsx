@@ -32,7 +32,13 @@ import {
   useGetLeagueStandingsQuery,
   useGetMatchupHistoryQuery,
 } from '../../store/api/leagueApi';
-import { ActivityIndicator } from 'react-native';
+import {
+  MatchupTabSkeleton,
+  RosterSkeleton,
+  StandingsSkeleton,
+  TeamListFooterSkeleton,
+  TeamListSkeleton,
+} from '../Skeleton';
 import { RosterSections } from './RosterPlayerRow';
 import { resolveDraftStartsAt } from './draftSchedule';
 import {
@@ -99,14 +105,7 @@ export const MatchupTab = ({
   );
 
   if ((isLoading || isFetching) && !matchupData) {
-    return (
-      <View className="py-12 items-center justify-center">
-        <ActivityIndicator size="large" color="#8B3DFF" />
-        <Text className="text-gray-400 text-[13px] mt-3">
-          Loading matchup...
-        </Text>
-      </View>
-    );
+    return <MatchupTabSkeleton />;
   }
 
   // A total-points league never schedules opponents, so an absent matchup is
@@ -1006,12 +1005,7 @@ export const TeamTab = ({
           </View>
 
           {isMyRosterLoading && !myRoster ? (
-            <View className="py-8 items-center justify-center">
-              <ActivityIndicator size="small" color="#8B3DFF" />
-              <Text className="text-gray-400 text-[12px] mt-2">
-                Loading your cheer teams...
-              </Text>
-            </View>
+            <RosterSkeleton />
           ) : !myRoster ? (
             <Text className="text-gray-500 text-[12px] italic">
               Your roster is unavailable right now. Pull to refresh or try again
@@ -1228,12 +1222,7 @@ export const PlayersTab = ({
       )}
 
       {isLoading ? (
-        <View className="py-14 items-center justify-center">
-          <ActivityIndicator size="large" color="#8B3DFF" />
-          <Text className="text-gray-400 text-[13px] mt-3 font-medium">
-            Loading available teams...
-          </Text>
-        </View>
+        <TeamListSkeleton />
       ) : players.length === 0 ? (
         <View className="py-14 items-center justify-center px-6 bg-[#111] border border-[#222] rounded-3xl my-2">
           <View className="w-12 h-12 rounded-full bg-[#1c1c1c] items-center justify-center mb-3">
@@ -1328,12 +1317,7 @@ export const PlayersTab = ({
 
           {/* Scrolling Pagination Bottom Indicator */}
           {isFetching ? (
-            <View className="py-5 items-center justify-center flex-row">
-              <ActivityIndicator size="small" color="#8B3DFF" />
-              <Text className="text-gray-400 text-[12px] ml-2.5 font-medium">
-                Loading more teams...
-              </Text>
-            </View>
+            <TeamListFooterSkeleton />
           ) : hasMore ? (
             <TouchableOpacity
               className="border border-[#333] bg-[#161616] rounded-2xl py-3.5 items-center mb-6 mt-1 flex-row justify-center active:bg-[#222]"
@@ -1437,13 +1421,12 @@ export const LeagueTab = ({ leagueId, userTeamId, league }: any) => {
           <Text className="text-white text-[18px] font-bold">
             League Standings
           </Text>
-          {isStandingsLoading && (
-            <ActivityIndicator size="small" color="#8B3DFF" />
-          )}
         </View>
 
         <View className="bg-[#111] border border-[#222] rounded-[20px] p-3">
-          {standingsList.length > 0 ? (
+          {isStandingsLoading && standingsList.length === 0 ? (
+            <StandingsSkeleton />
+          ) : standingsList.length > 0 ? (
             standingsList.map((item: any, idx: number) => {
               const isMyTeam =
                 String(item.fantasyTeamId) === String(userTeamId);
@@ -1505,13 +1488,12 @@ export const LeagueTab = ({ leagueId, userTeamId, league }: any) => {
           <Text className="text-white text-[18px] font-bold">
             Matchup History
           </Text>
-          {isHistoryLoading && (
-            <ActivityIndicator size="small" color="#8B3DFF" />
-          )}
         </View>
 
         <View className="bg-[#111] border border-[#222] rounded-[20px] p-3">
-          {historyList.length > 0 ? (
+          {isHistoryLoading && historyList.length === 0 ? (
+            <StandingsSkeleton count={3} />
+          ) : historyList.length > 0 ? (
             historyList.map((matchup: any, idx: number) => {
               const resultColor =
                 matchup.result === 'WIN'

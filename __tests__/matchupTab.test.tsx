@@ -61,7 +61,10 @@ describe('MatchupTab states', () => {
       isError: false,
       refetch: mockRefetch,
     });
-    expect(renderedText(await renderMatchup())).toContain('Loading matchup...');
+    // The loading state is a skeleton now, so there is no sentence to match.
+    // Its accessibility label is the signal - and it is the one a reader who
+    // cannot see the placeholder boxes actually receives.
+    expect(renderedText(await renderMatchup())).toContain('"accessibilityLabel":"Loading matchup"');
 
     mockUseGetCurrentMatchupQuery.mockReturnValueOnce({
       currentData: undefined,

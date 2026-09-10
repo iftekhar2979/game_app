@@ -13,7 +13,6 @@ import {
   ScrollView,
   TextInput,
   Modal,
-  ActivityIndicator,
   RefreshControl,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -35,6 +34,7 @@ import {
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../../../App';
+import { LeagueDetailSkeleton } from '../../components/Skeleton';
 import { useSelector, useDispatch } from 'react-redux';
 import { RootState } from '../../store';
 import { setActiveTeam } from '../../store/slices/leagueSlice';
@@ -991,12 +991,7 @@ export default function LeagueDetailScreen() {
       </View>
 
       {!isMockId && (isApiLoading || !rawLeague) ? (
-        <View className="flex-1 justify-center items-center">
-          <ActivityIndicator size="large" color="#E0B566" />
-          <Text className="text-gray-400 text-xs mt-3">
-            Loading League Details...
-          </Text>
-        </View>
+        <LeagueDetailSkeleton />
       ) : (
         <ScrollView
           contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 50 }}
