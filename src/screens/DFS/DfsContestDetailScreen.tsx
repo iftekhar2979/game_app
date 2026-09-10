@@ -1,6 +1,5 @@
 import React, { useCallback, useState } from 'react';
 import {
-  ActivityIndicator,
   RefreshControl,
   ScrollView,
   StyleSheet,
@@ -9,6 +8,7 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { ContestDetailSkeleton } from '../../components/Skeleton';
 import { ChevronLeft, Clock, DollarSign, Users } from 'lucide-react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../../../App';
@@ -47,8 +47,8 @@ export default function DfsContestDetailScreen({ navigation, route }: Props) {
 
   if (contestQuery.isLoading || entryQuery.isLoading) {
     return (
-      <SafeAreaView className="flex-1 bg-black items-center justify-center">
-        <ActivityIndicator size="large" color="#E0B566" />
+      <SafeAreaView className="flex-1 bg-black" edges={['top', 'bottom']}>
+        <ContestDetailSkeleton />
       </SafeAreaView>
     );
   }

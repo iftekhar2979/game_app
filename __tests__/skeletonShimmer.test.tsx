@@ -15,6 +15,14 @@ import {
   LeagueListSkeleton,
 } from '../src/components/Skeleton/LeagueSkeletons';
 import {
+  ContestDetailSkeleton,
+  LineupSkeleton,
+} from '../src/components/Skeleton/DfsSkeletons';
+import {
+  EventDetailSkeleton,
+  EventListSkeleton,
+} from '../src/components/Skeleton/EventSkeletons';
+import {
   acquireSweep,
   isSweeping,
   sweepHolders,
@@ -339,5 +347,62 @@ describe('the league placeholders', () => {
     const tree = render(<LeagueListSkeleton count={0} />);
 
     expect(blocks(tree).some((s) => s.width === 48 && s.height === 48)).toBe(true);
+  });
+});
+
+describe('the event and daily-fantasy placeholders', () => {
+  const blocks = (tree: TestRenderer.ReactTestRenderer) =>
+    tree.root.findAllByType(View).map((view) => {
+      const style = Array.isArray(view.props.style)
+        ? Object.assign({}, ...view.props.style.filter(Boolean))
+        : view.props.style;
+      return style || {};
+    });
+
+  it('wraps some event titles to two lines and not others', () => {
+    // Competition names are long enough to wrap, so the placeholder wraps too -
+    // otherwise the real card pushes the whole list down on arrival. A column
+    // where every title wraps is just as wrong: it reads as a pattern.
+    const tree = render(<EventListSkeleton count={4} />);
+
+    const titleLines = blocks(tree).filter((s) => s.height === 16);
+
+    // Four cards: two single-line, two wrapped.
+    expect(titleLines).toHaveLength(6);
+  });
+
+  it('draws the division chips, which scroll in a row of their own', () => {
+    // Omitting them makes a whole row appear from nowhere mid-scroll.
+    const tree = render(<EventDetailSkeleton />);
+
+    const chips = blocks(tree).filter((s) => [112, 96, 128].includes(s.width));
+
+    expect(chips).toHaveLength(3);
+  });
+
+  it('keeps the contest button in the skeleton', () => {
+    // It is the reason the reader opened the screen; stopping above it makes
+    // the page look shorter than it turns out to be.
+    const tree = render(<ContestDetailSkeleton />);
+
+    expect(blocks(tree).some((s) => s.height === 52)).toBe(true);
+  });
+
+  it('draws the salary bar before the spots', () => {
+    // The bar is the constraint every choice below it is measured against.
+    const tree = render(<LineupSkeleton slots={3} />);
+
+    const styles = blocks(tree);
+    const bar = styles.findIndex((s) => s.borderTopLeftRadius === 20);
+    const firstSlot = styles.findIndex((s) => s.width === 42 && s.height === 42);
+
+    expect(bar).toBeGreaterThanOrEqual(0);
+    expect(firstSlot).toBeGreaterThan(bar);
+  });
+
+  it('asks for one row per lineup spot', () => {
+    const tree = render(<LineupSkeleton slots={3} />);
+
+    expect(blocks(tree).filter((s) => s.width === 42 && s.height === 42)).toHaveLength(3);
   });
 });

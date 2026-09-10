@@ -12,6 +12,7 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { LineupSkeleton } from '../../components/Skeleton';
 import { Check, ChevronLeft, Lock, Plus, X } from 'lucide-react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../../../App';
@@ -214,11 +215,8 @@ export default function DfsLineupScreen({ navigation, route }: Props) {
 
   if (loading) {
     return (
-      <SafeAreaView className="flex-1 bg-black items-center justify-center">
-        <ActivityIndicator size="large" color="#E0B566" />
-        <Text className="text-gray-400 text-xs mt-3">
-          Getting your lineup ready...
-        </Text>
+      <SafeAreaView className="flex-1 bg-black" edges={['top', 'bottom']}>
+        <LineupSkeleton />
       </SafeAreaView>
     );
   }

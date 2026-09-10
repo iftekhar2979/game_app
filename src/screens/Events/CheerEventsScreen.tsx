@@ -1,6 +1,5 @@
 import React, { useMemo, useState } from 'react';
 import {
-  ActivityIndicator,
   RefreshControl,
   ScrollView,
   Text,
@@ -8,6 +7,7 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { EventListSkeleton } from '../../components/Skeleton';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import {
   CalendarDays,
@@ -119,9 +119,7 @@ export default function CheerEventsScreen({ navigation }: Props) {
       </View>
 
       {isLoading ? (
-        <View className="flex-1 items-center justify-center">
-          <ActivityIndicator size="large" color="#E0B566" />
-        </View>
+        <EventListSkeleton />
       ) : error ? (
         <View className="flex-1 items-center justify-center px-8">
           <Text className="text-white text-lg font-semibold">

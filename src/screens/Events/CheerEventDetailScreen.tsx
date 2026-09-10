@@ -1,6 +1,5 @@
 import React, { useCallback, useMemo, useState } from 'react';
 import {
-  ActivityIndicator,
   RefreshControl,
   ScrollView,
   Text,
@@ -8,6 +7,7 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { EventDetailSkeleton } from '../../components/Skeleton';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import {
   CalendarDays,
@@ -78,8 +78,8 @@ export default function CheerEventDetailScreen({ navigation, route }: Props) {
 
   if (eventQuery.isLoading)
     return (
-      <SafeAreaView className="flex-1 bg-black items-center justify-center">
-        <ActivityIndicator size="large" color="#E0B566" />
+      <SafeAreaView className="flex-1 bg-black" edges={['top', 'bottom']}>
+        <EventDetailSkeleton />
       </SafeAreaView>
     );
   if (eventQuery.error || !eventQuery.data)
