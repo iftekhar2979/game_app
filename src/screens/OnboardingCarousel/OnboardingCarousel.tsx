@@ -27,6 +27,14 @@ const OnboardingCarousel = () => {
     scrollViewRef.current?.scrollTo({ x: (activeIndex + 1) * width, animated: true });
   };
 
+  /**
+   * Leaves onboarding for good.
+   *
+   * `replace` rather than `navigate`, so the back gesture from Sign in does not
+   * walk back into a carousel the user has finished with.
+   */
+  const finishOnboarding = () => navigation.replace('SignIn');
+
   const handleScroll = Animated.event(
     [{ nativeEvent: { contentOffset: { x: scrollX } } }],
     {
@@ -254,7 +262,12 @@ const OnboardingCarousel = () => {
                 Pick the best teams, compete with friends, and prove you're the ultimate cheer manager.
               </Text>
             </View>
-            <TouchableOpacity className="mt-8 z-20" onPress={goToNext}>
+            {/*
+              The last page has nowhere to scroll to, so "Skip" has to leave
+              onboarding rather than call `goToNext` - which was a no-op here
+              and left the button looking broken.
+            */}
+            <TouchableOpacity className="mt-8 z-20" onPress={finishOnboarding}>
               <Text className="text-yellow-500 font-semibold underline text-sm tracking-wide">Skip for now</Text>
             </TouchableOpacity>
           </View>
@@ -262,9 +275,14 @@ const OnboardingCarousel = () => {
           {/* Footer Area with Arc */}
           <View className="w-full z-20 absolute bottom-0 items-center justify-end" style={{ height: 180 }}>
             <View style={{ paddingBottom: Math.max(insets.bottom, 40) + 40, zIndex: 10 }}>
+              {/*
+                This logged "Finish onboarding" and did nothing else, so the
+                final button of the first-run flow was a dead end: a new user
+                could never reach Sign in, and so never reach Forgot password.
+              */}
               <OutlineButton
                 title="Let's get start"
-                onPress={() => console.log('Finish onboarding')}
+                onPress={finishOnboarding}
               />
             </View>
             <Image

@@ -11,6 +11,11 @@ import PrimaryButton from '../../components/Button/PrimaryButton';
 import { useForgotPasswordMutation } from '../../store/api/authApi';
 import { startPasswordReset } from '../../store/slices/authSlice';
 import { showToast } from '../../utils/toast';
+import {
+  isValidEmail,
+  normaliseEmail,
+  resolveForgotPasswordOutcome,
+} from './forgotPassword';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList, 'ForgotPassword'>;
 
@@ -18,31 +23,45 @@ export default function ForgotPasswordScreen() {
   const navigation = useNavigation<NavigationProp>();
   const dispatch = useDispatch();
   const [email, setEmail] = useState('');
+  /**
+   * Kept on the screen rather than only in a toast.
+   *
+   * A toast fades, and the screen behind it has not changed - which is exactly
+   * how this looked broken: enter an email, see a message for three seconds,
+   * end up staring at the same form with no idea what happened.
+   */
+  const [notice, setNotice] = useState('');
   const [forgotPassword, { isLoading }] = useForgotPasswordMutation();
-  const normalisedEmail = email.trim().toLowerCase();
-  const isValidEmail = /^\S+@\S+\.\S+$/.test(normalisedEmail);
+  const normalisedEmail = normaliseEmail(email);
 
   const handleSendCode = async () => {
-    if (!isValidEmail) {
-      showToast.error('Invalid email', 'Enter the email address used for your account.');
+    if (!isValidEmail(email)) {
+      setNotice('Enter the email address used for your account.');
       return;
     }
 
+    setNotice('');
+
     try {
       const response = await forgotPassword({ email: normalisedEmail }).unwrap();
-      const token = response.data?.accessToken;
+      const outcome = resolveForgotPasswordOutcome(response);
 
-      if (!token) {
-        showToast.info('Check your email', response.message);
+      if (outcome.kind === 'no-account') {
+        // No reset session, so there is nothing an OTP screen could verify.
+        // Saying so beats sending the user on to a code that can never work.
+        setNotice(
+          `We could not find an account for ${normalisedEmail}. Check the address, or create an account.`,
+        );
         return;
       }
 
       showToast.success('Code sent', 'Enter the verification code from your email.');
-      dispatch(startPasswordReset({ email: normalisedEmail, token }));
+      // Swapping the navigator's screen list is what moves the user on: see
+      // the comment in App.tsx. Nothing here navigates directly.
+      dispatch(startPasswordReset({ email: normalisedEmail, token: outcome.token }));
     } catch (error: any) {
-      showToast.error(
-        'Could not send code',
-        error?.data?.message || 'Please try again in a moment.',
+      setNotice(
+        error?.data?.message || 'Could not send the code. Please try again in a moment.',
       );
     }
   };
@@ -69,12 +88,24 @@ export default function ForgotPasswordScreen() {
         <AuthInput
           placeholder="Enter Email"
           value={email}
-          onChangeText={setEmail}
+          onChangeText={(value: string) => {
+            setEmail(value);
+            // Clear on edit: a message about the previous address is worse than
+            // none once it is being corrected.
+            if (notice) setNotice('');
+          }}
           leftIcon={<Mail color="#A3A3A3" size={20} />}
           keyboardType="email-address"
           autoCapitalize="none"
+          autoCorrect={false}
         />
       </View>
+
+      {notice ? (
+        <View className="px-6 mt-2">
+          <Text className="text-[#FF8A8A] text-[13px] leading-5">{notice}</Text>
+        </View>
+      ) : null}
 
       <View className="flex-1 min-h-[60px]" />
 
