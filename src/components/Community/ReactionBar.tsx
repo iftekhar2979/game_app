@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Text, TouchableOpacity, View } from 'react-native';
 import { ThumbsUp } from 'lucide-react-native';
 import {
@@ -8,6 +8,8 @@ import {
   ReactionType,
   totalReactions,
 } from '../../store/api/socialApi';
+import { giveFeedback, haptic, preloadFeedbackSounds } from '../../feedback/feedback';
+import { reactionFeedback } from '../../feedback/reactionFeedback';
 
 interface ReactionBarProps {
   counts: ReactionCounts;
@@ -26,9 +28,21 @@ export const ReactionBar = ({ counts, myReaction, onReact, compact }: ReactionBa
   const [isPickerOpen, setIsPickerOpen] = useState(false);
   const total = totalReactions(counts);
 
+  useEffect(() => {
+    preloadFeedbackSounds();
+  }, []);
+
   const handleReact = (type: ReactionType) => {
     setIsPickerOpen(false);
+    // A light tap and the reaction's own sound; removing one is a softer tap
+    // with no sound.
+    giveFeedback(reactionFeedback(myReaction, type));
     onReact(type);
+  };
+
+  const togglePicker = () => {
+    haptic('selection');
+    setIsPickerOpen((open) => !open);
   };
 
   // Only the reaction types that anyone actually used, most popular first.
@@ -40,7 +54,7 @@ export const ReactionBar = ({ counts, myReaction, onReact, compact }: ReactionBa
     <View className="relative flex-row items-center">
       <TouchableOpacity
         onPress={() => handleReact(myReaction ?? 'like')}
-        onLongPress={() => setIsPickerOpen((open) => !open)}
+        onLongPress={togglePicker}
         delayLongPress={250}
         activeOpacity={0.7}
         className="flex-row items-center"

@@ -109,3 +109,41 @@ jest.mock('react-native-vision-camera', () => ({
   })),
   useCodeScanner: jest.fn((config) => config),
 }));
+
+/**
+ * Haptics and sounds are native. Under jest there is no motor or speaker; the
+ * mapping from reaction to haptic and sound is pure and tested directly.
+ */
+jest.mock('react-native-haptic-feedback', () => {
+  const trigger = jest.fn();
+  return { __esModule: true, default: { trigger }, trigger };
+});
+
+jest.mock('react-native-sound', () => {
+  class Sound {
+    constructor(_file, basePath, onLoad) {
+      const callback = typeof basePath === 'function' ? basePath : onLoad;
+      if (callback) setTimeout(() => callback(null), 0);
+    }
+    play(onEnd) {
+      if (onEnd) onEnd(true);
+      return this;
+    }
+    stop(onStop) {
+      if (onStop) onStop();
+      return this;
+    }
+    setVolume() {
+      return this;
+    }
+    release() {
+      return this;
+    }
+  }
+  Sound.MAIN_BUNDLE = '';
+  Sound.setCategory = jest.fn();
+  return { __esModule: true, default: Sound };
+});
+
+/** Pure JS, but shipped untranspiled; a stand-in keeps suites loading. */
+jest.mock('rn-emoji-keyboard', () => ({ __esModule: true, default: () => null }));

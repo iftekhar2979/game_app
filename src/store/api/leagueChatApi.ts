@@ -8,6 +8,28 @@ export interface LeagueChatSender {
   avatarConfig?: Record<string, unknown> | null;
 }
 
+/** An image in a message. `url` is a short-lived signed S3 URL. */
+export interface LeagueChatAttachment {
+  type: 'image';
+  url: string;
+  width: number | null;
+  height: number | null;
+}
+
+/** The quote drawn above a reply. */
+export interface LeagueChatReplyPreview {
+  id: string;
+  text: string;
+  senderName: string | null;
+  hasImage: boolean;
+}
+
+export interface LeagueChatReactionSummary {
+  emoji: string;
+  count: number;
+  userIds: string[];
+}
+
 export interface LeagueChatMessage {
   id: string;
   leagueId: string;
@@ -16,6 +38,9 @@ export interface LeagueChatMessage {
   createdAt: string;
   isMine?: boolean;
   sender: LeagueChatSender;
+  attachments?: LeagueChatAttachment[];
+  replyTo?: LeagueChatReplyPreview | null;
+  reactions?: LeagueChatReactionSummary[];
 }
 
 export interface LeagueChatPage {
@@ -89,12 +114,31 @@ export const leagueChatApi = baseApi.injectEndpoints({
     }),
     sendLeagueChatMessage: builder.mutation<
       LeagueChatMessage,
-      { leagueId: string; text: string; clientMessageId: string }
+      {
+        leagueId: string;
+        text?: string;
+        /** S3 keys from the `League_Chat` upload, with their pixel size. */
+        attachments?: Array<{ key: string; width?: number; height?: number }>;
+        replyToId?: string;
+        clientMessageId: string;
+      }
     >({
       query: ({ leagueId, ...body }) => ({
         url: `leagues/${leagueId}/chat/messages`,
         method: 'POST',
         body,
+      }),
+      transformResponse: (response: any) => response?.data ?? response,
+    }),
+    /** Toggle a reaction: the same emoji again removes it. Returns the message. */
+    reactToLeagueChatMessage: builder.mutation<
+      LeagueChatMessage,
+      { leagueId: string; messageId: string; emoji: string }
+    >({
+      query: ({ leagueId, messageId, emoji }) => ({
+        url: `leagues/${leagueId}/chat/messages/${messageId}/reactions`,
+        method: 'POST',
+        body: { emoji },
       }),
       transformResponse: (response: any) => response?.data ?? response,
     }),
@@ -106,4 +150,5 @@ export const {
   useGetLeagueChatUnreadQuery,
   useMarkLeagueChatReadMutation,
   useSendLeagueChatMessageMutation,
+  useReactToLeagueChatMessageMutation,
 } = leagueChatApi;
