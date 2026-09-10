@@ -16,6 +16,10 @@ import { ChevronLeft, MessageCircle, Send } from 'lucide-react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useDispatch, useSelector } from 'react-redux';
 import { RootStackParamList } from '../../../App';
+import {
+  ChatOlderSkeleton,
+  LeagueChatSkeleton,
+} from '../../components/Skeleton';
 import { RootState } from '../../store';
 import {
   LeagueChatMessage,
@@ -256,10 +260,7 @@ export default function LeagueChatScreen({ navigation, route }: Props) {
         </View>
 
         {initialLoading ? (
-          <View style={styles.centerState}>
-            <ActivityIndicator color="#E0B566" size="large" />
-            <Text style={styles.stateText}>Loading league messages...</Text>
-          </View>
+          <LeagueChatSkeleton />
         ) : loadError ? (
           <View style={styles.centerState}>
             <Text style={styles.errorTitle}>Chat is unavailable</Text>
@@ -290,7 +291,7 @@ export default function LeagueChatScreen({ navigation, route }: Props) {
               </View>
             }
             ListFooterComponent={
-              loadingOlder ? <ActivityIndicator color="#E0B566" /> : null
+              loadingOlder ? <ChatOlderSkeleton /> : null
             }
           />
         )}

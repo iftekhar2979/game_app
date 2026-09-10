@@ -33,6 +33,10 @@ import { launchImageLibrary, launchCamera } from 'react-native-image-picker';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../../../App';
+import {
+  LeagueListFooterSkeleton,
+  LeagueListSkeleton,
+} from '../../components/Skeleton';
 import { useSelector } from 'react-redux';
 import { RootState } from '../../store';
 import { useGetLeaguesQuery, useJoinByCodeMutation } from '../../store/api/leagueApi';
@@ -611,10 +615,7 @@ export default function FantasyLeagueScreen() {
 
       {/* Main List */}
       {isLoadingInitial && page === 1 ? (
-        <View className="flex-1 justify-center items-center">
-          <ActivityIndicator size="large" color="#E0B566" />
-          <Text className="text-gray-400 text-xs mt-3">Loading Fantasy Leagues...</Text>
-        </View>
+        <LeagueListSkeleton />
       ) : accumulatedLeagues.length === 0 ? (
         <View className="flex-1 justify-center items-center px-8">
           <View className="w-16 h-16 rounded-full bg-[#1a1a1a] border border-[#333] justify-center items-center mb-4">
@@ -668,11 +669,7 @@ export default function FantasyLeagueScreen() {
           onEndReached={handleEndReached}
           onEndReachedThreshold={0.4}
           ListFooterComponent={
-            isFetching && page > 1 ? (
-              <View className="py-4 items-center">
-                <ActivityIndicator size="small" color="#E0B566" />
-              </View>
-            ) : null
+            isFetching && page > 1 ? <LeagueListFooterSkeleton /> : null
           }
           contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 100 }}
         />

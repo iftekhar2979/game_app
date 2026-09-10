@@ -10,6 +10,11 @@ import {
 } from '../src/components/Skeleton/Skeleton';
 import { PostCardSkeleton } from '../src/components/Skeleton/PostCardSkeleton';
 import {
+  LeagueChatSkeleton,
+  LeagueDetailSkeleton,
+  LeagueListSkeleton,
+} from '../src/components/Skeleton/LeagueSkeletons';
+import {
   acquireSweep,
   isSweeping,
   sweepHolders,
@@ -267,5 +272,72 @@ describe('the feed card placeholder', () => {
     const tree = render(<PostCardSkeleton withImage={false} />);
 
     expect(sizesIn(tree).some((s) => s.height === 300)).toBe(false);
+  });
+});
+
+describe('the league placeholders', () => {
+  const blocks = (tree: TestRenderer.ReactTestRenderer) =>
+    tree.root.findAllByType(View).map((view) => {
+      const style = Array.isArray(view.props.style)
+        ? Object.assign({}, ...view.props.style.filter(Boolean))
+        : view.props.style;
+      return style || {};
+    });
+
+  it('draws the tab strip, not just the card above it', () => {
+    // The tabs are the control the reader reaches for first. Leaving them out
+    // makes the page appear to grow a toolbar the moment the league lands.
+    const tree = render(<LeagueDetailSkeleton />);
+
+    const pills = blocks(tree).filter((s) => s.height === 34);
+
+    expect(pills.length).toBe(4);
+  });
+
+  it('gives the league logo the size the real one uses', () => {
+    const tree = render(<LeagueDetailSkeleton />);
+
+    expect(blocks(tree).some((s) => s.width === 56 && s.height === 56)).toBe(true);
+  });
+
+  it('puts an avatar beside other people’s messages and none beside your own', () => {
+    // A column of identical bubbles reads as a list; the avatar on one side
+    // only is what makes it read as a conversation.
+    const tree = render(<LeagueChatSkeleton count={6} />);
+
+    const avatars = blocks(tree).filter(
+      (s) => s.width === 32 && s.height === 32 && s.borderRadius === 16,
+    );
+
+    // Six bubbles, two of them the reader's own (index % 3 === 1).
+    expect(avatars).toHaveLength(4);
+  });
+
+  it('varies the bubble widths, so it does not read as a table', () => {
+    const tree = render(<LeagueChatSkeleton count={6} />);
+
+    const bubbles = blocks(tree)
+      .filter((s) => s.height === 40 && s.borderRadius === 18)
+      .map((s) => s.width);
+
+    expect(bubbles).toHaveLength(6);
+    expect(new Set(bubbles).size).toBeGreaterThan(1);
+  });
+
+  it('asks for one row per league and no more', () => {
+    const tree = render(<LeagueListSkeleton count={3} />);
+
+    // The 48px logo is one per row.
+    const logos = blocks(tree).filter((s) => s.width === 48 && s.height === 48);
+
+    expect(logos).toHaveLength(3);
+  });
+
+  it('refuses to render an empty list of rows', () => {
+    // A count of zero would silently produce a blank screen that never
+    // resolves into anything - worse than a spinner.
+    const tree = render(<LeagueListSkeleton count={0} />);
+
+    expect(blocks(tree).some((s) => s.width === 48 && s.height === 48)).toBe(true);
   });
 });
