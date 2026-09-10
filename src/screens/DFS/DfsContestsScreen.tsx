@@ -1,6 +1,5 @@
 import React, { useCallback, useState } from 'react';
 import {
-  ActivityIndicator,
   FlatList,
   RefreshControl,
   StyleSheet,
@@ -9,6 +8,10 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import {
+  ContestListFooterSkeleton,
+  ContestListSkeleton,
+} from '../../components/Skeleton';
 import { ChevronLeft, Trophy } from 'lucide-react-native';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -56,12 +59,7 @@ export default function DfsContestsScreen() {
       </View>
 
       {isLoading ? (
-        <View className="flex-1 items-center justify-center">
-          <ActivityIndicator size="large" color="#E0B566" />
-          <Text className="text-gray-400 text-xs mt-3">
-            Loading contests...
-          </Text>
-        </View>
+        <ContestListSkeleton />
       ) : error ? (
         <View className="flex-1 items-center justify-center px-8">
           <Text className="text-white text-base font-bold mb-2">
@@ -170,9 +168,7 @@ export default function DfsContestsScreen() {
             );
           }}
           ListFooterComponent={
-            isFetching && !refreshing ? (
-              <ActivityIndicator color="#E0B566" className="my-4" />
-            ) : null
+            isFetching && !refreshing ? <ContestListFooterSkeleton /> : null
           }
         />
       )}
