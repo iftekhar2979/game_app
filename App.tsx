@@ -1,11 +1,7 @@
 import React, { useEffect } from 'react';
-import {
-  View,
-  ActivityIndicator,
-  StatusBar,
-  useColorScheme,
-} from 'react-native';
+import { StatusBar, useColorScheme } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { AppBootSkeleton } from './src/components/Skeleton';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import OnboardingScreen from './src/screens/Onboarding';
@@ -151,18 +147,7 @@ function AppContent() {
   }, [dispatch]);
 
   if (isInitializing) {
-    return (
-      <View
-        style={{
-          flex: 1,
-          backgroundColor: '#000',
-          justifyContent: 'center',
-          alignItems: 'center',
-        }}
-      >
-        <ActivityIndicator size="large" color="#E0B566" />
-      </View>
-    );
+    return <AppBootSkeleton />;
   }
 
   return (

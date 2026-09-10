@@ -6,8 +6,7 @@ import {
   Image,
   Dimensions,
 } from 'react-native';
-import { colors } from '../../theme/colors';
-import CustomLoader from '../../components/Loader/CustomLoader';
+import { Skeleton, SkeletonRegion } from '../../components/Skeleton';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../../../App';
@@ -53,9 +52,16 @@ const OnboardingScreen = () => {
         </Text>
       </View>
 
-      {/* Loader Section */}
+      {/*
+        A shimmering bar rather than a spinner. There is nothing to skeleton
+        here - the splash is already showing everything it has - so this is the
+        one place the effect is used as a plain progress cue, matched to the
+        skeletons the reader meets a second later.
+      */}
       <View style={{ flex: 2 }} className="justify-center items-center">
-        <CustomLoader size={40} color={colors.primary} />
+        <SkeletonRegion label="Loading">
+          <Skeleton width={140} height={6} radius={3} />
+        </SkeletonRegion>
       </View>
     </View>
   );

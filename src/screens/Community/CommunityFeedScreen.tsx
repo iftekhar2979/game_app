@@ -5,8 +5,8 @@ import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { ChevronLeft, MessageSquareOff, PlusSquare, RotateCcw } from 'lucide-react-native';
 import { RootStackParamList } from '../../../App';
-import CustomLoader from '../../components/Loader/CustomLoader';
 import { PostCard } from '../../components/Community/PostCard';
+import { FeedFooterSkeleton, FeedSkeleton } from '../../components/Skeleton';
 import {
   CommunityPost,
   ReactionType,
@@ -141,9 +141,7 @@ export default function CommunityFeedScreen() {
       </View>
 
       {isLoading && posts.length === 0 ? (
-        <View className="flex-1 justify-center items-center">
-          <CustomLoader size={40} />
-        </View>
+        <FeedSkeleton />
       ) : (
         <FlatList
           data={posts}
@@ -170,11 +168,7 @@ export default function CommunityFeedScreen() {
           onEndReached={handleEndReached}
           onEndReachedThreshold={0.4}
           ListFooterComponent={
-            isFetching && page > 1 ? (
-              <View className="py-6 items-center">
-                <CustomLoader size={26} />
-              </View>
-            ) : null
+            isFetching && page > 1 ? <FeedFooterSkeleton /> : null
           }
         />
       )}
