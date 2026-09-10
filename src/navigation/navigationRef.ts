@@ -22,6 +22,7 @@ export function navigateFromOutside(
   params?: Record<string, unknown>,
 ): boolean {
   if (!navigationRef.isReady()) return false;
+  if (!navigationRef.getRootState()?.routeNames.includes(screen as keyof RootStackParamList)) return false;
 
   // The screen name here is data that arrived over the network, so it cannot
   // be checked against the param list at compile time. `targetForMessage` is

@@ -57,6 +57,9 @@ export interface QueryNotificationsParams {
 export const notificationApi = baseApi.injectEndpoints({
   overrideExisting: true,
   endpoints: (builder) => ({
+    unregisterDevice: builder.mutation<{ message: string }, string>({
+      query: deviceId => ({ url: `/notifications/devices/${encodeURIComponent(deviceId)}`, method: 'DELETE' }),
+    }),
     getNotifications: builder.query<NotificationsResponse, QueryNotificationsParams | void>({
       query: (params) => ({
         url: '/notifications',

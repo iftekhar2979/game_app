@@ -32,6 +32,8 @@ import {
   NotificationItem,
 } from '../../store/api/notificationApi';
 import { showToast } from '../../utils/toast';
+import { targetForMessage } from '../../notifications/pushMessage';
+import { navigateFromOutside } from '../../navigation/navigationRef';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
@@ -120,33 +122,9 @@ export default function NotificationScreen() {
       }
     }
 
-    // 2. Intelligent deep-link / screen routing
-    const metadata = item.metadata;
-    if (metadata) {
-      const screen = metadata.screen;
-      const relatedType = metadata.relatedType;
-      const relatedId = metadata.relatedId;
-
-      if (screen === 'PostDetails' && relatedId) {
-        navigation.navigate('PostDetails', { postId: relatedId });
-        return;
-      }
-      if (screen === 'LeagueDetail' && relatedId) {
-        navigation.navigate('LeagueDetail', { leagueId: relatedId });
-        return;
-      }
-      if (screen === 'DfsContestDetail' && relatedId) {
-        navigation.navigate('DfsContestDetail', { contestId: relatedId });
-        return;
-      }
-      if (relatedType === 'post' && relatedId) {
-        navigation.navigate('PostDetails', { postId: relatedId });
-        return;
-      }
-      if (relatedType === 'comment' && relatedId) {
-        navigation.navigate('PostDetails', { postId: relatedId });
-        return;
-      }
+    const target = targetForMessage({ ...item.metadata });
+    if (target.screen !== 'Notification') {
+      navigateFromOutside(target.screen, target.params);
     }
   };
 

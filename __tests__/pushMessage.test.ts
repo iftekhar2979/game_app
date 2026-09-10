@@ -16,6 +16,44 @@ import {
  */
 
 describe('routing a tap', () => {
+  it.each(['DraftRoom', 'LeagueDetail', 'LeagueChat'])(
+    'opens %s with the league id',
+    screen => {
+      expect(targetForMessage({ screen, relatedId: 'league-1' })).toEqual({
+        screen,
+        params: { leagueId: 'league-1' },
+      });
+      expect(targetForMessage({ screen })).toEqual({ screen: 'Notification' });
+    },
+  );
+
+  it('accepts the minimal post and wallet payloads', () => {
+    expect(
+      targetForMessage({ screen: 'PostDetails', relatedId: 'post-1' }),
+    ).toEqual({ screen: 'PostDetails', params: { postId: 'post-1' } });
+    expect(targetForMessage({ screen: 'Wallet' })).toEqual({
+      screen: 'Wallet',
+    });
+  });
+
+  it('rejects non-string ids and prototype property screen names', () => {
+    expect(
+      targetForMessage({ screen: 'DraftRoom', relatedId: { id: 'bad' } }),
+    ).toEqual({ screen: 'Notification' });
+    expect(targetForMessage({ screen: 'constructor' })).toEqual({
+      screen: 'Notification',
+    });
+    expect(targetForMessage({ screen: 'toString' })).toEqual({
+      screen: 'Notification',
+    });
+    expect(
+      targetForMessage({
+        screen: 'PostDetails',
+        relatedType: 'comment',
+        relatedId: 'comment-1',
+      }),
+    ).toEqual({ screen: 'Notification' });
+  });
   it('opens the post a social notification is about', () => {
     expect(
       targetForMessage({
@@ -44,9 +82,9 @@ describe('routing a tap', () => {
   });
 
   it('uses relatedId when the notification is about the post itself', () => {
-    expect(
-      postIdFrom({ relatedType: 'post', relatedId: 'post-1' }),
-    ).toBe('post-1');
+    expect(postIdFrom({ relatedType: 'post', relatedId: 'post-1' })).toBe(
+      'post-1',
+    );
   });
 
   it('falls back to the notification list when the id is missing', () => {
@@ -85,7 +123,9 @@ describe('routing a tap', () => {
   });
 
   it('stops the id at a query string', () => {
-    expect(postIdFrom({ deepLink: '/community/posts/abc?from=push' })).toBe('abc');
+    expect(postIdFrom({ deepLink: '/community/posts/abc?from=push' })).toBe(
+      'abc',
+    );
   });
 });
 
