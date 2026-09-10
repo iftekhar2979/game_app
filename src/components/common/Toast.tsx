@@ -93,7 +93,7 @@ export const ToastContainer = () => {
           },
         ]}
       >
-        <TouchableOpacity activeOpacity={0.9} onPress={hideToast} style={styles.toastCard}>
+        <TouchableOpacity activeOpacity={0.9} onPress={() => { hideToast(); toast.onPress?.(); }} style={styles.toastCard}>
           <View style={[styles.iconContainer, { backgroundColor: bgBadgeColor }]}>
             {isSuccess && <CheckCircle2 color={iconColor} size={22} />}
             {(isError || isWarning) && <AlertCircle color={iconColor} size={22} />}

@@ -183,6 +183,7 @@ function AppContent() {
         // A push that launched the app from cold computes its route before
         // the navigator exists; this is where that route gets replayed.
         onReady={flushPendingPushRoute}
+        onStateChange={flushPendingPushRoute}
       >
         {!isAuthenticated ? (
           // The pending-verification screens are mounted *instead of* the
