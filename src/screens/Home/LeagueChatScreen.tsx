@@ -651,6 +651,28 @@ export default function LeagueChatScreen({ navigation, route }: Props) {
         }}
         enableSearchBar
         categoryPosition="top"
+        // The library ships a white sheet; matched to the chat's own palette so
+        // opening it does not flash light over a dark screen.
+        theme={{
+          backdrop: 'rgba(0,0,0,0.55)',
+          knob: '#555555',
+          container: '#161616',
+          header: '#AFAFAF',
+          skinTonesContainer: '#222222',
+          category: {
+            icon: '#8C8C8C',
+            iconActive: '#000000',
+            container: '#1F1F1F',
+            containerActive: '#E0B566',
+          },
+          search: {
+            background: '#222222',
+            text: '#FFFFFF',
+            placeholder: '#777777',
+            icon: '#8C8C8C',
+          },
+          emoji: { selected: '#2B2112' },
+        }}
       />
 
       <Modal
