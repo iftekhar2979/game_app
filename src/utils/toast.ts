@@ -5,6 +5,7 @@ export interface ToastOptions {
   title: string;
   message?: string;
   duration?: number;
+  onPress?: () => void;
 }
 
 export function formatToastMessage(message?: unknown): string | undefined {
