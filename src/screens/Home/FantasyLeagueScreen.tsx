@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   View,
   Text,
@@ -11,7 +11,6 @@ import {
   RefreshControl,
   KeyboardAvoidingView,
   Platform,
-  Animated,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import {
@@ -23,13 +22,10 @@ import {
   ArrowUpDown,
   Sparkles,
   QrCode,
-  Upload,
   CheckCircle2,
   Users,
-  Camera,
   Plus,
 } from 'lucide-react-native';
-import { launchImageLibrary, launchCamera } from 'react-native-image-picker';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../../../App';
@@ -41,6 +37,8 @@ import { useSelector } from 'react-redux';
 import { RootState } from '../../store';
 import { useGetLeaguesQuery, useJoinByCodeMutation } from '../../store/api/leagueApi';
 import { showToast } from '../../utils/toast';
+import { QrScanner } from '../../components/LeagueScanner/QrScanner';
+import { parseLeagueCode } from './leagueCode';
 import { getSocket } from '../../services/socketService';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
@@ -86,35 +84,11 @@ export default function FantasyLeagueScreen() {
   const [scannedCode, setScannedCode] = useState('');
   const [scannerTeamName, setScannerTeamName] = useState('');
   const [manualCodeInput, setManualCodeInput] = useState('');
-  const scanAnim = useRef(new Animated.Value(0)).current;
 
   // Pagination state
   const [page, setPage] = useState(1);
   const [accumulatedLeagues, setAccumulatedLeagues] = useState<any[]>([]);
 
-  // Scanner laser animation
-  useEffect(() => {
-    if (isScannerModalVisible && scannerStep === 'scan') {
-      const loop = Animated.loop(
-        Animated.sequence([
-          Animated.timing(scanAnim, {
-            toValue: 1,
-            duration: 1800,
-            useNativeDriver: true,
-          }),
-          Animated.timing(scanAnim, {
-            toValue: 0,
-            duration: 1800,
-            useNativeDriver: true,
-          }),
-        ]),
-      );
-      loop.start();
-      return () => loop.stop();
-    } else {
-      scanAnim.setValue(0);
-    }
-  }, [isScannerModalVisible, scannerStep, scanAnim]);
 
   // Debounce search input by 300ms
   useEffect(() => {
@@ -292,92 +266,24 @@ export default function FantasyLeagueScreen() {
   };
 
   // Scanner helpers
-  const handleCodeScanned = (code: string) => {
-    let cleanCode = code.trim().toUpperCase();
-    if (cleanCode.includes('CODE=')) {
-      const match = cleanCode.match(/CODE=([A-Z0-9_-]+)/i);
-      if (match?.[1]) cleanCode = match[1];
-    } else if (cleanCode.includes('/JOIN/')) {
-      const parts = cleanCode.split('/JOIN/');
-      if (parts[1]) cleanCode = parts[1].split('?')[0].split('/')[0];
-    } else if (cleanCode.startsWith('CHEERBATTLE:')) {
-      cleanCode = cleanCode.replace('CHEERBATTLE:', '').trim();
-    }
+  const handleCodeScanned = (raw: string) => {
+    const code = parseLeagueCode(raw);
 
-    if (!cleanCode) {
+    if (!code) {
       showToast.error('Invalid Code', 'Could not detect a valid league code.');
       return;
     }
-    setScannedCode(cleanCode);
+
+    setScannedCode(code);
     setScannerStep('team_name');
-    showToast.success('QR Code Scanned', `League Code: ${cleanCode}`);
   };
 
-  const handlePickQRImage = async () => {
-    try {
-      const result = await launchImageLibrary({
-        mediaType: 'photo',
-        quality: 0.8,
-        selectionLimit: 1,
-      });
-
-      if (result.didCancel || !result.assets || result.assets.length === 0) {
-        return;
-      }
-
-      showToast.info('Image Selected', 'Enter or confirm the 6-digit code from the QR.');
-    } catch {
-      showToast.error('Gallery Error', 'Could not access photo library');
-    }
-  };
-
-  const handleLaunchCamera = async () => {
-    try {
-      const result = await launchCamera({
-        mediaType: 'photo',
-        cameraType: 'back',
-        quality: 0.8,
-        saveToPhotos: false,
-      });
-
-      if (result.didCancel) {
-        return;
-      }
-
-      if (result.errorCode) {
-        if (result.errorCode === 'camera_unavailable') {
-          showToast.error(
-            'Camera Unavailable',
-            'Camera is not available on this device',
-          );
-        } else if (result.errorCode === 'permission') {
-          showToast.error(
-            'Permission Required',
-            'Please grant Camera permission in device Settings -> Apps -> CheerBattle',
-          );
-        } else {
-          showToast.error(
-            'Camera Error',
-            result.errorMessage || 'Could not open camera',
-          );
-        }
-        return;
-      }
-
-      if (!result.assets || result.assets.length === 0) {
-        return;
-      }
-
-      setScannedCode('');
-      setScannerStep('team_name');
-      setIsScannerModalVisible(true);
-      showToast.info(
-        'Photo Captured',
-        'Enter or confirm the 6-digit league code to join.',
-      );
-    } catch (err: any) {
-      showToast.error('Camera Error', err?.message || 'Could not open camera');
-    }
+  const openScanner = () => {
+    setScannedCode('');
+    setScannerTeamName('');
+    setManualCodeInput('');
+    setScannerStep('scan');
+    setIsScannerModalVisible(true);
   };
 
   const handleJoinFromScanner = async () => {
@@ -482,10 +388,6 @@ export default function FantasyLeagueScreen() {
     </TouchableOpacity>
   );
 
-  const laserTranslateY = scanAnim.interpolate({
-    inputRange: [0, 1],
-    outputRange: [0, 200],
-  });
 
   return (
     <SafeAreaView className="flex-1 bg-black" edges={['top', 'bottom']}>
@@ -537,7 +439,7 @@ export default function FantasyLeagueScreen() {
         <TouchableOpacity
           className="flex-row items-center bg-[#0d2229] border border-[#00FFFF]/60 rounded-xl px-2.5 py-2.5"
           activeOpacity={0.8}
-          onPress={handleLaunchCamera}
+          onPress={openScanner}
         >
           <QrCode color="#00FFFF" size={15} />
           <Text className="text-[#00FFFF] text-[11px] font-bold ml-1">Scan</Text>
@@ -858,57 +760,14 @@ export default function FantasyLeagueScreen() {
                   Align the commissioner's QR code within the frame to automatically detect the league.
                 </Text>
 
-                {/* Animated Viewfinder Box (Tap to Open Camera) */}
-                <TouchableOpacity
-                  activeOpacity={0.9}
-                  onPress={handleLaunchCamera}
-                  className="w-[230px] h-[230px] rounded-3xl bg-[#0a0a0a] border border-[#00FFFF]/40 relative justify-center items-center overflow-hidden mb-4"
-                >
-                  {/* Glowing Corner Brackets */}
-                  <View className="absolute top-2 left-2 w-7 h-7 border-t-2 border-l-2 border-[#00FFFF] rounded-tl-lg" />
-                  <View className="absolute top-2 right-2 w-7 h-7 border-t-2 border-r-2 border-[#00FFFF] rounded-tr-lg" />
-                  <View className="absolute bottom-2 left-2 w-7 h-7 border-b-2 border-l-2 border-[#00FFFF] rounded-bl-lg" />
-                  <View className="absolute bottom-2 right-2 w-7 h-7 border-b-2 border-r-2 border-[#00FFFF] rounded-br-lg" />
-
-                  {/* Animated Laser Scanning Beam */}
-                  <Animated.View
-                    style={{
-                      transform: [{ translateY: laserTranslateY }],
-                    }}
-                    className="absolute top-2 left-3 right-3 h-[2px] bg-[#00FFFF] shadow-lg shadow-[#00FFFF]"
-                  />
-
-                  {/* QR Icon in center */}
-                  <QrCode color="#00FFFF" size={72} opacity={0.35} />
-                  <Text className="text-[#00FFFF] text-[11px] font-semibold mt-2">
-                    Tap to Open Camera
-                  </Text>
-                </TouchableOpacity>
-
-                {/* Camera and Gallery Actions Row */}
-                <View className="flex-row w-full mb-4">
-                  <TouchableOpacity
-                    className="flex-1 flex-row items-center justify-center bg-[#00FFFF] py-3 rounded-xl mr-2"
-                    onPress={handleLaunchCamera}
-                    activeOpacity={0.85}
-                  >
-                    <Camera color="#000" size={17} />
-                    <Text className="text-black text-xs font-bold ml-2">
-                      Open Camera
-                    </Text>
-                  </TouchableOpacity>
-
-                  <TouchableOpacity
-                    className="flex-1 flex-row items-center justify-center bg-[#181818] border border-[#333] py-3 rounded-xl ml-2"
-                    onPress={handlePickQRImage}
-                    activeOpacity={0.8}
-                  >
-                    <Upload color="#00FFFF" size={16} />
-                    <Text className="text-gray-300 text-xs font-semibold ml-2">
-                      Upload QR
-                    </Text>
-                  </TouchableOpacity>
-                </View>
+                {/* Live camera. Asks for camera permission itself, the first
+                    time it is shown, and offers Settings if it was refused. */}
+                <QrScanner
+                  onCode={handleCodeScanned}
+                  onUnrecognised={() =>
+                    showToast.error('Not a league code', 'That QR code is not a CheerBattle league invite.')
+                  }
+                />
 
                 {/* Manual Code Fallback Input */}
                 <View className="w-full bg-[#181818] border border-[#2e2e2e] rounded-xl p-3 flex-row items-center">
