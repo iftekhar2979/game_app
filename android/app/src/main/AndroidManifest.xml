@@ -1,4 +1,5 @@
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
 
     <uses-permission android:name="android.permission.INTERNET" />
     <!-- Android 13+ will not show a notification until the user grants this
@@ -44,9 +45,13 @@
       <!-- The channel a push lands in when the payload does not name one.
            Android 8+ drops a notification whose channel does not exist, so the
            channel of this id is created on launch in MainApplication. -->
+      <!-- `tools:replace` because react-native-firebase's own manifest declares
+           this key with an empty value, and the merger will not pick a winner
+           between two values on its own. -->
       <meta-data
         android:name="com.google.firebase.messaging.default_notification_channel_id"
-        android:value="default" />
+        android:value="default"
+        tools:replace="android:value" />
 
       <!-- Facebook Login: SDK initialisation values and the activities the
            login dialog and Chrome Custom Tab flow are hosted in. -->
