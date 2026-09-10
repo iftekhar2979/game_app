@@ -32,23 +32,52 @@ export const NOTIFICATION_LIST_SCREEN = 'Notification';
 
 /** Routes a push is allowed to open, and how to build their params. */
 const ROUTES: Record<string, (data: Record<string, string>) => PushRoute> = {
-  PostDetails: (data) => {
+  DraftRoom: data =>
+    data.relatedId
+      ? { screen: 'DraftRoom', params: { leagueId: data.relatedId } }
+      : null,
+  DfsContestDetail: data =>
+    data.relatedId
+      ? { screen: 'DfsContestDetail', params: { contestId: data.relatedId } }
+      : null,
+  PostDetails: data => {
     const postId = postIdFrom(data);
     // Without an id there is no post to open, so the list is the honest
     // destination rather than a details screen that renders an error.
     return postId ? { screen: 'PostDetails', params: { postId } } : null;
   },
-  LeagueDetail: (data) =>
-    data.relatedId ? { screen: 'LeagueDetail', params: { leagueId: data.relatedId } } : null,
-  LeagueChat: (data) =>
-    data.relatedId ? { screen: 'LeagueChat', params: { leagueId: data.relatedId } } : null,
+  LeagueDetail: data =>
+    data.relatedId
+      ? {
+          screen: 'LeagueDetail',
+          params: {
+            leagueId: data.relatedId,
+            ...(data.reason?.startsWith('lineup_reminder:')
+              ? { initialTab: 'Team' }
+              : {}),
+          },
+        }
+      : null,
+  LeagueChat: data =>
+    data.relatedId
+      ? { screen: 'LeagueChat', params: { leagueId: data.relatedId } }
+      : null,
   Wallet: () => ({ screen: 'Wallet' }),
   Notification: () => ({ screen: NOTIFICATION_LIST_SCREEN }),
 };
 
-export function targetForMessage(data?: Record<string, string> | null): PushTarget {
-  const payload = data ?? {};
-  const build = payload.screen ? ROUTES[payload.screen] : undefined;
+export function targetForMessage(
+  data?: Record<string, unknown> | null,
+): PushTarget {
+  const payload = Object.fromEntries(
+    Object.entries(data ?? {}).filter(([, value]) => typeof value === 'string'),
+  ) as Record<string, string>;
+  const screen =
+    payload.screen ||
+    (['post', 'comment'].includes(payload.relatedType) ? 'PostDetails' : '');
+  const build = Object.prototype.hasOwnProperty.call(ROUTES, screen)
+    ? ROUTES[screen]
+    : undefined;
   const target = build?.(payload) ?? null;
 
   // Everything ends somewhere: an unmapped screen, a missing id, a payload with
@@ -68,7 +97,8 @@ export function postIdFrom(data: Record<string, string>): string | null {
   if (fromLink) return fromLink[1];
 
   // A reaction on a post: there the entity and the post are the same thing.
-  if (data.relatedType === 'post' && data.relatedId) return data.relatedId;
+  if ((!data.relatedType || data.relatedType === 'post') && data.relatedId)
+    return data.relatedId;
 
   return null;
 }
