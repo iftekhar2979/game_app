@@ -95,3 +95,17 @@ jest.mock('@react-native-firebase/app', () => ({
   getApps: jest.fn(() => []),
   initializeApp: jest.fn(),
 }));
+
+/**
+ * VisionCamera is a native camera; under jest there is no camera to open. The
+ * QR parsing it feeds is pure and tested in `__tests__/leagueCode.test.ts`.
+ */
+jest.mock('react-native-vision-camera', () => ({
+  Camera: () => null,
+  useCameraDevice: jest.fn(() => ({ id: 'back' })),
+  useCameraPermission: jest.fn(() => ({
+    hasPermission: true,
+    requestPermission: jest.fn(async () => true),
+  })),
+  useCodeScanner: jest.fn((config) => config),
+}));
