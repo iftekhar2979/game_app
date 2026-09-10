@@ -1,6 +1,10 @@
 apply plugin: "com.android.application"
 apply plugin: "org.jetbrains.kotlin.android"
 apply plugin: "com.facebook.react"
+// Must come after the Android plugin. Fails the build with a clear message
+// if google-services.json is missing, which is the behaviour we want: a
+// silently push-less build is much harder to diagnose.
+apply plugin: "com.google.gms.google-services"
 
 /**
  * This is the configuration block to customize your React Native Android app.

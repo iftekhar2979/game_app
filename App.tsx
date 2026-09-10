@@ -2,6 +2,12 @@ import React, { useEffect } from 'react';
 import { StatusBar, useColorScheme } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { AppBootSkeleton } from './src/components/Skeleton';
+import { navigationRef } from './src/navigation/navigationRef';
+import {
+  flushPendingPushRoute,
+  registerDeviceToken,
+  startPushListeners,
+} from './src/notifications/pushService';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import OnboardingScreen from './src/screens/Onboarding';
@@ -146,6 +152,19 @@ function AppContent() {
     authService.restoreSession(dispatch);
   }, [dispatch]);
 
+  // Listeners live for the life of the app, not of a session: a push can be
+  // tapped while signed out, and the route it carries still has to be honoured
+  // once the user is back in.
+  useEffect(() => startPushListeners(), []);
+
+  // Registering needs a session, so it waits for one. Re-runs on sign-in, and
+  // is a no-op when the token has not changed since last time.
+  useEffect(() => {
+    if (isAuthenticated) {
+      void registerDeviceToken();
+    }
+  }, [isAuthenticated]);
+
   if (isInitializing) {
     return <AppBootSkeleton />;
   }
@@ -157,7 +176,12 @@ function AppContent() {
         translucent
         backgroundColor="transparent"
       />
-      <NavigationContainer>
+      <NavigationContainer
+        ref={navigationRef}
+        // A push that launched the app from cold computes its route before
+        // the navigator exists; this is where that route gets replayed.
+        onReady={flushPendingPushRoute}
+      >
         {!isAuthenticated ? (
           // The pending-verification screens are mounted *instead of* the
           // signed-out ones rather than being selected with `initialRouteName`.

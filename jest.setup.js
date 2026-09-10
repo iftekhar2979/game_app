@@ -62,3 +62,36 @@ jest.mock('@stripe/stripe-react-native', () => ({
     presentPaymentSheet: jest.fn(async () => ({ error: undefined })),
   }),
 }));
+
+/**
+ * React Native Firebase reaches straight for a native module at import time, so
+ * any suite that transitively imports the push service fails to load - which is
+ * most of them, since `authService` clears the token on logout.
+ *
+ * The routing and registration decisions are pure and tested directly in
+ * `__tests__/pushMessage.test.ts`; this stub only needs to let the modules that
+ * import the SDK load, and to make every listener return a working teardown.
+ */
+jest.mock('@react-native-firebase/messaging', () => ({
+  getMessaging: jest.fn(() => ({})),
+  getToken: jest.fn(async () => 'test-fcm-token'),
+  deleteToken: jest.fn(async () => undefined),
+  requestPermission: jest.fn(async () => 1),
+  onMessage: jest.fn(() => jest.fn()),
+  onNotificationOpenedApp: jest.fn(() => jest.fn()),
+  onTokenRefresh: jest.fn(() => jest.fn()),
+  getInitialNotification: jest.fn(async () => null),
+  setBackgroundMessageHandler: jest.fn(),
+  AuthorizationStatus: {
+    NOT_DETERMINED: -1,
+    DENIED: 0,
+    AUTHORIZED: 1,
+    PROVISIONAL: 2,
+  },
+}));
+
+jest.mock('@react-native-firebase/app', () => ({
+  getApp: jest.fn(() => ({})),
+  getApps: jest.fn(() => []),
+  initializeApp: jest.fn(),
+}));

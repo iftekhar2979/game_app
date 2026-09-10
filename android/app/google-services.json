@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "58690558184",
+    "project_id": "cheerbattleapp",
+    "storage_bucket": "cheerbattleapp.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:58690558184:android:3bbab3120495a348b7915d",
+        "android_client_info": {
+          "package_name": "com.gameapp"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCzA09GNTYASCf6QicmJ0lyPsRZPmAYvNY"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
