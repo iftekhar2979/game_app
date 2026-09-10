@@ -91,6 +91,17 @@ export const authApi = baseApi.injectEndpoints({
         body,
       }),
     }),
+    /** Change a signed-in account's password; `oldPassword` is re-checked. */
+    changePassword: builder.mutation<
+      { message: string },
+      { oldPassword: string; newPassword: string }
+    >({
+      query: (body) => ({
+        url: '/auth/change-password',
+        method: 'POST',
+        body,
+      }),
+    }),
     resetPassword: builder.mutation<
       { message: string },
       { resetPasswordToken: string; newPassword: string }
@@ -124,5 +135,6 @@ export const {
   useVerifyEmailMutation,
   useForgotPasswordMutation,
   useResetPasswordMutation,
+  useChangePasswordMutation,
   useLoginMutation,
 } = authApi;

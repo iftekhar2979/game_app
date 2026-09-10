@@ -34,6 +34,7 @@ import {
   useReactMutation,
 } from '../../store/api/socialApi';
 import { showToast } from '../../utils/toast';
+import { haptic } from '../../feedback/feedback';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 type ScreenRoute = RouteProp<RootStackParamList, 'PostDetails'>;
@@ -206,6 +207,7 @@ export default function PostDetailsScreen() {
 
       setDraft('');
       setReplyTarget(null);
+      haptic('impactLight');
 
       if (created.isFlagged) {
         showToast.warning(

@@ -43,6 +43,7 @@ import SettingsScreen from './src/screens/Profile/SettingsScreen';
 import AboutUsScreen from './src/screens/Profile/AboutUsScreen';
 import PrivacyPolicyScreen from './src/screens/Profile/PrivacyPolicyScreen';
 import TermsOfServiceScreen from './src/screens/Profile/TermsOfServiceScreen';
+import ChangePasswordScreen from './src/screens/Profile/ChangePasswordScreen';
 import AdminSupportScreen from './src/screens/Profile/AdminSupportScreen';
 import { ToastContainer } from './src/components/common/Toast';
 import { authService } from './src/services/authService';
@@ -128,6 +129,7 @@ export type RootStackParamList = {
   AboutUs: undefined;
   PrivacyPolicy: undefined;
   TermsOfService: undefined;
+  ChangePassword: undefined;
   AdminSupport: undefined;
   AdminCheer: undefined;
   AdminCheerForm: { step: AdminCheerStep };
@@ -276,6 +278,10 @@ function AppContent() {
             <Stack.Screen
               name="TermsOfService"
               component={TermsOfServiceScreen}
+            />
+            <Stack.Screen
+              name="ChangePassword"
+              component={ChangePasswordScreen}
             />
             <Stack.Screen name="AdminSupport" component={AdminSupportScreen} />
             <Stack.Screen name="AdminCheer" component={AdminCheerScreen} />

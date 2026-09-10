@@ -19,6 +19,7 @@ import {
   Trash2,
   Trophy,
   Bell,
+  KeyRound,
 } from 'lucide-react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useDispatch, useSelector } from 'react-redux';
@@ -67,6 +68,17 @@ export default function SettingsScreen() {
 
           <TouchableOpacity
             className="flex-row items-center justify-between bg-[#1A1A1A] rounded-[16px] px-5 py-4 mb-3"
+            onPress={() => navigation.navigate('ChangePassword' as never)}
+          >
+            <View className="flex-row items-center">
+              <KeyRound color="#fff" size={20} className="mr-4" />
+              <Text className="text-white text-[14px]">Change Password</Text>
+            </View>
+            <ChevronRight color="#fff" size={20} />
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            className="flex-row items-center justify-between bg-[#1A1A1A] rounded-[16px] px-5 py-4 mb-3"
             onPress={() => navigation.navigate('AboutUs' as never)}
           >
             <View className="flex-row items-center">
@@ -93,7 +105,7 @@ export default function SettingsScreen() {
           >
             <View className="flex-row items-center">
               <FileText color="#fff" size={20} className="mr-4" />
-              <Text className="text-white text-[14px]">Terms of Service</Text>
+              <Text className="text-white text-[14px]">Terms & Conditions</Text>
             </View>
             <ChevronRight color="#fff" size={20} />
           </TouchableOpacity>

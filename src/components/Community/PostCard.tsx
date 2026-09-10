@@ -4,6 +4,7 @@ import { AlertTriangle, MessageSquare, Trash2 } from 'lucide-react-native';
 import { CommunityPost, ReactionType } from '../../store/api/socialApi';
 import { ReactionBar } from './ReactionBar';
 import Avatar from '../common/Avatar';
+import { haptic } from '../../feedback/feedback';
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
 
@@ -136,7 +137,10 @@ export const PostCard = ({
 
         <TouchableOpacity
           className="flex-row items-center"
-          onPress={onOpenComments}
+          onPress={() => {
+              haptic('selection');
+              onOpenComments();
+            }}
           accessibilityLabel={`View ${post.commentsCount} comments`}
           accessibilityRole="button"
         >
