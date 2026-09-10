@@ -1,4 +1,4 @@
-import { Platform } from 'react-native';
+import { AppState, PermissionsAndroid, Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   AuthorizationStatus,
@@ -14,7 +14,7 @@ import {
 import { store } from '../store';
 import { notificationApi } from '../store/api/notificationApi';
 import { navigateFromOutside } from '../navigation/navigationRef';
-import { showToast } from '../utils/toast';
+import { toastEmitter } from '../utils/toast';
 import { newDeviceId, shouldRegister, targetForMessage } from './pushMessage';
 
 /**
@@ -44,10 +44,14 @@ interface PushMessage {
 
 const DEVICE_ID_KEY = '@push/deviceId';
 const LAST_TOKEN_KEY = '@push/lastRegisteredToken';
+const LAST_USER_KEY = '@push/lastRegisteredUser';
 
 /** A route from a tap that arrived before the navigator existed. */
-let pendingRoute: { screen: string; params?: Record<string, unknown> } | null =
-  null;
+let pendingRoute: {
+  screen: string;
+  params?: Record<string, unknown>;
+  notificationId?: string;
+} | null = null;
 
 let unsubscribers: Array<() => void> = [];
 
@@ -77,10 +81,18 @@ export async function getDeviceId(): Promise<string> {
  * Ask for permission, if it has not been answered already.
  *
  * iOS shows the system prompt here. Android below 13 grants it implicitly;
- * from 13 the same call maps onto the POST_NOTIFICATIONS runtime permission.
+ * from 13 POST_NOTIFICATIONS must be requested explicitly.
  */
 export async function requestPushPermission(): Promise<boolean> {
   try {
+    if (Platform.OS === 'android') {
+      if (Number(Platform.Version) < 33) return true;
+      return (
+        (await PermissionsAndroid.request(
+          PermissionsAndroid.PERMISSIONS.POST_NOTIFICATIONS,
+        )) === PermissionsAndroid.RESULTS.GRANTED
+      );
+    }
     const status = await requestPermission(getMessaging());
 
     return (
@@ -102,22 +114,37 @@ export async function requestPushPermission(): Promise<boolean> {
  */
 export async function registerDeviceToken(options: { force?: boolean } = {}) {
   try {
-    const isAuthenticated = store.getState().auth.isAuthenticated;
-    if (!isAuthenticated) return;
+    const { isAuthenticated, user } = store.getState().auth;
+    const userId = user?.id ?? user?._id;
+    if (!isAuthenticated || !userId) return;
 
     const granted = await requestPushPermission();
     if (!granted) return;
 
     const token = await getToken(getMessaging());
-    const lastRegistered = options.force
-      ? null
-      : await AsyncStorage.getItem(LAST_TOKEN_KEY);
+    const lastUser = await AsyncStorage.getItem(LAST_USER_KEY);
+    const lastRegistered =
+      options.force || lastUser !== userId
+        ? null
+        : await AsyncStorage.getItem(LAST_TOKEN_KEY);
 
-    if (!shouldRegister({ token, lastRegisteredToken: lastRegistered, isAuthenticated })) {
+    if (
+      !shouldRegister({
+        token,
+        lastRegisteredToken: lastRegistered,
+        isAuthenticated,
+      })
+    ) {
       return;
     }
 
     const deviceId = await getDeviceId();
+    if (
+      (store.getState().auth.user?.id ?? store.getState().auth.user?._id) !==
+        userId ||
+      !store.getState().auth.isAuthenticated
+    )
+      return;
 
     await store
       .dispatch(
@@ -131,6 +158,7 @@ export async function registerDeviceToken(options: { force?: boolean } = {}) {
       .unwrap();
 
     await AsyncStorage.setItem(LAST_TOKEN_KEY, token);
+    await AsyncStorage.setItem(LAST_USER_KEY, userId);
   } catch (error) {
     // Never blocks sign-in. The next launch, or the next token refresh, tries
     // again - and until then the user simply has no push, not a broken app.
@@ -146,11 +174,26 @@ export async function registerDeviceToken(options: { force?: boolean } = {}) {
  * next person would otherwise see the previous user's notifications.
  */
 export async function unregisterDeviceToken() {
+  pendingRoute = null;
+  try {
+    const deviceId = await getDeviceId();
+    if (store.getState().auth.isAuthenticated) {
+      await store
+        .dispatch(notificationApi.endpoints.unregisterDevice.initiate(deviceId))
+        .unwrap();
+    }
+  } catch (error) {
+    console.warn('[push] could not unregister the device', error);
+  }
   try {
     await deleteToken(getMessaging());
-    await AsyncStorage.removeItem(LAST_TOKEN_KEY);
   } catch (error) {
     console.warn('[push] could not clear the push token', error);
+  } finally {
+    await Promise.all([
+      AsyncStorage.removeItem(LAST_TOKEN_KEY),
+      AsyncStorage.removeItem(LAST_USER_KEY),
+    ]).catch(() => {});
   }
 }
 
@@ -169,13 +212,27 @@ export async function unregisterDeviceToken() {
 export function startPushListeners(): () => void {
   stopPushListeners();
 
-  const app = getMessaging();
+  let app: ReturnType<typeof getMessaging>;
+  try {
+    app = getMessaging();
+  } catch (error) {
+    console.warn('[push] Firebase is unavailable', error);
+    return stopPushListeners;
+  }
 
   unsubscribers = [
     onMessage(app, async (message: PushMessage) => {
+      if (!store.getState().auth.isAuthenticated) return;
+      refreshNotificationData();
       const { title, body } = message.notification ?? {};
       if (title || body) {
-        showToast.info(title ?? 'New notification', body);
+        toastEmitter.show({
+          type: 'info',
+          title: title ?? 'New notification',
+          message: body,
+          duration: message.data?.screen === 'DraftRoom' ? 10000 : 4500,
+          onPress: () => routeTo(message),
+        });
       }
     }),
 
@@ -189,6 +246,14 @@ export function startPushListeners(): () => void {
       void registerDeviceToken({ force: true });
     }),
   ];
+  const resume = AppState.addEventListener('change', state => {
+    if (state === 'active' && store.getState().auth.isAuthenticated) {
+      refreshNotificationData();
+      void registerDeviceToken();
+      flushPendingPushRoute();
+    }
+  });
+  unsubscribers.push(() => resume.remove());
 
   // A tap that launched the app from cold. Read once - it stays available for
   // the life of the process, so re-reading it would navigate again on every
@@ -203,7 +268,7 @@ export function startPushListeners(): () => void {
 }
 
 export function stopPushListeners() {
-  unsubscribers.forEach((off) => {
+  unsubscribers.forEach(off => {
     try {
       off();
     } catch {
@@ -221,20 +286,61 @@ export function stopPushListeners() {
  * and then thrown away because there was nothing to navigate yet.
  */
 export function flushPendingPushRoute() {
-  if (!pendingRoute) return;
+  if (!pendingRoute || !store.getState().auth.isAuthenticated) return;
 
   const route = pendingRoute;
   pendingRoute = null;
 
   if (!navigateFromOutside(route.screen, route.params)) {
     pendingRoute = route;
+  } else {
+    markPushRead(route.notificationId);
   }
 }
 
 function routeTo(message: PushMessage) {
-  const target = targetForMessage(message.data as Record<string, string>);
+  const target = targetForMessage(message.data);
+  refreshNotificationData();
+  const notificationId = message.data?.notificationId;
+  if (
+    !store.getState().auth.isAuthenticated ||
+    !navigateFromOutside(target.screen, target.params)
+  ) {
+    pendingRoute = {
+      ...target,
+      notificationId:
+        typeof notificationId === 'string' ? notificationId : undefined,
+    };
+  } else {
+    markPushRead(notificationId);
+  }
+}
 
-  if (!navigateFromOutside(target.screen, target.params)) {
-    pendingRoute = target;
+function markPushRead(notificationId: unknown) {
+  if (
+    store.getState().auth.isAuthenticated &&
+    typeof notificationId === 'string'
+  ) {
+    void store
+      .dispatch(
+        notificationApi.endpoints.markNotificationAsRead.initiate(
+          notificationId,
+        ),
+      )
+      .unwrap()
+      .catch(() => {});
+  }
+}
+
+function refreshNotificationData() {
+  if (store.getState().auth.isAuthenticated) {
+    store.dispatch(
+      notificationApi.util.invalidateTags([
+        'Notification',
+        'LeagueChat',
+        'League',
+        'Wallet',
+      ]),
+    );
   }
 }

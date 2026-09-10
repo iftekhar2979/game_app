@@ -59,6 +59,14 @@ class MainApplication : Application(), ReactApplication {
     // every launch. Note that once created, importance is the user's to change
     // and later edits here are ignored.
     manager?.createNotificationChannel(channel)
+    val fantasyChannel = NotificationChannel(
+      "fantasy_alerts",
+      "Draft and lineup reminders",
+      NotificationManager.IMPORTANCE_HIGH,
+    )
+    fantasyChannel.description = "Your draft picks, draft start times and lineup deadlines."
+    fantasyChannel.enableVibration(true)
+    manager?.createNotificationChannel(fantasyChannel)
   }
 
   private companion object {
