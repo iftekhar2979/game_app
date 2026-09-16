@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -8,6 +8,7 @@ import {
   Image,
   ActivityIndicator,
   Alert,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ChevronLeft, RefreshCw } from 'lucide-react-native';
@@ -16,6 +17,7 @@ import Svg, { Path } from 'react-native-svg';
 import { initStripe, useStripe } from '@stripe/stripe-react-native';
 import {
   type CoinPackage,
+  type TopUpIntentResponse,
   useGetCoinPackagesQuery,
   useReconcileOrderMutation,
   useStartTopUpIntentMutation,
@@ -54,7 +56,11 @@ const SHEET_APPEARANCE = {
   shapes: { borderRadius: 16, borderWidth: 1 },
   primaryButton: {
     colors: { background: '#8B3DFF', text: '#FFFFFF', border: '#8B3DFF' },
-    shapes: { borderRadius: 999 },
+    // Half of the button's 48pt height, which is a pill. Not the 999 the rest
+    // of this app uses for pills: this value reaches `CALayer.cornerRadius`
+    // directly, and a radius past half the layer's height degenerates the
+    // rounded-rect path - iOS then draws no button at all.
+    shapes: { borderRadius: 24 },
   },
 } as const;
 
@@ -101,6 +107,14 @@ export default function CoinStoreScreen() {
     return undefined;
   };
 
+  /**
+   * The intent waiting for the confirm modal to get out of the way.
+   *
+   * Held in a ref rather than state because the modal's dismissal callback
+   * reads it once, and a re-render in between would be noise.
+   */
+  const pendingIntentRef = useRef<TopUpIntentResponse | null>(null);
+
   const handlePayNow = async () => {
     if (!selectedPackage || isCheckingOut) return;
     setIsCheckingOut(true);
@@ -120,7 +134,48 @@ export default function CoinStoreScreen() {
       });
       if (initError) throw initError;
 
+      /**
+       * The sheet is handed to the modal's dismissal instead of being opened
+       * here.
+       *
+       * `setIsModalVisible(false)` only schedules a re-render; the confirm
+       * modal is still a presented view controller for the length of its
+       * dismiss animation. iOS refuses to present the payment sheet on top of
+       * it, and the half-presented sheet that results keeps the touch handler
+       * that no visible view owns - the app stops responding entirely, with no
+       * way back to the store.
+       */
+      pendingIntentRef.current = intent;
       setIsModalVisible(false);
+
+      // `onDismiss` is iOS-only, so Android opens the sheet from here. It has
+      // no equivalent presentation restriction.
+      if (Platform.OS !== 'ios') {
+        void presentPendingSheet();
+      }
+    } catch (err: any) {
+      pendingIntentRef.current = null;
+      setIsCheckingOut(false);
+      Alert.alert(
+        'Payment Failed',
+        err?.data?.message || err?.message || 'Could not start the payment.',
+      );
+    }
+  };
+
+  /**
+   * Opens the sheet for the intent `handlePayNow` prepared, then waits for the
+   * coins. Runs once the confirm modal is fully gone.
+   *
+   * Dismissing the modal any other way - the backdrop, the hardware back
+   * button - leaves no pending intent, so this is a no-op for it.
+   */
+  const presentPendingSheet = async () => {
+    const intent = pendingIntentRef.current;
+    if (!intent) return;
+    pendingIntentRef.current = null;
+
+    try {
       const { error: sheetError } = await presentPaymentSheet();
       if (sheetError) {
         // A cancellation is a decision, not a failure, and says nothing.
@@ -257,6 +312,7 @@ export default function CoinStoreScreen() {
         transparent={true}
         animationType="fade"
         onRequestClose={() => setIsModalVisible(false)}
+        onDismiss={presentPendingSheet}
       >
         <TouchableOpacity
           className="flex-1 justify-center items-center bg-black/80 px-6"
