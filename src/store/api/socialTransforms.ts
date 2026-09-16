@@ -13,6 +13,12 @@
 export type ReactionType = 'like' | 'love' | 'haha' | 'wow' | 'sad' | 'angry';
 export type ReactionEntityType = 'post' | 'comment';
 
+/**
+ * Feed ordering. `latest` is the server's default; `shuffle` asks for the
+ * seeded permutation, which resurfaces older posts.
+ */
+export type FeedSort = 'latest' | 'shuffle';
+
 export const REACTION_TYPES: ReactionType[] = ['like', 'love', 'haha', 'wow', 'sad', 'angry'];
 
 export const REACTION_EMOJI: Record<ReactionType, string> = {
