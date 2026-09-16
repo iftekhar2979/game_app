@@ -12,4 +12,3 @@ module.exports = {
     './node_modules/@react-native-google-signin/google-signin/jest/build/jest/setup.js',
     './jest.setup.js',
   ],
-};
