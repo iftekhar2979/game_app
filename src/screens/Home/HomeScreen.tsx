@@ -260,12 +260,15 @@ export default function HomeScreen() {
     cheerEvents[0];
 
   // The dashboard shows a short preview of the community feed; the full,
-  // paginated and shuffled feed lives on CommunityFeedScreen.
+  // paginated feed lives on CommunityFeedScreen.
+  //
+  // Explicitly `latest`: three posts drawn at random read as a stale preview,
+  // because nothing a reader just posted is guaranteed to appear in it.
   const {
     data: feed,
     isLoading: isLoadingFeed,
     refetch: refetchFeed,
-  } = useGetFeedQuery({ page: 1, limit: 3 });
+  } = useGetFeedQuery({ page: 1, limit: 3, sort: 'latest' });
   const previewPosts = feed?.posts ?? [];
 
   const [react] = useReactMutation();

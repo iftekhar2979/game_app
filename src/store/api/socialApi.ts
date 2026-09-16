@@ -11,6 +11,7 @@ import type {
   CommunityPost,
   Envelope,
   FeedResponse,
+  FeedSort,
   Pagination,
   ReactionEntityType,
   ReactionResult,
@@ -28,11 +29,15 @@ export const socialApi = baseApi.injectEndpoints({
   overrideExisting: true,
   endpoints: (builder) => ({
     /**
-     * Shuffled community feed. `seed` is omitted on a fresh load/refresh and
-     * echoed back while paging so the ordering stays stable.
+     * Community feed, newest first unless `sort: 'shuffle'` is asked for.
+     *
+     * `seed` is omitted on a fresh load/refresh and echoed back while paging.
+     * It anchors the window in both modes - without it a post published
+     * mid-scroll shifts every later row down, so page 2 repeats page 1's last
+     * post - and additionally picks the permutation under `shuffle`.
      */
-    getFeed: builder.query<FeedResponse, { page?: number; limit?: number; seed?: number; authorId?: string; mine?: boolean }>({
-      query: ({ page = 1, limit = 10, seed, authorId, mine }) => ({
+    getFeed: builder.query<FeedResponse, { page?: number; limit?: number; seed?: number; authorId?: string; mine?: boolean; sort?: FeedSort }>({
+      query: ({ page = 1, limit = 10, seed, authorId, mine, sort }) => ({
         url: '/social/posts',
         method: 'GET',
         params: {
@@ -41,6 +46,7 @@ export const socialApi = baseApi.injectEndpoints({
           ...(seed ? { seed } : {}),
           ...(authorId ? { authorId } : {}),
           ...(mine !== undefined ? { mine } : {}),
+          ...(sort ? { sort } : {}),
         },
       }),
       transformResponse: (response: Envelope<any[]>): FeedResponse => ({
@@ -52,10 +58,12 @@ export const socialApi = baseApi.injectEndpoints({
         seed: response.pagination?.seed as number,
       }),
       // Pages accumulate into one cache entry so the list can grow on scroll.
-      // `limit`, `mine`, and `authorId` stay part of the key so independent consumers
-      // (dashboard preview, full Community, user Profile, and AllPosts) do not collide.
+      // `limit`, `mine`, `authorId` and `sort` stay part of the key so independent
+      // consumers (dashboard preview, full Community, user Profile, and AllPosts) do
+      // not collide - and so switching ordering starts a new list instead of
+      // appending a reshuffled page onto the chronological one.
       serializeQueryArgs: ({ endpointName, queryArgs }) =>
-        `${endpointName}-${queryArgs?.limit ?? 10}-${queryArgs?.mine ? 'mine' : ''}-${queryArgs?.authorId ?? ''}`,
+        `${endpointName}-${queryArgs?.limit ?? 10}-${queryArgs?.mine ? 'mine' : ''}-${queryArgs?.authorId ?? ''}-${queryArgs?.sort ?? 'latest'}`,
       merge: (existing, incoming, { arg }) => {
         if (!arg.page || arg.page === 1) return incoming;
         const seen = new Set(existing.posts.map((post) => post.id));

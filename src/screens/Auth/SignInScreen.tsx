@@ -6,6 +6,7 @@ import { RootStackParamList } from '../../../App';
 import { Mail, KeyRound } from 'lucide-react-native';
 import AuthLayout from '../../components/Layout/AuthLayout';
 import AuthInput from '../../components/Input/AuthInput';
+import SocialAuthButtons from '../../components/Auth/SocialAuthButtons';
 import PrimaryButton from '../../components/Button/PrimaryButton';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -138,6 +139,12 @@ const SignInScreen = () => {
             console.log('Validation errors:', errors);
             Alert.alert('Validation Error', 'Please check the form inputs.');
           })}
+        />
+
+        <SocialAuthButtons
+          label="Sign in with Others"
+          disabled={isLoading}
+          onError={(title, message) => showToast.error(title, message)}
         />
 
         <View className="flex-row justify-center mt-6">
