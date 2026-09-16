@@ -163,40 +163,64 @@ export default function SettingsScreen() {
         visible={isLogoutModalVisible}
         onRequestClose={() => setIsLogoutModalVisible(false)}
       >
-        <View className="flex-1 justify-center items-center px-6">
-          {/* Semi-transparent dark overlay */}
-          <View className="absolute inset-0 bg-black/70" />
+        {/* Tapping outside cancels - the same escape the Cancel button gives. */}
+        <TouchableOpacity
+          className="flex-1 justify-center items-center px-6"
+          activeOpacity={1}
+          onPress={() => setIsLogoutModalVisible(false)}
+        >
+          <View className="absolute inset-0 bg-black/80" />
 
-          {/* Modal Content */}
-          <View className="w-full bg-white/10 rounded-[24px] p-6 items-center border border-white/20 shadow-2xl backdrop-blur-md">
-            <Text className="text-white text-[24px] font-semibold mb-4">
-              Logout
+          <TouchableOpacity
+            activeOpacity={1}
+            className="w-full max-w-[400px] bg-[#140A24] rounded-[28px] px-7 pt-8 pb-7 items-center border border-[#3A144E]"
+            style={{
+              shadowColor: '#000',
+              shadowOffset: { width: 0, height: 12 },
+              shadowOpacity: 0.5,
+              shadowRadius: 24,
+              elevation: 12,
+            }}
+          >
+            {/* Destructive actions read better with a visual anchor than with
+                title text alone. */}
+            <View className="w-[68px] h-[68px] rounded-full bg-[#2A0F1A] border border-[#5A1F2B] items-center justify-center mb-5">
+              <LogOut color="#FF6B6B" size={28} />
+            </View>
+
+            <Text className="text-white text-[22px] font-bold mb-2.5">
+              Log out?
             </Text>
-            <Text className="text-gray-300 text-[14px] text-center leading-5 mb-8">
-              Are you want to sure logout now. If you logout now your all
-              progress will be stop.
+            <Text className="text-[#A79BB8] text-[14px] text-center leading-[21px] mb-7">
+              You'll be signed out of CheerBattle on this device. Your leagues,
+              coins and progress stay safe — just sign back in to pick up where
+              you left off.
             </Text>
 
-            <View className="flex-row justify-between w-full px-4">
+            <View className="w-full">
               <TouchableOpacity
-                className="flex-1 border border-gray-400 py-3 rounded-full mr-2 items-center"
-                onPress={() => setIsLogoutModalVisible(false)}
-              >
-                <Text className="text-gray-300 font-medium">Cancel</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                className="flex-1 bg-[#D32F2F] py-3 rounded-full ml-2 items-center shadow-md shadow-red-900/50"
+                className="w-full bg-[#D32F2F] py-3.5 rounded-full items-center mb-3"
+                activeOpacity={0.85}
                 onPress={() => {
                   setIsLogoutModalVisible(false);
                   authService.handleLogout(dispatch);
                 }}
               >
-                <Text className="text-white font-medium">Yes</Text>
+                <Text className="text-white font-bold text-[15px]">Log out</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                className="w-full py-3.5 rounded-full items-center border border-[#3A144E]"
+                activeOpacity={0.85}
+                onPress={() => setIsLogoutModalVisible(false)}
+              >
+                <Text className="text-[#C9B8E0] font-semibold text-[15px]">
+                  Stay signed in
+                </Text>
               </TouchableOpacity>
             </View>
-          </View>
-        </View>
+          </TouchableOpacity>
+        </TouchableOpacity>
       </Modal>
     </>
   );
