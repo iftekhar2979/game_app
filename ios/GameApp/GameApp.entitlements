@@ -3,16 +3,22 @@
 <plist version="1.0">
 <dict>
 	<!--
-	  Sign in with Apple. This file is not yet referenced by the Xcode project:
-	  open GameApp.xcodeproj, select the GameApp target, and add
-	  Signing & Capabilities -> + Capability -> "Sign in with Apple".
-	  Xcode will point CODE_SIGN_ENTITLEMENTS at this file and enable the
-	  capability on the App ID in your developer account, which is what actually
-	  authorises the entitlement.
+	  Sign in with Apple + Push Notifications. This file is now linked via
+	  CODE_SIGN_ENTITLEMENTS, but the entitlements themselves are only
+	  authorised once both capabilities are enabled on the App ID in your
+	  Apple Developer account (Certificates, Identifiers & Profiles, or via
+	  Xcode's Signing & Capabilities tab with a team selected, which syncs it
+	  for you). Without that, code signing will fail for a real device build.
+
+	  aps-environment is "development" here; Xcode rewrites it to
+	  "production" automatically when archiving for release with a
+	  distribution profile.
 	-->
 	<key>com.apple.developer.applesignin</key>
 	<array>
 		<string>Default</string>
 	</array>
+	<key>aps-environment</key>
+	<string>development</string>
 </dict>
 </plist>
