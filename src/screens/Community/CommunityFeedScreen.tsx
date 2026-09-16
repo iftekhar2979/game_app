@@ -3,12 +3,20 @@ import { FlatList, RefreshControl, Text, TouchableOpacity, View } from 'react-na
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { ChevronLeft, MessageSquareOff, PlusSquare, RotateCcw } from 'lucide-react-native';
+import {
+  ChevronLeft,
+  Clock3,
+  MessageSquareOff,
+  PlusSquare,
+  RotateCcw,
+  Shuffle,
+} from 'lucide-react-native';
 import { RootStackParamList } from '../../../App';
 import { PostCard } from '../../components/Community/PostCard';
 import { FeedFooterSkeleton, FeedSkeleton } from '../../components/Skeleton';
 import {
   CommunityPost,
+  FeedSort,
   ReactionType,
   useDeletePostMutation,
   useGetFeedQuery,
@@ -24,17 +32,23 @@ export default function CommunityFeedScreen() {
   const navigation = useNavigation<NavigationProp>();
 
   const [page, setPage] = useState(1);
-  // The shuffle seed doubles as the feed's pool anchor, so it is minted by the
+  // Newest first by default - a reader opening Community expects to land on
+  // what is new. The shuffled ordering stays one tap away for browsing past
+  // what chronology buries.
+  const [sort, setSort] = useState<FeedSort>('latest');
+  // The seed doubles as the feed's window anchor, so it is minted by the
   // server - never here. A device clock that disagrees with the server's would
-  // anchor the pool in the past and filter the whole feed away. Page 1 sends no
-  // seed (the server mints a fresh one, which reshuffles); later pages echo the
-  // one it returned, which holds the ordering steady while scrolling.
+  // anchor the window in the past and filter the whole feed away. Page 1 sends
+  // no seed (the server mints a fresh one, re-anchoring and, under `shuffle`,
+  // reordering); later pages echo the one it returned, which holds the list
+  // steady while scrolling.
   const [seed, setSeed] = useState<number | undefined>(undefined);
 
   const { data, isLoading, isFetching, isError, error, refetch } = useGetFeedQuery({
     page,
     limit: PAGE_SIZE,
     seed: page === 1 ? undefined : seed,
+    sort,
   });
 
   useEffect(() => {
@@ -60,6 +74,17 @@ export default function CommunityFeedScreen() {
   const handleEndReached = useCallback(() => {
     if (!isFetching && hasMore) setPage((current) => current + 1);
   }, [isFetching, hasMore]);
+
+  /**
+   * Switching ordering starts the list over: page 1 with no seed, so the
+   * server re-anchors. The two orderings are separate cache entries, so
+   * neither inherits the other's accumulated pages.
+   */
+  const handleToggleSort = useCallback(() => {
+    setSort((current) => (current === 'latest' ? 'shuffle' : 'latest'));
+    setPage(1);
+    setSeed(undefined);
+  }, []);
 
   const handleReact = useCallback(
     async (post: CommunityPost, type: ReactionType) => {
@@ -138,6 +163,24 @@ export default function CommunityFeedScreen() {
           <ChevronLeft color="#fff" size={24} />
         </TouchableOpacity>
         <Text className="text-white text-[20px] font-bold">Community</Text>
+
+        <TouchableOpacity
+          className="ml-auto flex-row items-center px-3 py-2 rounded-2xl border border-[#333]"
+          onPress={handleToggleSort}
+          accessibilityRole="button"
+          accessibilityLabel={
+            sort === 'latest' ? 'Showing newest first. Switch to shuffled' : 'Showing shuffled. Switch to newest first'
+          }
+        >
+          {sort === 'latest' ? (
+            <Clock3 color="#E0B566" size={14} />
+          ) : (
+            <Shuffle color="#E0B566" size={14} />
+          )}
+          <Text className="text-[#E0B566] text-[12px] font-semibold ml-1.5">
+            {sort === 'latest' ? 'Latest' : 'Shuffled'}
+          </Text>
+        </TouchableOpacity>
       </View>
 
       {isLoading && posts.length === 0 ? (
