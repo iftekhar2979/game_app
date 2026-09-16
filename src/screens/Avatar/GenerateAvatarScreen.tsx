@@ -1449,9 +1449,21 @@ const GenerateAvatarScreen = () => {
                 needsAvatarSetup: false,
               });
 
-              await authService.handleAvatarSetupCompleted(dispatch as any);
+              const destination = await authService.handleAvatarSetupCompleted(
+                dispatch as any,
+              );
 
               showToast.success('Avatar created successfully');
+
+              // A missing session already dispatched `logout()`, which swaps
+              // the whole navigator tree over to the signed-out stack - this
+              // screen is about to unmount. Navigating on it after that would
+              // either target a route that no longer exists on this navigator
+              // or silently no-op, which is what looked like "nothing
+              // happens" after tapping Create avatar.
+              if (destination === 'signIn') {
+                return;
+              }
 
               const returnTo = route.params?.returnTo;
               if (
