@@ -111,7 +111,6 @@ export const baseApi = createApi({
     'Draft',
     'Roster',
     'Matchup',
-    'Social',
     'Avatar',
     'AvatarAsset',
     'DfsContest',

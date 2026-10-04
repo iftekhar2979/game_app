@@ -28,15 +28,11 @@ import LeagueDetailScreen from './src/screens/Home/LeagueDetailScreen';
 import LeagueChatScreen from './src/screens/Home/LeagueChatScreen';
 import DraftRoomScreen from './src/screens/Home/DraftRoomScreen';
 import TeamRosterScreen from './src/screens/Home/TeamRosterScreen';
-import CommunityFeedScreen from './src/screens/Community/CommunityFeedScreen';
-import CreatePostScreen from './src/screens/Community/CreatePostScreen';
-import PostDetailsScreen from './src/screens/Community/PostDetailsScreen';
 import ProfileScreen from './src/screens/Profile/ProfileScreen';
 import { Provider, useDispatch, useSelector } from 'react-redux';
 import { store, RootState } from './src/store';
 import CoinStoreScreen from './src/screens/Profile/CoinStoreScreen';
 import WalletScreen from './src/screens/Profile/WalletScreen';
-import AllPostsScreen from './src/screens/Profile/AllPostsScreen';
 import EditProfileScreen from './src/screens/Profile/EditProfileScreen';
 import OrganizationPickerScreen from './src/screens/Profile/OrganizationPickerScreen';
 import StatePickerScreen from './src/screens/Profile/StatePickerScreen';
@@ -106,13 +102,9 @@ export type RootStackParamList = {
   LeagueChat: { leagueId: string; leagueName?: string };
   DraftRoom: { leagueId: string };
   TeamRoster: { leagueId: string; teamId: string; teamName?: string };
-  Community: undefined;
-  CreatePost: undefined;
-  PostDetails: { postId: string };
   Profile: undefined;
   CoinStore: undefined;
   Wallet: undefined;
-  AllPosts: undefined;
   EditProfile: undefined;
   /**
    * Choosing a favourite gym or team. One screen for both, so `field` says
@@ -257,13 +249,9 @@ function AppContent() {
             <Stack.Screen name="LeagueChat" component={LeagueChatScreen} />
             <Stack.Screen name="DraftRoom" component={DraftRoomScreen} />
             <Stack.Screen name="TeamRoster" component={TeamRosterScreen} />
-            <Stack.Screen name="Community" component={CommunityFeedScreen} />
-            <Stack.Screen name="CreatePost" component={CreatePostScreen} />
-            <Stack.Screen name="PostDetails" component={PostDetailsScreen} />
             <Stack.Screen name="Profile" component={ProfileScreen} />
             <Stack.Screen name="CoinStore" component={CoinStoreScreen} />
             <Stack.Screen name="Wallet" component={WalletScreen} />
-            <Stack.Screen name="AllPosts" component={AllPostsScreen} />
             <Stack.Screen name="EditProfile" component={EditProfileScreen} />
             <Stack.Screen
               name="OrganizationPicker"

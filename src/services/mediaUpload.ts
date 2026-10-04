@@ -3,8 +3,7 @@
  *
  * The presign itself comes from the `getPreSignedUrl` RTK Query endpoint that
  * already backs avatar and league-logo uploads; this module only owns the PUT
- * and the fan-out over several files, so multi-image posts do not need a second
- * upload mechanism.
+ * for avatar, league-logo and league-chat images.
  */
 
 export interface PickedImage {
@@ -31,7 +30,7 @@ const EXTENSION_BY_MIME: Record<string, string> = {
 function buildFileName(image: PickedImage, index: number): string {
   if (image.fileName) return image.fileName;
   const extension = EXTENSION_BY_MIME[image.type || ''] || 'jpg';
-  return `community_${Date.now()}_${index}.${extension}`;
+  return `upload_${Date.now()}_${index}.${extension}`;
 }
 
 /**
@@ -44,7 +43,7 @@ export async function uploadImage(
   image: PickedImage,
   presign: PresignTrigger,
   index = 0,
-  primaryPath = 'Community_Posts',
+  primaryPath = 'Uploads',
 ): Promise<string> {
   const fileName = buildFileName(image, index);
 
@@ -65,20 +64,4 @@ export async function uploadImage(
   }
 
   return key;
-}
-
-/**
- * Uploads every picked image, preserving order.
- *
- * Uploads run in parallel because each one is an independent PUT to S3, but a
- * single failure rejects the whole batch — a post referencing a half-uploaded
- * gallery would render with broken images.
- */
-export async function uploadImages(
-  images: PickedImage[],
-  presign: PresignTrigger,
-  primaryPath = 'Community_Posts',
-): Promise<string[]> {
-  if (!images.length) return [];
-  return Promise.all(images.map((image, index) => uploadImage(image, presign, index, primaryPath)));
 }

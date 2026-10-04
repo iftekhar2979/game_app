@@ -8,7 +8,6 @@ import {
   SkeletonRegion,
   SkeletonText,
 } from '../src/components/Skeleton/Skeleton';
-import { PostCardSkeleton } from '../src/components/Skeleton/PostCardSkeleton';
 import {
   LeagueChatSkeleton,
   LeagueDetailSkeleton,
@@ -243,43 +242,6 @@ describe('a skeleton region', () => {
     expect(region.props.accessible).toBe(true);
     expect(region.props.accessibilityLabel).toBe('Loading posts');
     expect(region.props.accessibilityState).toEqual({ busy: true });
-  });
-});
-
-describe('the feed card placeholder', () => {
-  /**
-   * These numbers are the promise a skeleton makes. `PostCard` lays out a 36px
-   * author avatar and a 300px image, and if the placeholder disagrees the page
-   * jumps the moment the real card arrives - which is worse than the spinner
-   * this replaced.
-   */
-  const sizesIn = (tree: TestRenderer.ReactTestRenderer) =>
-    tree.root.findAllByType(View).map((view) => {
-      const style = Array.isArray(view.props.style)
-        ? Object.assign({}, ...view.props.style.filter(Boolean))
-        : view.props.style;
-      return style || {};
-    });
-
-  it('reserves the author avatar at the size the real one uses', () => {
-    const tree = render(<PostCardSkeleton />);
-
-    expect(
-      sizesIn(tree).some((s) => s.width === 36 && s.height === 36 && s.borderRadius === 18),
-    ).toBe(true);
-  });
-
-  it('reserves the image at the height the real one uses', () => {
-    const tree = render(<PostCardSkeleton />);
-
-    expect(sizesIn(tree).some((s) => s.height === 300)).toBe(true);
-  });
-
-  it('leaves the image slot out when told the post has none', () => {
-    // A 300px gap that never fills is a page that collapses on arrival.
-    const tree = render(<PostCardSkeleton withImage={false} />);
-
-    expect(sizesIn(tree).some((s) => s.height === 300)).toBe(false);
   });
 });
 

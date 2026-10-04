@@ -1,7 +1,8 @@
 import { Platform } from 'react-native';
 import Sound from 'react-native-sound';
 import { trigger } from 'react-native-haptic-feedback';
-import type { Feedback, HapticName, SoundName } from './reactionFeedback';
+type SoundName = 'chat_send' | 'chat_react';
+type HapticName = 'selection' | 'impactLight' | 'soft';
 
 /**
  * Small haptics and short sounds, fail-soft.
@@ -29,7 +30,7 @@ function prepareAudio() {
   audioReady = true;
   try {
     // iOS: "Ambient" obeys the silent switch and mixes with the user's music
-    // rather than pausing it. A reaction must not stop someone's playlist.
+    // rather than pausing it. Chat sounds must not stop someone's playlist.
     Sound.setCategory('Ambient', true);
   } catch {
     // Android has no audio session category.
@@ -67,12 +68,6 @@ function load(name: SoundName, playWhenReady = false): Sound | null {
 /** Load every sound up front so the first tap is not the one that waits. */
 export function preloadFeedbackSounds() {
   const all: SoundName[] = [
-    'reaction_like',
-    'reaction_love',
-    'reaction_haha',
-    'reaction_wow',
-    'reaction_cry',
-    'reaction_angry',
     'chat_send',
     'chat_react',
   ];
@@ -104,9 +99,4 @@ export function haptic(name: HapticName) {
   } catch {
     // Decoration only.
   }
-}
-
-export function giveFeedback(feedback: Feedback) {
-  haptic(feedback.haptic);
-  if (feedback.sound) playSound(feedback.sound);
 }

@@ -4,7 +4,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import OutlineButton from '../../components/Button/OutlineButton';
 import { ChevronLeft } from 'lucide-react-native';
 
-const { width, height } = Dimensions.get('window');
+const { height } = Dimensions.get('window');
 
 interface Props {
   onBack?: () => void;
@@ -88,7 +88,7 @@ const OnboardingScreen3 = ({ onBack }: Props) => {
       {/* Footer / Button Area */}
       <View className="w-full px-12 z-20" style={{ paddingBottom: Math.max(insets.bottom, 40) }}>
         <OutlineButton
-          title="Let's get start"
+          title="Let's get started"
           onPress={() => console.log('Finish onboarding')}
         />
       </View>
