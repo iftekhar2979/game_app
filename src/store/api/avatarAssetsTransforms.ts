@@ -3,7 +3,7 @@
  * translation into the model the pickers read.
  *
  * Kept free of any React Native or RTK Query import so it can be unit tested
- * directly, matching `socialTransforms.ts`.
+ * directly, so callers receive a consistent shape.
  */
 
 import { AvatarSlot } from '../../avatar/types';

@@ -141,8 +141,8 @@ const OnboardingCarousel = () => {
             resizeMode="contain"
           />
           <View className="w-full px-6 z-10 mt-16">
-            <Text className="text-3xl text-textPrimary font-light">Start with</Text>
-            <Text className="text-6xl text-textPrimary font-extrabold mt-1 tracking-tight">CheerBattle</Text>
+            <Text className="text-3xl text-textPrimary font-light">Meet Pokémon</Text>
+            <Text className="text-6xl text-textPrimary font-extrabold mt-1 tracking-tight">Charizard</Text>
           </View>
           <View
             style={{
@@ -228,7 +228,7 @@ const OnboardingCarousel = () => {
           </View>
           <View className="w-full px-12 z-20" style={{ paddingBottom: Math.max(insets.bottom, 40) }}>
             <OutlineButton
-              title="Let's get start"
+              title="Let's get started"
               onPress={() => navigation.replace('SignIn')}
             />
           </View>
@@ -281,7 +281,7 @@ const OnboardingCarousel = () => {
                 could never reach Sign in, and so never reach Forgot password.
               */}
               <OutlineButton
-                title="Let's get start"
+                title="Let's get started"
                 onPress={finishOnboarding}
               />
             </View>

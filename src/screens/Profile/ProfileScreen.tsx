@@ -6,7 +6,6 @@ import {
   ScrollView,
   ImageBackground,
   RefreshControl,
-  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import {
@@ -19,7 +18,6 @@ import {
   Trophy,
   Medal,
   BarChart3,
-  Plus,
 } from 'lucide-react-native';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -28,15 +26,7 @@ import { useSelector, useDispatch } from 'react-redux';
 import { RootState } from '../../store';
 import { useGetMeQuery } from '../../store/api/usersApi';
 import { baseApi } from '../../store/api/baseApi';
-import {
-  ReactionType,
-  useGetFeedQuery,
-  useReactMutation,
-  useDeletePostMutation,
-} from '../../store/api/socialApi';
-import { PostCard } from '../../components/Community/PostCard';
 import Avatar from '../../components/common/Avatar';
-import { showToast } from '../../utils/toast';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
@@ -46,17 +36,8 @@ export default function ProfileScreen() {
   const user = useSelector((state: RootState) => state.auth.user as any);
   // The server is the source of truth for your own avatar and profile data.
   const { data: me, refetch: refetchMe } = useGetMeQuery();
-  const {
-    data: feedData,
-    isLoading: isLoadingPosts,
-    refetch: refetchPosts,
-  } = useGetFeedQuery({ mine: true, page: 1, limit: 3 });
-  const [react] = useReactMutation();
-  const [deletePost] = useDeletePostMutation();
-
   const [refreshing, setRefreshing] = useState(false);
 
-  const myPosts = feedData?.posts ?? [];
   const userAvatarUri = me?.avatarUrl || user?.avatarUrl || null;
   const displayName =
     me?.fullName ||
@@ -104,31 +85,14 @@ export default function ProfileScreen() {
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
     try {
-      dispatch(baseApi.util.invalidateTags(['User', 'Avatar', 'Social']));
-      await Promise.all([refetchMe(), refetchPosts()]);
-    } catch (e) {
+      dispatch(baseApi.util.invalidateTags(['User', 'Avatar']));
+      await refetchMe();
+    } catch {
       // ignore
     } finally {
       setRefreshing(false);
     }
-  }, [dispatch, refetchMe, refetchPosts]);
-
-  const handleReact = async (postId: string, type: ReactionType) => {
-    try {
-      await react({ entityType: 'post', entityId: postId, type }).unwrap();
-    } catch (err: any) {
-      showToast.error('Could not save reaction', err?.data?.message);
-    }
-  };
-
-  const handleDeletePost = async (postId: string) => {
-    try {
-      await deletePost(postId).unwrap();
-      showToast.success('Success', 'Post deleted successfully');
-    } catch (err: any) {
-      showToast.error('Error', err?.data?.message || 'Could not delete post');
-    }
-  };
+  }, [dispatch, refetchMe]);
 
   return (
     <View className="flex-1 bg-black">
@@ -146,7 +110,7 @@ export default function ProfileScreen() {
         }
       >
         {/* Banner Section */}
-        <View className="relative w-full h-[200px]">
+        <View className="relative w-full h-[230px]">
           <ImageBackground
             source={require('../../assets/images/utils/image 75.png')}
             className="w-full h-full rounded-b-[40px] overflow-hidden opacity-90"
@@ -174,26 +138,26 @@ export default function ProfileScreen() {
           </SafeAreaView>
 
           {/* Avatar over the Banner edge */}
-          <View className="absolute -bottom-12 left-1/2 -ml-[50px] items-center justify-center z-10">
-            <View className="w-[100px] h-[100px] rounded-full border-[4px] border-black overflow-hidden relative">
-              <Avatar uri={userAvatarUri} name={displayName} size={96} />
+          <View className="absolute -bottom-20 left-1/2 -ml-[80px] items-center justify-center z-10">
+            <View className="w-[160px] h-[160px] rounded-full border-[4px] border-black overflow-hidden relative">
+              <Avatar uri={userAvatarUri} name={displayName} size={152} />
             </View>
             <TouchableOpacity
-              className="absolute bottom-1 right-1 w-7 h-7 bg-[#FFB84D] rounded-full justify-center items-center border-[2px] border-black"
+              className="absolute bottom-2 right-2 w-9 h-9 bg-[#FFB84D] rounded-full justify-center items-center border-[2px] border-black"
               onPress={() => navigation.navigate('EditProfile')}
             >
-              <Edit2 color="#000" size={12} />
+              <Edit2 color="#000" size={16} />
             </TouchableOpacity>
           </View>
         </View>
 
         {/* Profile Info */}
-        <View className="mt-16 items-center px-5">
-          <Text className="text-white text-[20px] font-bold mb-0.5 text-center">
+        <View className="mt-24 items-center px-5">
+          <Text className="text-white text-[28px] font-bold mb-1 text-center">
             {displayName}
           </Text>
           {username ? (
-            <Text className="text-[#FFB84D] text-[13px] font-medium mb-1">
+            <Text className="text-[#FFB84D] text-[17px] font-semibold mb-1">
               @{username}
             </Text>
           ) : null}
@@ -359,56 +323,6 @@ export default function ProfileScreen() {
           </View>
         </View>
 
-        {/* Posts Section */}
-        <View className="px-5">
-          <View className="flex-row justify-between items-center mb-4">
-            <Text className="text-white text-[18px] font-semibold">
-              My Posts
-            </Text>
-            <TouchableOpacity onPress={() => navigation.navigate('AllPosts')}>
-              <Text className="text-[#E0B566] text-[13px] font-medium">
-                See all
-              </Text>
-            </TouchableOpacity>
-          </View>
-
-          {isLoadingPosts ? (
-            <View className="py-8 items-center justify-center">
-              <ActivityIndicator size="small" color="#E0B566" />
-            </View>
-          ) : myPosts.length === 0 ? (
-            <View className="bg-[#121212] border border-[#222] rounded-2xl p-6 items-center justify-center mb-6">
-              <Text className="text-gray-400 text-sm text-center mb-4">
-                You haven't shared any community posts yet.
-              </Text>
-              <TouchableOpacity
-                className="bg-[#8B3DFF] px-4 py-2.5 rounded-xl flex-row items-center"
-                onPress={() => navigation.navigate('CreatePost')}
-                activeOpacity={0.85}
-              >
-                <Plus color="#fff" size={16} />
-                <Text className="text-white text-xs font-bold ml-1.5">
-                  Create First Post
-                </Text>
-              </TouchableOpacity>
-            </View>
-          ) : (
-            myPosts.map((post) => (
-              <PostCard
-                key={post.id}
-                post={post}
-                onReact={(type) => handleReact(post.id, type)}
-                onOpenComments={() =>
-                  navigation.navigate('PostDetails', { postId: post.id })
-                }
-                onPressImage={() =>
-                  navigation.navigate('PostDetails', { postId: post.id })
-                }
-                onDelete={() => handleDeletePost(post.id)}
-              />
-            ))
-          )}
-        </View>
       </ScrollView>
     </View>
   );

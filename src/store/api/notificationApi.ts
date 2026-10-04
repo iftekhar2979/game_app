@@ -54,6 +54,18 @@ export interface QueryNotificationsParams {
   category?: string;
 }
 
+/** Older servers may still return notifications about the retired public feed. */
+export function isCommunityNotification(item: NotificationItem): boolean {
+  const metadata = item.metadata;
+  return (
+    metadata?.screen === 'PostDetails' ||
+    metadata?.relatedType === 'post' ||
+    metadata?.relatedType === 'comment' ||
+    metadata?.reason?.startsWith('social_') === true ||
+    metadata?.deepLink?.startsWith('/community/posts/') === true
+  );
+}
+
 export const notificationApi = baseApi.injectEndpoints({
   overrideExisting: true,
   endpoints: (builder) => ({
@@ -85,7 +97,7 @@ export const notificationApi = baseApi.injectEndpoints({
             readAt: item.readAt,
             metadata: item.metadata || {},
           })
-        );
+        ).filter(item => !isCommunityNotification(item));
 
         const page = Number(rawPagination.page || 1);
         const totalPages = Number(rawPagination.totalPages || 1);

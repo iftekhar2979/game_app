@@ -40,12 +40,6 @@ const ROUTES: Record<string, (data: Record<string, string>) => PushRoute> = {
     data.relatedId
       ? { screen: 'DfsContestDetail', params: { contestId: data.relatedId } }
       : null,
-  PostDetails: data => {
-    const postId = postIdFrom(data);
-    // Without an id there is no post to open, so the list is the honest
-    // destination rather than a details screen that renders an error.
-    return postId ? { screen: 'PostDetails', params: { postId } } : null;
-  },
   LeagueDetail: data =>
     data.relatedId
       ? {
@@ -72,9 +66,7 @@ export function targetForMessage(
   const payload = Object.fromEntries(
     Object.entries(data ?? {}).filter(([, value]) => typeof value === 'string'),
   ) as Record<string, string>;
-  const screen =
-    payload.screen ||
-    (['post', 'comment'].includes(payload.relatedType) ? 'PostDetails' : '');
+  const screen = payload.screen || '';
   const build = Object.prototype.hasOwnProperty.call(ROUTES, screen)
     ? ROUTES[screen]
     : undefined;
@@ -83,24 +75,6 @@ export function targetForMessage(
   // Everything ends somewhere: an unmapped screen, a missing id, a payload with
   // no routing at all. The list is where the notification itself is.
   return target ?? { screen: NOTIFICATION_LIST_SCREEN };
-}
-
-/**
- * The post a social notification is about.
- *
- * `relatedId` is the entity that was reacted to, which for a comment is the
- * comment - not the post the screen needs. The deep link is the only field
- * that always carries the post id, so it is read first.
- */
-export function postIdFrom(data: Record<string, string>): string | null {
-  const fromLink = /\/community\/posts\/([^/?#]+)/.exec(data.deepLink ?? '');
-  if (fromLink) return fromLink[1];
-
-  // A reaction on a post: there the entity and the post are the same thing.
-  if ((!data.relatedType || data.relatedType === 'post') && data.relatedId)
-    return data.relatedId;
-
-  return null;
 }
 
 /**

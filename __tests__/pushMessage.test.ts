@@ -1,7 +1,6 @@
 import {
   NOTIFICATION_LIST_SCREEN,
   newDeviceId,
-  postIdFrom,
   shouldRegister,
   targetForMessage,
 } from '../src/notifications/pushMessage';
@@ -27,10 +26,7 @@ describe('routing a tap', () => {
     },
   );
 
-  it('accepts the minimal post and wallet payloads', () => {
-    expect(
-      targetForMessage({ screen: 'PostDetails', relatedId: 'post-1' }),
-    ).toEqual({ screen: 'PostDetails', params: { postId: 'post-1' } });
+  it('opens the wallet from a notification', () => {
     expect(targetForMessage({ screen: 'Wallet' })).toEqual({
       screen: 'Wallet',
     });
@@ -46,50 +42,16 @@ describe('routing a tap', () => {
     expect(targetForMessage({ screen: 'toString' })).toEqual({
       screen: 'Notification',
     });
-    expect(
-      targetForMessage({
-        screen: 'PostDetails',
-        relatedType: 'comment',
-        relatedId: 'comment-1',
-      }),
-    ).toEqual({ screen: 'Notification' });
-  });
-  it('opens the post a social notification is about', () => {
-    expect(
-      targetForMessage({
-        screen: 'PostDetails',
-        deepLink: '/community/posts/665f1d2c3b4a5e6f7001abcd',
-        relatedType: 'comment',
-        relatedId: 'the-comment-id',
-      }),
-    ).toEqual({
-      screen: 'PostDetails',
-      params: { postId: '665f1d2c3b4a5e6f7001abcd' },
+    expect(targetForMessage({ screen: 'PostDetails', relatedId: 'post-1' })).toEqual({
+      screen: NOTIFICATION_LIST_SCREEN,
     });
-  });
-
-  it('prefers the deep link over relatedId for a comment', () => {
-    // `relatedId` is the *comment*, and PostDetails needs the post. Using it
-    // would open a screen that fetches a post id that is not one.
-    const target = targetForMessage({
-      screen: 'PostDetails',
-      deepLink: '/community/posts/the-post',
-      relatedType: 'comment',
-      relatedId: 'the-comment',
+    expect(targetForMessage({ relatedType: 'comment', relatedId: 'comment-1' })).toEqual({
+      screen: NOTIFICATION_LIST_SCREEN,
     });
-
-    expect(target.params).toEqual({ postId: 'the-post' });
-  });
-
-  it('uses relatedId when the notification is about the post itself', () => {
-    expect(postIdFrom({ relatedType: 'post', relatedId: 'post-1' })).toBe(
-      'post-1',
-    );
   });
 
   it('falls back to the notification list when the id is missing', () => {
-    // A details screen with no id renders an error, which reads as the app
-    // having lost the notification. The list always has it.
+    // A removed screen should never receive navigation, even with an old push.
     expect(targetForMessage({ screen: 'PostDetails' })).toEqual({
       screen: NOTIFICATION_LIST_SCREEN,
     });
@@ -117,16 +79,6 @@ describe('routing a tap', () => {
     ).toEqual({ screen: 'LeagueChat', params: { leagueId: 'league-9' } });
   });
 
-  it('does not mistake a similar path for a post link', () => {
-    expect(postIdFrom({ deepLink: '/community/posts' })).toBeNull();
-    expect(postIdFrom({ deepLink: '/leagues/posts/abc' })).toBeNull();
-  });
-
-  it('stops the id at a query string', () => {
-    expect(postIdFrom({ deepLink: '/community/posts/abc?from=push' })).toBe(
-      'abc',
-    );
-  });
 });
 
 describe('the device id', () => {

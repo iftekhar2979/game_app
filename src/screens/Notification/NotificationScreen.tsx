@@ -6,7 +6,6 @@ import {
   FlatList,
   ActivityIndicator,
   RefreshControl,
-  Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import {
@@ -15,12 +14,9 @@ import {
   CheckCheck,
   MessageSquare,
   Sparkles,
-  Shield,
   Trophy,
   Megaphone,
-  Heart,
   ChevronRight,
-  Info,
 } from 'lucide-react-native';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -95,7 +91,7 @@ export default function NotificationScreen() {
     setPage(1);
     try {
       await refetch();
-    } catch (e) {
+    } catch {
       // ignore
     } finally {
       setRefreshing(false);
@@ -117,7 +113,7 @@ export default function NotificationScreen() {
         setAccumulatedItems((prev) =>
           prev.map((n) => (n._id === item._id ? { ...n, isRead: true } : n))
         );
-      } catch (e) {
+      } catch {
         // Continue navigation even if marking fails
       }
     }
@@ -133,7 +129,7 @@ export default function NotificationScreen() {
       await markAllAsRead().unwrap();
       setAccumulatedItems((prev) => prev.map((item) => ({ ...item, isRead: true })));
       showToast.success('Updated', 'All notifications marked as read');
-    } catch (e) {
+    } catch {
       showToast.error('Error', 'Failed to mark notifications as read');
     }
   };
@@ -154,17 +150,14 @@ export default function NotificationScreen() {
       if (diffDays === 1) return 'Yesterday';
       if (diffDays < 7) return `${diffDays}d ago`;
       return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
-    } catch (e) {
+    } catch {
       return '';
     }
   };
 
-  const getCategoryIcon = (category: string, reason?: string) => {
+  const getCategoryIcon = (category: string) => {
     switch (category?.toLowerCase()) {
       case 'social':
-        if (reason?.includes('reaction') || reason?.includes('like')) {
-          return <Heart color="#EC4899" size={18} />;
-        }
         return <MessageSquare color="#8B3DFF" size={18} />;
       case 'billing':
         return <Sparkles color="#E0B566" size={18} />;
@@ -200,7 +193,7 @@ export default function NotificationScreen() {
               isUnread ? 'bg-[#8B3DFF]/20' : 'bg-[#1E1E24]'
             }`}
           >
-            {getCategoryIcon(item.category, item.metadata?.reason)}
+            {getCategoryIcon(item.category)}
           </View>
 
           {/* Notification Content */}
@@ -379,7 +372,7 @@ export default function NotificationScreen() {
           <Text className="text-gray-500 text-[13px] text-center leading-5">
             {activeFilter === 'unread'
               ? 'You have caught up on all your latest updates and alerts.'
-              : 'When you receive comments, fantasy results, or announcements, they will show up here.'}
+              : 'When you receive fantasy results or announcements, they will show up here.'}
           </Text>
         </View>
       ) : (
