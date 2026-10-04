@@ -7,7 +7,7 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>en</string>
 	<key>CFBundleDisplayName</key>
-	<string>GameApp</string>
+	<string>CheerBattle</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
@@ -32,28 +32,11 @@
 				<string>com.googleusercontent.apps.58690558184-jj9sm9r3io9rruub7l4ubnumeatmni16</string>
 			</array>
 		</dict>
-		<dict>
-			<key>CFBundleURLName</key>
-			<string>facebook</string>
-			<key>CFBundleURLSchemes</key>
-			<array>
-				<string>fbFACEBOOK_APP_ID_HERE</string>
-			</array>
-		</dict>
 	</array>
 	<key>CFBundleVersion</key>
 	<string>$(CURRENT_PROJECT_VERSION)</string>
-	<key>FacebookAppID</key>
-	<string>FACEBOOK_APP_ID_HERE</string>
-	<key>FacebookClientToken</key>
-	<string>FACEBOOK_CLIENT_TOKEN_HERE</string>
-	<key>FacebookDisplayName</key>
-	<string>GameApp</string>
-	<key>LSApplicationQueriesSchemes</key>
-	<array>
-		<string>fbapi</string>
-		<string>fb-messenger-share-api</string>
-	</array>
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>NSAppTransportSecurity</key>
@@ -66,7 +49,9 @@
 	<key>NSCameraUsageDescription</key>
 	<string>CheerBattle uses the camera to scan a league's QR code so you can join it.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
-	<string></string>
+	<string>CheerBattle uses your location to discover nearby leagues, events, and competitions.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>CheerBattle needs access to your photo library to let you upload profile pictures, posts, and league images.</string>
 	<key>RCTNewArchEnabled</key>
 	<true/>
 	<key>UIApplicationSceneManifest</key>

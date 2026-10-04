@@ -1,13 +1,13 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
-  The launch screen is a plain black field, matching the first screen the app
-  renders (`bg-background`, #000000).
+  The launch screen is the CheerBattle splash artwork, full bleed.
 
-  iOS requires a launch screen - an app without one is letterboxed at a legacy
-  size - so the template's "GameApp" / "Powered by React Native" labels are
-  removed rather than the storyboard itself. Matching the app's own background
-  also removes the white flash that sat between the launch image and the first
-  frame of UI.
+  Pinned to the view's edges rather than the safe area, and scaled
+  `scaleAspectFill`, so it reaches under the status bar and home indicator on
+  every device. Aspect fill crops rather than letterboxes: the art is 852x1846,
+  and the alternative (`scaleAspectFit`) would leave bars on taller and shorter
+  handsets. The backing colour stays black so any sliver during rotation or on
+  an unusual aspect matches the artwork's own edges.
 -->
 <document type="com.apple.InterfaceBuilder3.CocoaTouch.Storyboard.XIB" version="3.0" toolsVersion="15702" targetRuntime="iOS.CocoaTouch" propertyAccessControl="none" useAutolayout="YES" launchScreen="YES" useTraitCollections="YES" useSafeAreas="YES" colorMatched="YES" initialViewController="01J-lp-oVM">
     <device id="retina4_7" orientation="portrait" appearance="light"/>
@@ -25,7 +25,18 @@
                     <view key="view" contentMode="scaleToFill" id="Ze5-6b-2t3">
                         <rect key="frame" x="0.0" y="0.0" width="375" height="667"/>
                         <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
+                        <subviews>
+                            <imageView clipsSubviews="YES" userInteractionEnabled="NO" contentMode="scaleAspectFill" horizontalHuggingPriority="251" verticalHuggingPriority="251" image="SplashScreen" translatesAutoresizingMaskIntoConstraints="NO" id="SpL-1m-g0a">
+                                <rect key="frame" x="0.0" y="0.0" width="375" height="667"/>
+                            </imageView>
+                        </subviews>
                         <color key="backgroundColor" red="0.0" green="0.0" blue="0.0" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
+                        <constraints>
+                            <constraint firstItem="SpL-1m-g0a" firstAttribute="top" secondItem="Ze5-6b-2t3" secondAttribute="top" id="spl-t0-p01"/>
+                            <constraint firstItem="SpL-1m-g0a" firstAttribute="leading" secondItem="Ze5-6b-2t3" secondAttribute="leading" id="spl-l0-e02"/>
+                            <constraint firstAttribute="trailing" secondItem="SpL-1m-g0a" secondAttribute="trailing" id="spl-t1-r03"/>
+                            <constraint firstAttribute="bottom" secondItem="SpL-1m-g0a" secondAttribute="bottom" id="spl-b0-t04"/>
+                        </constraints>
                         <viewLayoutGuide key="safeArea" id="Bcu-3y-fUS"/>
                     </view>
                 </viewController>
@@ -34,4 +45,7 @@
             <point key="canvasLocation" x="52.173913043478265" y="375"/>
         </scene>
     </scenes>
+    <resources>
+        <image name="SplashScreen" width="852" height="1846"/>
+    </resources>
 </document>

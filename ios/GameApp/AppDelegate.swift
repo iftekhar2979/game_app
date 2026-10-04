@@ -28,10 +28,14 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     reactNativeFactory = factory
     self.launchOptions = launchOptions
 
-    ApplicationDelegate.shared.application(
-      application,
-      didFinishLaunchingWithOptions: launchOptions
-    )
+    if let facebookAppId = Bundle.main.object(forInfoDictionaryKey: "FacebookAppID") as? String,
+       !facebookAppId.isEmpty,
+       facebookAppId != "FACEBOOK_APP_ID_HERE" {
+      ApplicationDelegate.shared.application(
+        application,
+        didFinishLaunchingWithOptions: launchOptions
+      )
+    }
 
     return true
   }
@@ -49,12 +53,18 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
       return true
     }
 
-    return ApplicationDelegate.shared.application(
-      app,
-      open: url,
-      sourceApplication: options[.sourceApplication] as? String,
-      annotation: options[.annotation]
-    )
+    if let facebookAppId = Bundle.main.object(forInfoDictionaryKey: "FacebookAppID") as? String,
+       !facebookAppId.isEmpty,
+       facebookAppId != "FACEBOOK_APP_ID_HERE" {
+      return ApplicationDelegate.shared.application(
+        app,
+        open: url,
+        sourceApplication: options[.sourceApplication] as? String,
+        annotation: options[.annotation]
+      )
+    }
+
+    return false
   }
 }
 

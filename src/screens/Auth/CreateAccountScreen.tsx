@@ -3,25 +3,26 @@ import { View, Text, TouchableOpacity, ScrollView, Animated } from 'react-native
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../../../App';
-import { ChevronLeft, User, Mail, Calendar, KeyRound, Check } from 'lucide-react-native';
-import DatePicker from 'react-native-date-picker';
+import { ChevronLeft, User, Mail, KeyRound, Check } from 'lucide-react-native';
 import AuthLayout from '../../components/Layout/AuthLayout';
 import { useDispatch } from 'react-redux';
 import AuthInput from '../../components/Input/AuthInput';
 import SocialAuthButtons from '../../components/Auth/SocialAuthButtons';
+import BirthDateGate from '../../components/Auth/BirthDateGate';
 import PrimaryButton from '../../components/Button/PrimaryButton';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useRegisterMutation } from '../../store/api/authApi';
 import { authService } from '../../services/authService';
+import { canCreateAccount } from '../../utils/ageGate';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList, 'CreateAccount'>;
 
 const signUpSchema = z.object({
   name: z.string().min(1, 'Name is required'),
   email: z.string().email('Invalid email address'),
-  dateOfBirth: z.string().min(1, 'Date of birth is required'),
+  dateOfBirth: z.string().refine(canCreateAccount, 'A parent or guardian must complete account setup for younger players'),
   password: z.string().min(6, 'Password must be at least 6 characters'),
   confirmPassword: z.string().min(6, 'Confirm password must be at least 6 characters'),
   terms: z.boolean().refine((val) => val === true, 'You must agree to the Terms of Services & Privacy Policy'),
@@ -36,11 +37,11 @@ const CreateAccountScreen = () => {
   const navigation = useNavigation<NavigationProp>();
   const dispatch = useDispatch();
   const [agreed, setAgreed] = useState(false);
+  const [ageVerifiedDate, setAgeVerifiedDate] = useState<string | null>(null);
 
   const [toastVisible, setToastVisible] = useState(false);
   const [toastMessage, setToastMessage] = useState({ title: '', message: '', type: 'error' });
   const fadeAnim = React.useRef(new Animated.Value(0)).current;
-  const [isCalendarVisible, setCalendarVisible] = useState(false);
 
   const showToast = (title: string, message: string, type: 'error' | 'success' = 'error') => {
     setToastMessage({ title, message, type });
@@ -78,6 +79,9 @@ const CreateAccountScreen = () => {
   const [register, { isLoading }] = useRegisterMutation();
 
   const onSubmit = async (data: SignUpFormValues) => {
+    if (!ageVerifiedDate || data.dateOfBirth !== ageVerifiedDate || !canCreateAccount(data.dateOfBirth)) {
+      return;
+    }
     try {
       const response = await register({
         fullName: data.name,
@@ -131,6 +135,12 @@ const CreateAccountScreen = () => {
           </Text>
         </View>
 
+        {!ageVerifiedDate ? (
+          <BirthDateGate onEligible={date => {
+            setValue('dateOfBirth', date, { shouldValidate: true });
+            setAgeVerifiedDate(date);
+          }} />
+        ) : <>
         {/* Form Inputs */}
         <View className="px-6 mb-2">
           <Controller
@@ -161,47 +171,6 @@ const CreateAccountScreen = () => {
                 keyboardType="email-address"
                 error={errors.email?.message}
               />
-            )}
-          />
-
-          <Controller
-            control={control}
-            name="dateOfBirth"
-            render={({ field: { onChange, value } }) => (
-              <View className="mb-4">
-                <TouchableOpacity
-                  activeOpacity={0.8}
-                  onPress={() => setCalendarVisible(true)}
-                  className={`flex-row items-center bg-black border ${errors.dateOfBirth ? 'border-red-500' : 'border-[#3A144E]'} rounded-xl px-4 py-4`}
-                >
-                  <View className="mr-3 opacity-60"><Calendar color="#A3A3A3" size={20} /></View>
-                  <Text className={`flex-1 text-base ${value ? 'text-white' : 'text-[#666666]'}`}>
-                    {value || 'Date of birth'}
-                  </Text>
-                </TouchableOpacity>
-                {!!errors.dateOfBirth && (
-                  <Text style={{ color: '#ef4444', fontSize: 14, marginTop: 4, marginLeft: 4 }}>
-                    {errors.dateOfBirth.message}
-                  </Text>
-                )}
-
-                <DatePicker
-                  modal
-                  open={isCalendarVisible}
-                  date={value ? new Date(value) : new Date(2000, 0, 1)}
-                  mode="date"
-                  maximumDate={new Date()}
-                  theme="dark"
-                  onConfirm={(date) => {
-                    setCalendarVisible(false);
-                    const dateStr = date.toISOString().split('T')[0];
-                    onChange(dateStr);
-                  }}
-                  onCancel={() => {
-                    setCalendarVisible(false);
-                  }}
-                />
-              </View>
             )}
           />
 
@@ -242,6 +211,8 @@ const CreateAccountScreen = () => {
         <SocialAuthButtons
           label="SignUp with Others"
           isTcPpAccepted={agreed}
+          dateOfBirth={ageVerifiedDate}
+          requireTermsAcceptance
           disabled={isLoading}
           onError={(title, message) => showToast(title, message, 'error')}
         />
@@ -280,6 +251,7 @@ const CreateAccountScreen = () => {
             </TouchableOpacity>
           </View>
         </View>
+        </>}
       </ScrollView>
 
       {/* Animated Validation Toast */}
@@ -313,4 +285,3 @@ const CreateAccountScreen = () => {
 };
 
 export default CreateAccountScreen;
-
