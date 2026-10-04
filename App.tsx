@@ -1,5 +1,6 @@
 import React, { useEffect } from 'react';
-import { StatusBar, useColorScheme } from 'react-native';
+import { StatusBar } from 'react-native';
+import { ThemeProvider, useTheme } from './src/theme/ThemeProvider';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { AppBootSkeleton } from './src/components/Skeleton';
 import { navigationRef } from './src/navigation/navigationRef';
@@ -140,7 +141,10 @@ export type RootStackParamList = {
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
 function AppContent() {
-  const isDarkMode = useColorScheme() === 'dark';
+  // The status bar follows the app's own appearance, not the OS's: with an
+  // explicit Light/Dark choice the two can disagree, and the OS reading would
+  // leave the bar unreadable against the app's own background.
+  const { statusBar } = useTheme();
   const dispatch = useDispatch();
   const {
     isAuthenticated,
@@ -173,11 +177,7 @@ function AppContent() {
 
   return (
     <SafeAreaProvider>
-      <StatusBar
-        barStyle={isDarkMode ? 'light-content' : 'dark-content'}
-        translucent
-        backgroundColor="transparent"
-      />
+      <StatusBar barStyle={statusBar} translucent backgroundColor="transparent" />
       <NavigationContainer
         ref={navigationRef}
         // A push that launched the app from cold computes its route before
@@ -327,7 +327,9 @@ function AppContent() {
 function App() {
   return (
     <Provider store={store}>
-      <AppContent />
+      <ThemeProvider>
+        <AppContent />
+      </ThemeProvider>
     </Provider>
   );
 }

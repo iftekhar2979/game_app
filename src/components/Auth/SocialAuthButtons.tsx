@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { ActivityIndicator, Text, TouchableOpacity, View } from 'react-native';
 import { useDispatch } from 'react-redux';
 import { AppleIcon, FacebookIcon, GoogleIcon } from '../Icons/SocialIcons';
-import { IS_APPLE_SIGN_IN_SUPPORTED } from '../../config';
+import { FACEBOOK_APP_ID, IS_APPLE_SIGN_IN_SUPPORTED } from '../../config';
 import {
   getSocialCredential,
   SocialProvider,
@@ -11,6 +11,8 @@ import {
 import { useSocialLoginMutation } from '../../store/api/authApi';
 import { authService } from '../../services/authService';
 import { AppDispatch } from '../../store';
+import BirthDateGate from './BirthDateGate';
+import { canCreateAccount } from '../../utils/ageGate';
 
 type SocialAuthButtonsProps = {
   /** Section heading above the divider, e.g. "SignUp with Others". */
@@ -20,6 +22,9 @@ type SocialAuthButtonsProps = {
    * The backend stores it verbatim, so pass the real checkbox state.
    */
   isTcPpAccepted?: boolean;
+  /** Email signup has already screened this birth date. */
+  dateOfBirth?: string;
+  requireTermsAcceptance?: boolean;
   /** Surfaces a failure to the host screen's toast. */
   onError: (title: string, message: string) => void;
   /** Blocks the buttons while the host screen is already submitting a form. */
@@ -70,24 +75,26 @@ const PROVIDERS: ProviderConfig[] = [
 const SocialAuthButtons = ({
   label,
   isTcPpAccepted,
+  dateOfBirth,
+  requireTermsAcceptance = false,
   onError,
   disabled,
 }: SocialAuthButtonsProps) => {
   const dispatch = useDispatch<AppDispatch>();
   const [socialLogin] = useSocialLoginMutation();
   const [pendingProvider, setPendingProvider] = useState<SocialProvider | null>(null);
+  const [ageGateProvider, setAgeGateProvider] = useState<SocialProvider | null>(null);
 
-  // Apple offers no native flow on Android, so the button is hidden rather
-  // than shown and failing on tap.
+  // Apple offers no native flow on Android; Facebook is hidden if not configured
+  // with a valid App ID in .env.
   const providers = PROVIDERS.filter(
-    (item) => item.provider !== 'apple' || IS_APPLE_SIGN_IN_SUPPORTED,
+    (item) =>
+      (item.provider !== 'apple' || IS_APPLE_SIGN_IN_SUPPORTED) &&
+      (item.provider !== 'facebook' || !!FACEBOOK_APP_ID),
   );
 
-  const handlePress = async (provider: SocialProvider) => {
-    if (pendingProvider || disabled) {
-      return;
-    }
-
+  const authenticate = async (provider: SocialProvider, birthDate: string) => {
+    if (!canCreateAccount(birthDate)) return;
     setPendingProvider(provider);
     try {
       const credential = await getSocialCredential(provider);
@@ -139,6 +146,19 @@ const SocialAuthButtons = ({
     }
   };
 
+  const handlePress = (provider: SocialProvider) => {
+    if (pendingProvider || disabled) return;
+    if (requireTermsAcceptance && !isTcPpAccepted) {
+      onError('Terms required', 'Please agree to the Terms of Service and Privacy Policy.');
+      return;
+    }
+    if (dateOfBirth) {
+      authenticate(provider, dateOfBirth);
+    } else {
+      setAgeGateProvider(provider);
+    }
+  };
+
   return (
     <View className="px-6 my-6">
       <View className="flex-row items-center">
@@ -179,6 +199,18 @@ const SocialAuthButtons = ({
           );
         })}
       </View>
+      {ageGateProvider && (
+        <View className="bg-[#160820] rounded-2xl py-4 mt-5">
+          <TouchableOpacity accessibilityRole="button" accessibilityLabel="Close date of birth" onPress={() => setAgeGateProvider(null)} className="self-end px-6 py-2">
+            <Text className="text-white text-base">Close</Text>
+          </TouchableOpacity>
+          <BirthDateGate key={ageGateProvider} onEligible={birthDate => {
+            const provider = ageGateProvider;
+            setAgeGateProvider(null);
+            authenticate(provider, birthDate);
+          }} />
+        </View>
+      )}
     </View>
   );
 };
