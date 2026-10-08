@@ -75,11 +75,9 @@ describe('fixed scoring architecture', () => {
     const owners = sourceFiles.filter(file => {
       const source = readCode(file);
       return (
-        source.includes('export const SCORE_BANDS') ||
-        source.includes('export const DIVISION_WIN_BONUSES') ||
-        source.includes('export const LAST_PLACE_PENALTIES') ||
         source.includes('export const HIT_ZERO_BONUS') ||
-        source.includes('export const GRAND_CHAMPION_BONUS')
+        source.includes('export const GRAND_CHAMPION_BONUS') ||
+        source.includes('export const FANTASY_SCORE_DIVISOR')
       );
     });
 

@@ -41,6 +41,7 @@ import {
 } from '../Skeleton';
 import { RosterSections } from './RosterPlayerRow';
 import { resolveDraftStartsAt } from './draftSchedule';
+import { FANTASY_MATCH_PERIODS, fantasyMatchLabel } from '../../constants/fantasyMatchCalendar';
 import {
   buildTeamAvatarLookup,
   formatFantasyPoints,
@@ -66,7 +67,7 @@ export const MatchupTab = ({
     uri: string;
     teamName: string;
   } | null>(null);
-  const weeks = Array.from({ length: 18 }, (_, i) => `Week ${i + 1}`);
+  const weeks = FANTASY_MATCH_PERIODS.map(period => `Week ${period.number}`);
 
   const activeWeekStr = selectedWeek || localWeek || defaultWeekStr;
   const selectedWeekNum =
@@ -149,16 +150,64 @@ export const MatchupTab = ({
     return (
       <View className="bg-[#1e1e1e] border border-[#333] rounded-[24px] p-6 mb-6 items-center justify-center">
         <Text className="text-white text-[15px] font-semibold mb-2">
-          No Matchup Scheduled
+          {selectedWeekNum === 11 ? 'Championship Weekend' : 'No Matchup Scheduled'}
         </Text>
         <Text className="text-gray-400 text-[12px] text-center mb-4">
-          No matchup has been generated or scheduled for this week yet.
+          {selectedWeekNum === 11
+            ? 'The top four regular-season managers compete for the highest championship score.'
+            : 'No matchup has been generated or scheduled for this match yet.'}
         </Text>
         <TouchableOpacity
           className="bg-[#8B3DFF] px-5 py-2.5 rounded-full"
           onPress={() => refetch()}
         >
           <Text className="text-white text-[13px] font-medium">Retry</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
+  if (matchupData.isChampionship) {
+    const finalists = matchupData.championship?.finalists ?? [];
+    const championId = matchupData.championship?.championFantasyTeamId;
+    return (
+      <View className="mb-6 bg-[#1e1e1e] border border-[#E0B566] rounded-[24px] p-5">
+        <Text className="text-[#E0B566] text-[18px] font-bold">
+          Championship Weekend
+        </Text>
+        <Text className="text-gray-400 text-[12px] mt-1 mb-4">
+          Mar 19–21 · The highest score among the top four managers wins.
+        </Text>
+        {finalists.length === 0 ? (
+          <Text className="text-gray-400 text-[13px] mb-4">
+            Finalists are set after Match 10.
+          </Text>
+        ) : (
+          finalists.map((finalist: any) => (
+            <View
+              key={finalist.fantasyTeamId}
+              className="flex-row items-center justify-between border-t border-[#333] py-3"
+            >
+              <View className="flex-1 mr-3">
+                <Text className="text-white font-semibold">
+                  {finalist.teamName}
+                </Text>
+                <Text className="text-gray-400 text-[11px]">
+                  Seed {finalist.seed}{championId === finalist.fantasyTeamId ? ' · Champion' : ''}
+                </Text>
+              </View>
+              <Text className="text-[#E0B566] font-bold">
+                {Number(finalist.score).toFixed(3)}
+              </Text>
+            </View>
+          ))
+        )}
+        <TouchableOpacity
+          accessibilityRole="button"
+          className="self-start mt-3"
+          onPress={() => changeWeek('Week 10')}
+        >
+          <Text className="text-[#E0B566] font-semibold">View Match 10</Text>
         </TouchableOpacity>
       </View>
     );
@@ -280,7 +329,7 @@ export const MatchupTab = ({
       <View className="flex-row justify-between items-center mb-4">
         <View className="flex-row items-center">
           <Text className="text-white text-[18px] font-semibold mr-2">
-            {activeWeekStr}
+            {fantasyMatchLabel(selectedWeekNum)}
           </Text>
           <View
             className={`px-2.5 py-0.5 rounded-full border ${matchupBadge.containerClass}`}
@@ -298,7 +347,7 @@ export const MatchupTab = ({
           onPress={() => setIsWeekModalVisible(true)}
         >
           <Text className="text-gray-400 text-[12px] mr-2">
-            {activeWeekStr}
+            {FANTASY_MATCH_PERIODS[selectedWeekNum - 1]?.dates}
           </Text>
           <Repeat color="#999" size={14} />
         </TouchableOpacity>
@@ -610,7 +659,10 @@ export const MatchupTab = ({
                         : 'text-white'
                     } text-[13px]`}
                   >
-                    {week}
+                    {fantasyMatchLabel(index + 1)}
+                  </Text>
+                  <Text className="text-gray-400 text-[9px] text-center px-1">
+                    {FANTASY_MATCH_PERIODS[index].dates}
                   </Text>
                 </TouchableOpacity>
               ))}
@@ -1509,7 +1561,7 @@ export const LeagueTab = ({ leagueId, userTeamId, league }: any) => {
                 >
                   <View className="flex-1">
                     <Text className="text-[#E0B566] text-[11px] font-bold uppercase mb-0.5">
-                      Week {matchup.weekNumber}
+                      {fantasyMatchLabel(matchup.weekNumber)}
                     </Text>
                     <Text className="text-white text-[14px] font-semibold">
                       vs {matchup.opponentTeamName}
