@@ -41,10 +41,7 @@ import {
 import type { DraftTypeValue } from '../../constants/draftTypes';
 import {
   buildMatchupSettings,
-  DEFAULT_MATCHUP_TIEBREAKER,
-  MATCHUP_TIEBREAKER_OPTIONS,
 } from '../../constants/matchupSettings';
-import type { MatchupTiebreaker } from '../../store/api/leagueApi';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
@@ -236,10 +233,6 @@ export default function CreateLeagueScreen() {
   const [maxTeams, setMaxTeams] = useState('10');
   const [visibility, setVisibility] = useState<'public' | 'private'>('public');
 
-  // Matchup Settings
-  const [matchupTiebreaker, setMatchupTiebreaker] =
-    useState<MatchupTiebreaker>(DEFAULT_MATCHUP_TIEBREAKER);
-
   // Draft Settings
   const [draftType, setDraftType] = useState<DraftTypeValue>('snake');
   const [startingBudget, setStartingBudget] = useState('200');
@@ -277,7 +270,7 @@ export default function CreateLeagueScreen() {
     return `${hours}:${minutes} ${ampm}`;
   };
 
-  const memberOptions = ['4', '6', '8', '10', '12', '14', '16', '18', '20'];
+  const memberOptions = ['6', '8', '10'];
   const draftTypeOptions = DRAFT_TYPE_OPTIONS;
 
   const [selectedSeasonId, setSelectedSeasonId] = useState<string>('');
@@ -457,7 +450,7 @@ export default function CreateLeagueScreen() {
         visibility,
         maxTeams: parseInt(maxTeams, 10),
         fantasyTeamName,
-        matchupSettings: buildMatchupSettings(matchupTiebreaker),
+        matchupSettings: buildMatchupSettings(),
         draftSettings: buildDraftSettings({
           type: draftType,
           startingBudget: parseInt(startingBudget, 10),
@@ -765,58 +758,11 @@ export default function CreateLeagueScreen() {
             </TouchableOpacity>
 
             <Text className="text-white font-bold text-lg mb-1">
-              Matchup Settings
+              Season Format
             </Text>
-            <Text className="text-[#999] text-xs mb-4">
-              Choose how tied head-to-head matchups are handled.
+            <Text className="text-[#999] text-xs mb-8">
+              Total points across 10 Matches decide the top 4 managers. The highest scorer on Championship Weekend wins.
             </Text>
-
-            <Text className="text-[#ccc] text-sm mb-2 ml-1">Tiebreaker</Text>
-            <View className="flex-row mb-8">
-              {MATCHUP_TIEBREAKER_OPTIONS.map((option, index) => {
-                const isSelected = matchupTiebreaker === option.value;
-                return (
-                  <TouchableOpacity
-                    key={option.value}
-                    testID={`matchup-tiebreaker-${option.value}`}
-                    accessibilityRole="radio"
-                    accessibilityLabel={`${option.label}. ${option.description}`}
-                    accessibilityState={{ checked: isSelected }}
-                    className={`flex-1 min-h-[104px] rounded-2xl border p-3.5 ${
-                      index === 0 ? 'mr-2' : 'ml-2'
-                    } ${
-                      isSelected
-                        ? 'border-[#B366FF] bg-[#8B3DFF]/20'
-                        : 'border-[#333] bg-[#0a0a0a]'
-                    }`}
-                    activeOpacity={0.8}
-                    onPress={() => setMatchupTiebreaker(option.value)}
-                  >
-                    <View className="flex-row items-center mb-2">
-                      <View
-                        className={`w-4 h-4 rounded-full border items-center justify-center mr-2 ${
-                          isSelected ? 'border-[#B366FF]' : 'border-[#666]'
-                        }`}
-                      >
-                        {isSelected && (
-                          <View className="w-2 h-2 rounded-full bg-[#B366FF]" />
-                        )}
-                      </View>
-                      <Text
-                        className={`text-sm font-semibold ${
-                          isSelected ? 'text-[#B366FF]' : 'text-white'
-                        }`}
-                      >
-                        {option.label}
-                      </Text>
-                    </View>
-                    <Text className="text-[#999] text-[11px] leading-4">
-                      {option.description}
-                    </Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
 
             <Text className="text-white font-bold text-lg mb-4">
               Draft Settings

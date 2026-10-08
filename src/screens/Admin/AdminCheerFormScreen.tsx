@@ -525,10 +525,7 @@ export default function AdminCheerFormScreen({ navigation, route }: Props) {
         calculateCheerFantasyPoints({
           officialScore,
           otherTeamsInDivision,
-          wonDivision: placement === 1,
-          finishedLast:
-            otherTeamsInDivision >= 2 &&
-            placement === otherTeamsInDivision + 1,
+          placement,
           hitZero: totalDeductions === 0,
           grandChampion: form.grandChampion === 'yes',
         });
@@ -607,9 +604,7 @@ export default function AdminCheerFormScreen({ navigation, route }: Props) {
       return calculateCheerFantasyPoints({
         officialScore,
         otherTeamsInDivision,
-        wonDivision: placement === 1,
-        finishedLast:
-          otherTeamsInDivision >= 2 && placement === otherTeamsInDivision + 1,
+        placement,
         hitZero: (Number(form.deductionPoints) || 0) === 0,
         grandChampion: form.grandChampion === 'yes',
       });
@@ -967,7 +962,7 @@ export default function AdminCheerFormScreen({ navigation, route }: Props) {
                   {scorePreview.totalPoints} pts
                 </Text>
                 <Text className="text-gray-500 text-xs mt-2">
-                  Score {scorePreview.scorePoints} · division result{' '}
+                  Event score {scorePreview.scorePoints} · teams beaten{' '}
                   {scorePreview.divisionResultPoints} · hit zero{' '}
                   {scorePreview.hitZeroPoints} · grand champion{' '}
                   {scorePreview.grandChampionPoints}

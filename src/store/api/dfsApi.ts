@@ -91,6 +91,8 @@ export interface DfsEntry {
   userId: string;
   lineup: DfsEntryLineupItem[];
   totalSalaryUsed: number;
+  totalFantasyPoints?: number;
+  rank?: number | null;
   status: string;
   updatedAt?: string;
 }

@@ -617,7 +617,7 @@ export default function AdminCheerScreen() {
               </View>
               {performance.fantasyPreview && (
                 <Text className="text-gray-600 text-[10px] mt-1 text-right">
-                  Score {performance.fantasyPreview.scorePoints} · division{' '}
+                  Event score {performance.fantasyPreview.scorePoints} · teams beaten{' '}
                   {performance.fantasyPreview.divisionResultPoints} · hit zero{' '}
                   {performance.fantasyPreview.hitZeroPoints} · champion{' '}
                   {performance.fantasyPreview.grandChampionPoints}

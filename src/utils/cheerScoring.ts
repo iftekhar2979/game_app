@@ -4,55 +4,21 @@ export const CHEER_DIVISIONS = [
   { id: 'medium-large', code: 'MEDIUM_LARGE', name: 'Medium/Large' },
   { id: 'x-small-coed', code: 'X_SMALL_COED', name: 'X Small Coed' },
   { id: 'small-coed', code: 'SMALL_COED', name: 'Small Coed' },
-  {
-    id: 'medium-large-coed',
-    code: 'MEDIUM_LARGE_COED',
-    name: 'Medium Coed/Large Coed',
-  },
+  { id: 'medium-large-coed', code: 'MEDIUM_LARGE_COED', name: 'Medium Coed/Large Coed' },
   { id: 'non-tumbling', code: 'NON_TUMBLING', name: 'Non Tumbling' },
-  {
-    id: 'non-tumbling-coed',
-    code: 'NON_TUMBLING_COED',
-    name: 'Non Tumbling Coed',
-  },
+  { id: 'non-tumbling-coed', code: 'NON_TUMBLING_COED', name: 'Non Tumbling Coed' },
   { id: 'international', code: 'INTERNATIONAL', name: 'International' },
-  {
-    id: 'international-coed',
-    code: 'INTERNATIONAL_COED',
-    name: 'International Coed',
-  },
+  { id: 'international-coed', code: 'INTERNATIONAL_COED', name: 'International Coed' },
 ] as const;
 
-export const SCORE_BANDS = [
-  { minimum: 98.5, maximum: 100, points: 50 },
-  { minimum: 97, maximum: 98.5, points: 40 },
-  { minimum: 95.5, maximum: 97, points: 30 },
-  { minimum: 94, maximum: 95.5, points: 25 },
-  { minimum: 92, maximum: 94, points: 20 },
-  { minimum: 90, maximum: 92, points: 10 },
-  { minimum: 87.5, maximum: 90, points: -10 },
-  { minimum: 0, maximum: 87.5, points: -20 },
-] as const;
-
-export const DIVISION_WIN_BONUSES = [
-  { minimumOtherTeams: 1, maximumOtherTeams: 2, points: 10 },
-  { minimumOtherTeams: 3, maximumOtherTeams: 5, points: 20 },
-  { minimumOtherTeams: 6, maximumOtherTeams: null, points: 30 },
-] as const;
-
-export const LAST_PLACE_PENALTIES = [
-  { minimumOtherTeams: 2, maximumOtherTeams: 4, points: -15 },
-  { minimumOtherTeams: 5, maximumOtherTeams: null, points: -25 },
-] as const;
-
-export const HIT_ZERO_BONUS = 10;
-export const GRAND_CHAMPION_BONUS = 25;
+export const HIT_ZERO_BONUS = 1;
+export const GRAND_CHAMPION_BONUS = 10;
+export const FANTASY_SCORE_DIVISOR = 10;
 
 export interface CheerScoringInput {
   officialScore: number;
   otherTeamsInDivision?: number;
-  wonDivision?: boolean;
-  finishedLast?: boolean;
+  placement?: number;
   hitZero?: boolean;
   grandChampion?: boolean;
 }
@@ -75,89 +41,49 @@ export interface CheerPerformanceSummary {
   isGrandChampion?: boolean;
 }
 
-const pointsForOtherTeamCount = (
-  otherTeams: number,
-  rules: ReadonlyArray<{
-    minimumOtherTeams: number;
-    maximumOtherTeams: number | null;
-    points: number;
-  }>,
-) =>
-  rules.find(
-    rule =>
-      otherTeams >= rule.minimumOtherTeams &&
-      (rule.maximumOtherTeams === null || otherTeams <= rule.maximumOtherTeams),
-  )?.points ?? 0;
-
-export const getScoreBandPoints = (officialScore: number): number => {
-  if (
-    !Number.isFinite(officialScore) ||
-    officialScore < 0 ||
-    officialScore > 100
-  ) {
-    throw new Error('Official score must be between 0 and 100.');
-  }
-
-  // Bands are checked from highest to lowest. A shared boundary belongs to the
-  // higher band: 98.5 earns 50, 97 earns 40, and so on.
-  return (
-    SCORE_BANDS.find(band => officialScore >= band.minimum)?.points ??
-    SCORE_BANDS[SCORE_BANDS.length - 1].points
-  );
-};
-
 export const calculateCheerFantasyPoints = ({
   officialScore,
   otherTeamsInDivision = 0,
-  wonDivision = false,
-  finishedLast = false,
+  placement = 1,
   hitZero = false,
   grandChampion = false,
 }: CheerScoringInput): CheerScoringBreakdown => {
-  const normalizedOtherTeams = Math.max(0, Math.floor(otherTeamsInDivision));
-  const scorePoints = getScoreBandPoints(officialScore);
-  const divisionResultPoints = wonDivision
-    ? pointsForOtherTeamCount(normalizedOtherTeams, DIVISION_WIN_BONUSES)
-    : finishedLast
-    ? pointsForOtherTeamCount(normalizedOtherTeams, LAST_PLACE_PENALTIES)
-    : 0;
+  if (!Number.isFinite(officialScore) || officialScore < 0 || officialScore > 100) {
+    throw new Error('Official score must be between 0 and 100.');
+  }
+  const otherTeams = Math.max(0, Math.floor(otherTeamsInDivision));
+  const rank = Math.max(1, Math.floor(placement));
+  const scorePoints = officialScore;
+  const divisionResultPoints = Math.max(0, otherTeams - rank + 1);
   const hitZeroPoints = hitZero ? HIT_ZERO_BONUS : 0;
   const grandChampionPoints = grandChampion ? GRAND_CHAMPION_BONUS : 0;
-
   return {
     scorePoints,
     divisionResultPoints,
     hitZeroPoints,
     grandChampionPoints,
-    totalPoints:
-      scorePoints + divisionResultPoints + hitZeroPoints + grandChampionPoints,
+    totalPoints: Math.round(((scorePoints + divisionResultPoints + hitZeroPoints + grandChampionPoints) / FANTASY_SCORE_DIVISOR) * 1000) / 1000,
   };
 };
 
 export const getCheerPerformanceFantasyPreview = (
   performance: CheerPerformanceSummary,
 ): CheerScoringBreakdown | null => {
-  const officialScore = Number(
-    performance.finalScore ?? performance.officialScore,
-  );
-  if (!Number.isFinite(officialScore)) return null;
-
-  const placement = Math.max(1, Math.floor(Number(performance.placement) || 1));
-  const explicitOtherTeams = Number(performance.otherTeamsInDivision);
-  const divisionEntryCount = Number(performance.divisionEntryCount);
-  const otherTeamsInDivision = Number.isFinite(explicitOtherTeams)
-    ? Math.max(0, Math.floor(explicitOtherTeams))
-    : Number.isFinite(divisionEntryCount)
-      ? Math.max(0, Math.floor(divisionEntryCount) - 1)
+  const value = performance.finalScore ?? performance.officialScore;
+  if (value === null || value === undefined || value === '') return null;
+  const officialScore = Number(value);
+  const explicitOtherTeams = performance.otherTeamsInDivision;
+  const divisionEntryCount = performance.divisionEntryCount;
+  const otherTeamsInDivision = explicitOtherTeams !== null && explicitOtherTeams !== undefined
+    ? Number(explicitOtherTeams)
+    : divisionEntryCount !== null && divisionEntryCount !== undefined
+      ? Number(divisionEntryCount) - 1
       : 0;
-
   try {
     return calculateCheerFantasyPoints({
       officialScore,
       otherTeamsInDivision,
-      wonDivision: placement === 1,
-      finishedLast:
-        otherTeamsInDivision >= 2 && placement === otherTeamsInDivision + 1,
+      placement: Number(performance.placement ?? 1),
       hitZero: !!performance.isHitZero,
       grandChampion: !!performance.isGrandChampion,
     });

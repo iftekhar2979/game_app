@@ -53,6 +53,38 @@ describe('MatchupTab states', () => {
     mockUseGetLeagueMembersQuery.mockReturnValue({ data: undefined });
   });
 
+  it('shows the four championship scores and winner without a bye opponent', async () => {
+    mockUseGetCurrentMatchupQuery.mockReturnValue({
+      currentData: {
+        isChampionship: true,
+        championship: {
+          championFantasyTeamId: 'team-b',
+          finalists: [
+            { fantasyTeamId: 'team-b', teamName: 'Team B', seed: 2, score: 12.45 },
+            { fantasyTeamId: 'team-d', teamName: 'Team D', seed: 4, score: 11.32 },
+            { fantasyTeamId: 'team-a', teamName: 'Team A', seed: 1, score: 10.21 },
+            { fantasyTeamId: 'team-c', teamName: 'Team C', seed: 3, score: 9.8 },
+          ],
+        },
+      },
+      isLoading: false,
+      isFetching: false,
+      isError: false,
+      refetch: mockRefetch,
+    });
+    let renderer!: ReactTestRenderer.ReactTestRenderer;
+    await ReactTestRenderer.act(() => {
+      renderer = ReactTestRenderer.create(
+        <MatchupTab leagueId="league-1" league={{ ...league, currentWeek: 11 }} />,
+      );
+    });
+    const tree = renderedText(renderer);
+    expect(tree).toContain('Team B');
+    expect(tree).toContain('12.45');
+    expect(tree).toContain('Champion');
+    expect(tree).not.toContain('BYE WEEK');
+  });
+
   it('renders loading, API error, and empty matchup states distinctly', async () => {
     mockUseGetCurrentMatchupQuery.mockReturnValueOnce({
       currentData: undefined,

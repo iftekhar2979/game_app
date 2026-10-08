@@ -179,6 +179,11 @@ export default function DfsContestDetailScreen({ navigation, route }: Props) {
             <Text className="text-emerald-400 font-bold">
               Your lineup is saved!
             </Text>
+            {entryQuery.data?.rank != null && (
+              <Text className="text-white text-sm font-bold mt-2">
+                Fantasy score: {Number(entryQuery.data.totalFantasyPoints ?? 0).toFixed(2)} · Rank #{entryQuery.data.rank}
+              </Text>
+            )}
             <Text className="text-gray-300 text-xs mt-1">
               You can view it anytime and edit it before the contest starts.
             </Text>

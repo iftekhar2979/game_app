@@ -837,16 +837,12 @@ footer p{margin:0}
 
   <div class="tablewrap">
     <table>
-      <thead><tr><th>Reference &mdash; official score bands</th><th class="num">Points</th></tr></thead>
+      <thead><tr><th>Reference &mdash; fantasy score components</th><th class="num">Value</th></tr></thead>
       <tbody>
-        <tr><td>98.5 &ndash; 100</td><td class="num">+50</td></tr>
-        <tr><td>97 &ndash; 98.5</td><td class="num">+40</td></tr>
-        <tr><td>95.5 &ndash; 97</td><td class="num">+30</td></tr>
-        <tr><td>94 &ndash; 95.5</td><td class="num">+25</td></tr>
-        <tr><td>92 &ndash; 94</td><td class="num">+20</td></tr>
-        <tr><td>90 &ndash; 92</td><td class="num">+10</td></tr>
-        <tr><td>87.5 &ndash; 90</td><td class="num">&minus;10</td></tr>
-        <tr><td>below 87.5</td><td class="num">&minus;20</td></tr>
+        <tr><td>Event score</td><td class="num">Actual score</td></tr>
+        <tr><td>Zero deductions</td><td class="num">+1</td></tr>
+        <tr><td>Teams beaten in the division</td><td class="num">+1 each</td></tr>
+        <tr><td>Grand Champion</td><td class="num">+10</td></tr>
       </tbody>
     </table>
   </div>
@@ -860,27 +856,27 @@ footer p{margin:0}
     </div></div>
 
     <div class="case"><div class="cid">J02</div><div>
-      <h3>Bands match the source of truth<span class="p0">P0</span></h3>
+      <h3>Formula matches the source of truth<span class="p0">P0</span></h3>
       <p>Compare every row on screen to the table above.</p>
-      <div class="exp"><b>Expect</b>All eight bands present and contiguous, covering 0&ndash;100 with no gaps and no overlaps in the copy.</div>
+      <div class="exp"><b>Expect</b>Four components are shown, with their sum divided by 10 for both Fantasy Leagues and Daily Contests.</div>
     </div></div>
 
     <div class="case"><div class="cid">J03</div><div>
-      <h3>Boundary scores take the higher band<span class="p0">P0</span></h3>
-      <p>Have the admin submit results of exactly 98.5, exactly 90, and exactly 87.5.</p>
-      <div class="exp"><b>Expect</b>98.5 scores +50 not +40; 90 scores +10 not &minus;10; 87.5 scores &minus;10 not &minus;20.</div>
+      <h3>Client example calculates to 10.21<span class="p0">P0</span></h3>
+      <p>Submit an event score of 98.1, zero deductions, second place out of five, and no Grand Champion.</p>
+      <div class="exp"><b>Expect</b>(98.1 + 1 + 3 + 0) / 10 = 10.21.</div>
     </div></div>
 
     <div class="case"><div class="cid">J04</div><div>
-      <h3>Bonuses and deductions</h3>
-      <p>Check the bonus and deduction sections against the rules.</p>
-      <div class="exp"><b>Expect</b>Division wins +10 / +20 / +30 by field size; hit zero deductions +10; grand champion +25. Last place &minus;15 with 2&ndash;4 other teams and &minus;25 with 5 or more. Finishing second of two earns and loses nothing.</div>
+      <h3>Bonuses are applied consistently</h3>
+      <p>Check first, middle, and last place in a division and the Grand Champion flag.</p>
+      <div class="exp"><b>Expect</b>Each team placed below earns +1, zero deductions earns +1, and Grand Champion earns +10 before division by 10.</div>
     </div></div>
 
     <div class="case"><div class="cid">J05</div><div>
-      <h3>Win bonus and last-place penalty never stack<span class="p0">P0</span></h3>
-      <p>Score a division small enough that the same team could plausibly hit both branches.</p>
-      <div class="exp"><b>Expect</b>Exactly one applies and winning takes precedence. The total equals band + division result + hit zero + grand champion, with nothing double-counted.</div>
+      <h3>No placement tiers or last-place penalty<span class="p0">P0</span></h3>
+      <p>Score a five-team division at first, second, and fifth place.</p>
+      <div class="exp"><b>Expect</b>Teams beaten bonuses are +4, +3, and +0 respectively.</div>
     </div></div>
 
     <div class="case"><div class="cid">J06</div><div>
