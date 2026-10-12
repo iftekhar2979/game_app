@@ -6,7 +6,7 @@ import { ArtworkCatalogue, sourceForAsset, sourceForBase } from '../../avatar/as
 import ArtworkImage from '../Avatar/ArtworkImage';
 import { FULLBODY_STAGE_SCALE, getEyeSource } from '../../avatar/registry';
 import { baseOf, resolveConfig } from '../../avatar/resolveConfig';
-import { blinkOpacity, blinkSourcesFor } from '../../avatar/baseCatalogue';
+import { blinkSourcesFor, HALF_CLOSED_OPACITY } from '../../avatar/baseCatalogue';
 import { AvatarConfig, AvatarLayer, AvatarSlot } from '../../avatar/types';
 import { hexToTintMatrix } from '../../avatar/hairTint';
 import Avatar from './Avatar';
@@ -94,7 +94,11 @@ export default function AvatarPreview({
   fill = false,
 }: AvatarPreviewProps) {
   const layers = useMemo(() => resolveConfig(config, catalogue), [config, catalogue]);
-  const base = baseOf(config, catalogue);
+  // Memoised: `baseOf` builds a fresh object per call, and the animations
+  // below must not restart on every render. Each blink step re-renders, so an
+  // unstable base cancelled the blink midway and left the eyes half shut.
+  const base = useMemo(() => baseOf(config, catalogue), [config, catalogue]);
+  const hasBase = Boolean(base);
   // Null when this body does not blink at all, which is an admin's choice
   // rather than a missing asset.
   const blink = base ? blinkSourcesFor(base) : null;
@@ -119,45 +123,78 @@ export default function AvatarPreview({
     };
   }, [fill, usesSnapshot, fallbackUri]);
 
-  const [eyeState, setEyeState] = useState<'open' | 'half_closed' | 'closed'>('open');
+  /**
+   * The eyelid: 0 open, 1 half closed, 2 closed.
+   *
+   * Driven natively rather than through state. A state change per phase
+   * re-rendered every layer - the SVG-filtered hair included - four times per
+   * blink, and on a busy screen those renders outran the ~100ms phases, so
+   * frames were dropped and the eyes never quite shut or stuttered open.
+   */
+  const lid = useRef(new Animated.Value(0)).current;
   const breatheAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
-    if (!animated || !base) return;
+    if (!animated || !hasBase) return;
 
-    // Timeouts are tracked so a card scrolling out mid-blink cannot set state
-    // after unmount.
-    const pending: ReturnType<typeof setTimeout>[] = [];
-    const at = (ms: number, state: typeof eyeState) => {
-      pending.push(setTimeout(() => setEyeState(state), ms));
-    };
+    const blinkOnce = () =>
+      Animated.sequence([
+        Animated.timing(lid, {
+          toValue: 2,
+          duration: 90,
+          easing: Easing.in(Easing.quad),
+          useNativeDriver: true,
+        }),
+        Animated.delay(60),
+        Animated.timing(lid, {
+          toValue: 0,
+          duration: 140,
+          easing: Easing.out(Easing.quad),
+          useNativeDriver: true,
+        }),
+      ]);
 
     // Irregular gaps with the odd double blink: a metronome reads as robotic.
     let next: ReturnType<typeof setTimeout>;
-    const blinkOnce = (startMs: number) => {
-      at(startMs, 'half_closed');
-      at(startMs + 70, 'closed');
-      at(startMs + 190, 'half_closed');
-      at(startMs + 260, 'open');
-    };
+    let running: Animated.CompositeAnimation | null = null;
     const schedule = () => {
       next = setTimeout(() => {
-        pending.length = 0;
-        blinkOnce(0);
-        if (Math.random() < 0.2) blinkOnce(380);
-        schedule();
+        running =
+          Math.random() < 0.2
+            ? Animated.sequence([blinkOnce(), Animated.delay(120), blinkOnce()])
+            : blinkOnce();
+        running.start(schedule);
       }, 2500 + Math.random() * 3000);
     };
     schedule();
 
     return () => {
       clearTimeout(next);
-      pending.forEach(clearTimeout);
+      running?.stop();
+      // Never leave the eyes shut if this stops mid-blink.
+      lid.setValue(0);
     };
-  }, [animated, base]);
+  }, [animated, hasBase, lid]);
+
+  const halfLidOpacity = lid.interpolate({
+    inputRange: [0, 0.4, 1, 1.6, 2],
+    outputRange: [0, 1, 1, 0, 0],
+    extrapolate: 'clamp',
+  });
+  const closedLidOpacity = lid.interpolate({
+    inputRange: [1, 1.6, 2],
+    outputRange: [0, 1, 1],
+    extrapolate: 'clamp',
+  });
+  // One uploaded frame serves both phases, faded for the half; see blinkOpacity.
+  const singleLidOpacity = lid.interpolate({
+    inputRange: [0, 1, 2],
+    outputRange: [0, HALF_CLOSED_OPACITY, 1],
+    extrapolate: 'clamp',
+  });
 
   useEffect(() => {
-    if (!animated || !base) return;
+    if (!animated || !hasBase) return;
 
     const loop = Animated.loop(
       Animated.sequence([
@@ -179,7 +216,7 @@ export default function AvatarPreview({
     loop.start();
 
     return () => loop.stop();
-  }, [animated, base, breatheAnim]);
+  }, [animated, hasBase, breatheAnim]);
 
   /**
    * Nothing resolvable to draw: fall back to the snapshot, then to initials.
@@ -321,21 +358,21 @@ export default function AvatarPreview({
           blink.blink ? (
             /* One uploaded frame serves both closed phases, faded for the
                half - see blinkOpacity. */
-            <Image
+            <Animated.Image
               source={blink.blink}
-              style={[styles.layer, { opacity: blinkOpacity(eyeState) }]}
+              style={[styles.layer, { opacity: singleLidOpacity }]}
               resizeMode="contain"
             />
           ) : (
             <>
-              <Image
+              <Animated.Image
                 source={getEyeSource('half', base.target, base.id)}
-                style={[styles.layer, { opacity: eyeState === 'half_closed' ? 1 : 0 }]}
+                style={[styles.layer, { opacity: halfLidOpacity }]}
                 resizeMode="contain"
               />
-              <Image
+              <Animated.Image
                 source={getEyeSource('full', base.target, base.id)}
-                style={[styles.layer, { opacity: eyeState === 'closed' ? 1 : 0 }]}
+                style={[styles.layer, { opacity: closedLidOpacity }]}
                 resizeMode="contain"
               />
             </>
