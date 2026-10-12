@@ -1,9 +1,29 @@
 import { baseApi } from './baseApi';
-import {
-  buildCurrentMatchupRequest,
-  currentMatchupCacheKey,
-  type CurrentMatchupQueryArg,
-} from './matchupQuery';
+
+export interface SeasonMatch {
+  _id: string;
+  seasonId: string;
+  number: number;
+  phase: 'regular' | 'championship';
+  dateWindows: Array<{ startDate: string; endDate: string }>;
+}
+
+export interface LeagueMatchScoreEntry {
+  fantasyTeamId: string;
+  displayName: string;
+  points: number;
+  rank: number;
+  isCurrentUser: boolean;
+}
+
+export interface LeagueMatchScoresResponse {
+  leagueId: string;
+  seasonId: string;
+  matchNumber: number;
+  isCurrentMatch: boolean;
+  entries: LeagueMatchScoreEntry[];
+  me: Pick<LeagueMatchScoreEntry, 'fantasyTeamId' | 'points' | 'rank'> | null;
+}
 
 export interface AuctionDraftSettingsPayload {
   // Matches the server DraftType enum; only 'auction' is executable today.
@@ -119,10 +139,6 @@ export interface TeamRosterSummary {
   draftBudgetRemaining: number;
   faabBalance: number;
   totalPoints: number;
-  pointsAgainst: number;
-  wins: number;
-  losses: number;
-  ties: number;
   currentRank: number | null;
   waiverPriority: number | null;
 }
@@ -734,31 +750,43 @@ export const leagueApi = baseApi.injectEndpoints({
         'League',
       ],
     }),
-    getCurrentMatchup: builder.query<any, CurrentMatchupQueryArg>({
-      query: buildCurrentMatchupRequest,
-      serializeQueryArgs: ({ queryArgs }) => currentMatchupCacheKey(queryArgs),
-      transformResponse: (response: any) => {
-        return response?.data || response;
+    getSeasonMatches: builder.query<SeasonMatch[], string>({
+      query: seasonId => ({ url: `seasons/${seasonId}/matches` }),
+      transformResponse: (response: ApiResponse<SeasonMatch[]> | SeasonMatch[]) => {
+        const matches = Array.isArray(response) ? response : response.data;
+        if (!Array.isArray(matches)) {
+          throw new Error('Invalid season Matches response');
+        }
+        return matches;
       },
-      providesTags: (result, error, arg) => {
-        const leagueId = typeof arg === 'string' ? arg : arg.leagueId;
-        return [{ type: 'League', id: leagueId }, 'League'];
+      providesTags: (_result, _error, seasonId) => [
+        { type: 'Matchup', id: `season-${seasonId}` },
+      ],
+    }),
+    getLeagueMatchScores: builder.query<
+      LeagueMatchScoresResponse,
+      { leagueId: string; matchNumber: number }
+    >({
+      query: ({ leagueId, matchNumber }) => ({
+        url: `leagues/${leagueId}/matches/${matchNumber}/scores`,
+      }),
+      transformResponse: (
+        response: ApiResponse<LeagueMatchScoresResponse> | LeagueMatchScoresResponse,
+      ) => {
+        const scores = 'data' in response ? response.data : response;
+        if (!scores || !Array.isArray(scores.entries)) {
+          throw new Error('Invalid league Match scores response');
+        }
+        return scores;
       },
+      providesTags: (_result, _error, { leagueId, matchNumber }) => [
+        { type: 'Matchup', id: `${leagueId}-${matchNumber}` },
+        { type: 'League', id: leagueId },
+      ],
     }),
     getLeagueStandings: builder.query<any, string>({
       query: leagueId => ({
         url: `leagues/${leagueId}/standings`,
-      }),
-      transformResponse: (response: any) => {
-        return response?.data || response;
-      },
-      providesTags: (result, error, leagueId) => [
-        { type: 'League', id: leagueId },
-      ],
-    }),
-    getMatchupHistory: builder.query<any, string>({
-      query: leagueId => ({
-        url: `leagues/${leagueId}/matchups/history`,
       }),
       transformResponse: (response: any) => {
         return response?.data || response;
@@ -796,7 +824,7 @@ export const {
   useDraftPickMutation,
   useUpdateLineupMutation,
   useDropPlayerMutation,
-  useGetCurrentMatchupQuery,
+  useGetSeasonMatchesQuery,
+  useGetLeagueMatchScoresQuery,
   useGetLeagueStandingsQuery,
-  useGetMatchupHistoryQuery,
 } = leagueApi;

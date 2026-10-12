@@ -1,24 +1,19 @@
-import React, { useState } from 'react';
+import React from 'react';
 import {
   View,
   Text,
   Image,
   TouchableOpacity,
   ScrollView,
-  Modal,
   TextInput,
   Share,
 } from 'react-native';
 import {
-  Repeat,
   Plus,
   CalendarClock,
   Users,
   UserCheck,
   Shield,
-  Globe,
-  Lock,
-  Award,
   Settings,
   ChevronRight,
   Search,
@@ -27,13 +22,13 @@ import {
 } from 'lucide-react-native';
 
 import {
-  useGetCurrentMatchupQuery,
-  useGetLeagueMembersQuery,
+  useGetLeagueMatchScoresQuery,
   useGetLeagueStandingsQuery,
-  useGetMatchupHistoryQuery,
+  type LeagueMatchScoresResponse,
+  type SeasonMatch,
 } from '../../store/api/leagueApi';
 import {
-  MatchupTabSkeleton,
+  MatchScoresSkeleton,
   RosterSkeleton,
   StandingsSkeleton,
   TeamListFooterSkeleton,
@@ -41,104 +36,61 @@ import {
 } from '../Skeleton';
 import { RosterSections } from './RosterPlayerRow';
 import { resolveDraftStartsAt } from './draftSchedule';
-import { FANTASY_MATCH_PERIODS, fantasyMatchLabel } from '../../constants/fantasyMatchCalendar';
-import {
-  buildTeamAvatarLookup,
-  formatFantasyPoints,
-  formatGameStatus,
-  formatMatchupScore,
-  resolveTeamAvatarUri,
-} from './matchupDisplay';
 export { ScoringRulesTab } from '../Scoring/FixedScoringRules';
 
-export const MatchupTab = ({
+export const formatTotalPoints = (points: number) => points.toFixed(2);
+
+interface MatchTabProps {
+  leagueId: string;
+  matches: SeasonMatch[];
+  matchesLoading: boolean;
+  matchesError: boolean;
+  selectedMatchNumber: number | null;
+  onSelectMatch: (matchNumber: number) => void;
+  onRetryMatches: () => void;
+}
+
+export const MatchTab = ({
   leagueId,
-  league,
-  selectedWeek,
-  setSelectedWeek,
-}: any) => {
-  const isTotalPointsLeague =
-    league?.matchupSettings?.format === 'total_points';
-  const defaultWeekStr = `Week ${league?.currentWeek || 1}`;
-  const [localWeek, setLocalWeek] = useState<string | null>(null);
-  const [isWeekModalVisible, setIsWeekModalVisible] = useState(false);
-  // The avatar the viewer tapped, shown enlarged. Null closes the viewer.
-  const [previewedAvatar, setPreviewedAvatar] = useState<{
-    uri: string;
-    teamName: string;
-  } | null>(null);
-  const weeks = FANTASY_MATCH_PERIODS.map(period => `Week ${period.number}`);
-
-  const activeWeekStr = selectedWeek || localWeek || defaultWeekStr;
-  const selectedWeekNum =
-    parseInt(activeWeekStr.replace('Week ', ''), 10) ||
-    league?.currentWeek ||
-    1;
-
-  const changeWeek = (week: string) => {
-    if (setSelectedWeek) {
-      setSelectedWeek(week);
-    } else {
-      setLocalWeek(week);
-    }
-    setIsWeekModalVisible(false);
-  };
-
+  matches,
+  matchesLoading,
+  matchesError,
+  selectedMatchNumber,
+  onSelectMatch,
+  onRetryMatches,
+}: MatchTabProps) => {
   const {
-    currentData: matchupData,
-    isLoading,
-    isFetching,
-    isError,
-    refetch,
-  } = useGetCurrentMatchupQuery(
-    { leagueId, week: selectedWeekNum },
-    { skip: !leagueId || leagueId.startsWith('mock-') },
+    currentData: scores,
+    isLoading: scoresLoading,
+    isFetching: scoresFetching,
+    isError: scoresError,
+    refetch: refetchScores,
+  } = useGetLeagueMatchScoresQuery(
+    { leagueId, matchNumber: selectedMatchNumber ?? 0 },
+    { skip: !leagueId || !selectedMatchNumber || leagueId.startsWith('mock-') },
   );
 
-  // Shares the cache entry the league screen already populates, so this costs
-  // no extra request in practice.
-  const { data: membersData } = useGetLeagueMembersQuery(leagueId, {
-    skip: !leagueId || leagueId.startsWith('mock-'),
-  });
-  const teamAvatars = React.useMemo(
-    () => buildTeamAvatarLookup(membersData),
-    [membersData],
-  );
-
-  if ((isLoading || isFetching) && !matchupData) {
-    return <MatchupTabSkeleton />;
+  if (matchesLoading || ((scoresLoading || scoresFetching) && !scores)) {
+    return <MatchScoresSkeleton />;
   }
 
-  // A total-points league never schedules opponents, so an absent matchup is
-  // the expected state rather than a failure.
-  if (isTotalPointsLeague) {
+  if (matchesError || scoresError) {
     return (
-      <View className="bg-[#1e1e1e] border border-[#333] rounded-[24px] p-6 mb-6 items-center justify-center">
+      <View className="bg-[#1e1e1e] border border-[#333] rounded-[24px] p-6 mb-6 items-center">
         <Text className="text-white text-[15px] font-semibold mb-2">
-          Season Total Points
-        </Text>
-        <Text className="text-gray-400 text-[12px] text-center">
-          This league uses season totals instead of weekly opponents. Your
-          fantasy roster scores as its drafted cheer teams compete at real-world
-          events.
-        </Text>
-      </View>
-    );
-  }
-
-  if (isError) {
-    return (
-      <View className="bg-[#1e1e1e] border border-[#333] rounded-[24px] p-6 mb-6 items-center justify-center">
-        <Text className="text-white text-[15px] font-semibold mb-2">
-          Unable to Load Matchup
+          Unable to load Match scores
         </Text>
         <Text className="text-gray-400 text-[12px] text-center mb-4">
-          Could not connect to the server. Please check your connection and try
-          again.
+          Please check your connection and try again.
         </Text>
         <TouchableOpacity
+          accessibilityRole="button"
+          accessibilityLabel="Retry loading Match scores"
           className="bg-[#8B3DFF] px-5 py-2.5 rounded-full"
-          onPress={() => refetch()}
+          onPress={() => {
+            if (matchesError) onRetryMatches();
+            if (scoresError && selectedMatchNumber) refetchScores();
+          }}
         >
           <Text className="text-white text-[13px] font-medium">Retry</Text>
         </TouchableOpacity>
@@ -146,565 +98,126 @@ export const MatchupTab = ({
     );
   }
 
-  if (!matchupData) {
+  if (matches.length === 0 || selectedMatchNumber === null) {
     return (
-      <View className="bg-[#1e1e1e] border border-[#333] rounded-[24px] p-6 mb-6 items-center justify-center">
-        <Text className="text-white text-[15px] font-semibold mb-2">
-          {selectedWeekNum === 11 ? 'Championship Weekend' : 'No Matchup Scheduled'}
+      <View className="bg-[#1e1e1e] border border-[#333] rounded-[24px] p-6 mb-6 items-center">
+        <Text className="text-gray-400 text-[13px] text-center">
+          No Matches are available for this season yet.
         </Text>
-        <Text className="text-gray-400 text-[12px] text-center mb-4">
-          {selectedWeekNum === 11
-            ? 'The top four regular-season managers compete for the highest championship score.'
-            : 'No matchup has been generated or scheduled for this match yet.'}
-        </Text>
-        <TouchableOpacity
-          className="bg-[#8B3DFF] px-5 py-2.5 rounded-full"
-          onPress={() => refetch()}
-        >
-          <Text className="text-white text-[13px] font-medium">Retry</Text>
-        </TouchableOpacity>
       </View>
     );
   }
 
-  if (matchupData.isChampionship) {
-    const finalists = matchupData.championship?.finalists ?? [];
-    const championId = matchupData.championship?.championFantasyTeamId;
-    return (
-      <View className="mb-6 bg-[#1e1e1e] border border-[#E0B566] rounded-[24px] p-5">
-        <Text className="text-[#E0B566] text-[18px] font-bold">
-          Championship Weekend
+  if (!scores) {
+    return <MatchScoresSkeleton />;
+  }
+
+  const entries = scores.entries;
+  const allScoresZero = entries.length > 0 && entries.every(entry => entry.points === 0);
+
+  return (
+    <View className="mb-6 mt-2">
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        className="mb-5"
+        accessibilityLabel="Select a Match"
+      >
+        {matches.map(match => (
+          <TouchableOpacity
+            key={match._id || String(match.number)}
+            accessibilityRole="button"
+            accessibilityLabel={`Match ${match.number}`}
+            accessibilityState={{ selected: match.number === selectedMatchNumber }}
+            className={`px-4 py-2.5 rounded-xl border mr-2 ${
+              match.number === selectedMatchNumber
+                ? 'bg-[#8B3DFF]/20 border-[#8B3DFF]'
+                : 'bg-[#171717] border-[#333]'
+            }`}
+            onPress={() => onSelectMatch(match.number)}
+          >
+            <Text className={`text-[13px] font-semibold ${
+              match.number === selectedMatchNumber ? 'text-white' : 'text-gray-400'
+            }`}>
+              Match {match.number}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </ScrollView>
+
+      <View className="flex-row items-center mb-4">
+        <Text className="text-white text-[20px] font-bold mr-3">
+          Match {scores.matchNumber}
         </Text>
-        <Text className="text-gray-400 text-[12px] mt-1 mb-4">
-          Mar 19–21 · The highest score among the top four managers wins.
-        </Text>
-        {finalists.length === 0 ? (
-          <Text className="text-gray-400 text-[13px] mb-4">
-            Finalists are set after Match 10.
+        {scores.isCurrentMatch ? (
+          <View className="px-2.5 py-1 rounded-full border border-[#E0B566]/50 bg-[#E0B566]/15">
+            <Text className="text-[#E0B566] text-[10px] font-bold uppercase">
+              Current
+            </Text>
+          </View>
+        ) : null}
+      </View>
+
+      {scores.me ? (
+        <View className="bg-[#1e1e1e] border border-[#8B3DFF] rounded-[24px] p-5 mb-6">
+          <View className="flex-row justify-between items-center mb-3">
+            <Text className="text-gray-400 text-[13px]">My Score</Text>
+            <Text className="text-white text-[22px] font-extrabold">
+              {formatTotalPoints(scores.me.points)}
+            </Text>
+          </View>
+          <View className="flex-row justify-between items-center">
+            <Text className="text-gray-400 text-[13px]">My Rank</Text>
+            <Text className="text-[#E0B566] text-[18px] font-bold">
+              #{scores.me.rank} of {entries.length}
+            </Text>
+          </View>
+        </View>
+      ) : null}
+
+      <Text className="text-white text-[18px] font-bold mb-4">
+        League Match Scores
+      </Text>
+      <View className="bg-[#111] border border-[#222] rounded-[20px] p-3">
+        {entries.length === 0 ? (
+          <Text className="text-gray-400 text-[13px] text-center p-4">
+            No league Match scores are available yet.
           </Text>
         ) : (
-          finalists.map((finalist: any) => (
+          entries.map(entry => (
             <View
-              key={finalist.fantasyTeamId}
-              className="flex-row items-center justify-between border-t border-[#333] py-3"
+              key={entry.fantasyTeamId}
+              testID={`league-match-row-${entry.fantasyTeamId}`}
+              accessibilityState={{ selected: entry.isCurrentUser }}
+              className={`flex-row items-center p-3 rounded-[16px] mb-2 border ${
+                entry.isCurrentUser
+                  ? 'bg-[#8B3DFF]/20 border-[#8B3DFF]'
+                  : 'bg-[#181818] border-[#222]'
+              }`}
             >
-              <View className="flex-1 mr-3">
-                <Text className="text-white font-semibold">
-                  {finalist.teamName}
-                </Text>
-                <Text className="text-gray-400 text-[11px]">
-                  Seed {finalist.seed}{championId === finalist.fantasyTeamId ? ' · Champion' : ''}
-                </Text>
-              </View>
-              <Text className="text-[#E0B566] font-bold">
-                {Number(finalist.score).toFixed(3)}
+              <Text className="text-[#E0B566] text-[13px] font-bold w-9">
+                {entry.rank}
+              </Text>
+              <Text
+                className={`flex-1 text-[14px] font-semibold ${
+                  entry.isCurrentUser ? 'text-[#E0B566]' : 'text-white'
+                }`}
+                numberOfLines={1}
+              >
+                {entry.isCurrentUser ? 'You' : entry.displayName}
+              </Text>
+              <Text className="text-white text-[14px] font-bold ml-3">
+                {formatTotalPoints(entry.points)}
               </Text>
             </View>
           ))
         )}
-        <TouchableOpacity
-          accessibilityRole="button"
-          className="self-start mt-3"
-          onPress={() => changeWeek('Week 10')}
-        >
-          <Text className="text-[#E0B566] font-semibold">View Match 10</Text>
-        </TouchableOpacity>
-      </View>
-    );
-  }
-
-  const {
-    myTeam,
-    opponent,
-    result,
-    status: matchupStatus,
-    isByeWeek,
-  } = matchupData;
-
-  const getMatchupBadge = () => {
-    if (isByeWeek) {
-      return {
-        label: 'BYE WEEK',
-        containerClass: 'border-[#E0B566]/50 bg-[#E0B566]/15',
-        textClass: 'text-[#E0B566]',
-      };
-    }
-
-    const gameStatus = String(matchupStatus || '').toLowerCase();
-    const resStatus = String(result?.status || '').toLowerCase();
-
-    if (gameStatus === 'final') {
-      if (resStatus === 'winning') {
-        return {
-          label: 'FINAL • WON',
-          containerClass: 'border-emerald-400/50 bg-emerald-400/15',
-          textClass: 'text-emerald-400',
-        };
-      }
-      if (resStatus === 'losing') {
-        return {
-          label: 'FINAL • LOST',
-          containerClass: 'border-rose-400/50 bg-rose-400/15',
-          textClass: 'text-rose-400',
-        };
-      }
-      if (resStatus === 'tie') {
-        return {
-          label: 'FINAL • TIED',
-          containerClass: 'border-amber-400/50 bg-amber-400/15',
-          textClass: 'text-amber-400',
-        };
-      }
-      return {
-        label: 'FINAL',
-        containerClass: 'border-gray-500/50 bg-gray-500/15',
-        textClass: 'text-gray-300',
-      };
-    }
-
-    if (gameStatus === 'live') {
-      if (resStatus === 'winning') {
-        return {
-          label: 'LIVE • WINNING',
-          containerClass: 'border-emerald-400/50 bg-emerald-400/15',
-          textClass: 'text-emerald-400',
-        };
-      }
-      if (resStatus === 'losing') {
-        return {
-          label: 'LIVE • LOSING',
-          containerClass: 'border-rose-400/50 bg-rose-400/15',
-          textClass: 'text-rose-400',
-        };
-      }
-      if (resStatus === 'tie') {
-        return {
-          label: 'LIVE • TIED',
-          containerClass: 'border-amber-400/50 bg-amber-400/15',
-          textClass: 'text-amber-400',
-        };
-      }
-      return {
-        label: 'LIVE',
-        containerClass: 'border-emerald-400/50 bg-emerald-400/15',
-        textClass: 'text-emerald-400',
-      };
-    }
-
-    // Default / upcoming / pending
-    if (resStatus === 'winning') {
-      return {
-        label: 'WINNING',
-        containerClass: 'border-emerald-400/50 bg-emerald-400/15',
-        textClass: 'text-emerald-400',
-      };
-    }
-    if (resStatus === 'losing') {
-      return {
-        label: 'LOSING',
-        containerClass: 'border-rose-400/50 bg-rose-400/15',
-        textClass: 'text-rose-400',
-      };
-    }
-    if (resStatus === 'tie') {
-      return {
-        label: 'TIED',
-        containerClass: 'border-amber-400/50 bg-amber-400/15',
-        textClass: 'text-amber-400',
-      };
-    }
-
-    return {
-      label: 'UPCOMING',
-      containerClass: 'border-[#E0B566]/50 bg-[#E0B566]/15',
-      textClass: 'text-[#E0B566]',
-    };
-  };
-
-  const matchupBadge = getMatchupBadge();
-
-  return (
-    <View className="mb-4 mt-2">
-      {/* Matchups Header */}
-      <View className="flex-row justify-between items-center mb-4">
-        <View className="flex-row items-center">
-          <Text className="text-white text-[18px] font-semibold mr-2">
-            {fantasyMatchLabel(selectedWeekNum)}
+        {allScoresZero ? (
+          <Text className="text-gray-400 text-[12px] text-center px-3 pb-3">
+            Scores will appear once competition results are published.
           </Text>
-          <View
-            className={`px-2.5 py-0.5 rounded-full border ${matchupBadge.containerClass}`}
-          >
-            <Text
-              className={`text-[10px] font-bold uppercase tracking-wider ${matchupBadge.textClass}`}
-            >
-              {matchupBadge.label}
-            </Text>
-          </View>
-        </View>
-
-        <TouchableOpacity
-          className="flex-row items-center p-2"
-          onPress={() => setIsWeekModalVisible(true)}
-        >
-          <Text className="text-gray-400 text-[12px] mr-2">
-            {FANTASY_MATCH_PERIODS[selectedWeekNum - 1]?.dates}
-          </Text>
-          <Repeat color="#999" size={14} />
-        </TouchableOpacity>
+        ) : null}
       </View>
-
-      {/* Matchup Overview Card */}
-      <View className="border border-[#E0B566] rounded-[24px] mb-6 p-1 relative overflow-hidden bg-[#0d0d0d]">
-        <View className="flex-row">
-          {/* Left Team (My Team) */}
-          <View className="flex-1 border border-[#222] rounded-[20px] bg-[#141414] p-4 mr-0.5 items-center">
-            {resolveTeamAvatarUri(myTeam, teamAvatars) ? (
-              <TouchableOpacity
-                activeOpacity={0.8}
-                accessibilityRole="imagebutton"
-                accessibilityLabel={`View ${myTeam?.teamName || 'my team'} avatar`}
-                onPress={() =>
-                  setPreviewedAvatar({
-                    uri: resolveTeamAvatarUri(myTeam, teamAvatars) as string,
-                    teamName: myTeam?.teamName || 'My Team',
-                  })
-                }
-              >
-                <Image
-                  source={{ uri: resolveTeamAvatarUri(myTeam, teamAvatars) }}
-                  className="w-16 h-16 rounded-full mb-2 bg-[#222]"
-                />
-              </TouchableOpacity>
-            ) : (
-              <View className="w-16 h-16 rounded-full border border-[#8B3DFF] justify-center items-center bg-[#8B3DFF]/20 mb-2">
-                <Text className="text-[#8B3DFF] text-[11px] font-bold">MY</Text>
-              </View>
-            )}
-            <Text className="text-[#E0B566] text-[11px] font-medium mb-1 uppercase tracking-wider">
-              My Team
-            </Text>
-            <Text
-              className="text-white text-[14px] font-bold text-center mb-2"
-              numberOfLines={1}
-            >
-              {myTeam?.teamName || 'My Team'}
-            </Text>
-
-            <Text className="text-[#8B3DFF] text-[22px] font-extrabold">
-              {formatMatchupScore(myTeam?.score)}
-            </Text>
-            <Text className="text-gray-500 text-[9px] uppercase font-bold">
-              Points
-            </Text>
-          </View>
-
-          {/* Right Team (Opponent) */}
-          <View className="flex-1 border border-[#222] rounded-[20px] bg-[#141414] p-4 ml-0.5 items-center">
-            {resolveTeamAvatarUri(opponent, teamAvatars) ? (
-              <TouchableOpacity
-                activeOpacity={0.8}
-                accessibilityRole="imagebutton"
-                accessibilityLabel={`View ${
-                  opponent?.teamName || 'opponent'
-                } avatar`}
-                onPress={() =>
-                  setPreviewedAvatar({
-                    uri: resolveTeamAvatarUri(opponent, teamAvatars) as string,
-                    teamName: opponent?.teamName || 'Opponent',
-                  })
-                }
-              >
-                <Image
-                  source={{ uri: resolveTeamAvatarUri(opponent, teamAvatars) }}
-                  className="w-16 h-16 rounded-full mb-2 bg-[#222]"
-                />
-              </TouchableOpacity>
-            ) : (
-              <View className="w-16 h-16 rounded-full border border-gray-600 justify-center items-center bg-gray-800 mb-2">
-                <Text className="text-gray-300 text-[11px] font-bold">OPP</Text>
-              </View>
-            )}
-            <Text className="text-gray-400 text-[11px] font-medium mb-1 uppercase tracking-wider">
-              Opponent
-            </Text>
-            <Text
-              className="text-white text-[14px] font-bold text-center mb-2"
-              numberOfLines={1}
-            >
-              {opponent?.teamName || 'Opponent'}
-            </Text>
-
-            <Text className="text-gray-200 text-[22px] font-extrabold">
-              {formatMatchupScore(opponent?.score)}
-            </Text>
-            <Text className="text-gray-500 text-[9px] uppercase font-bold">
-              Points
-            </Text>
-          </View>
-        </View>
-
-        {/* VS Badge */}
-        <View className="absolute top-[40%] left-1/2 w-9 h-9 bg-[#E0B566] rounded-full justify-center items-center -ml-4.5 z-10 shadow-md">
-          <Text className="text-black text-[12px] font-extrabold">VS</Text>
-        </View>
-      </View>
-
-      {/* MY STARTERS SECTION */}
-      <View className="mb-6">
-        <Text className="text-white text-[16px] font-bold mb-3">
-          MY STARTING TEAMS{' '}
-          <Text className="text-gray-500 text-[13px]">
-            ({myTeam?.teamName})
-          </Text>
-        </Text>
-        <View className="bg-[#121212] border border-[#222] rounded-[20px] p-3">
-          {myTeam?.starters?.length > 0 ? (
-            myTeam.starters.map((starter: any, idx: number) => {
-              const squadName =
-                starter.name || starter.teamName || 'Cheer Team';
-              const orgName =
-                starter.organizationName || starter.realTeam || null;
-              const isOrgInName =
-                orgName &&
-                squadName.toLowerCase().includes(orgName.toLowerCase());
-              const displayTeamName = isOrgInName ? squadName : squadName;
-              const displayOrgName = isOrgInName ? null : orgName;
-
-              const divisionName =
-                starter.divisionName ||
-                starter.assignedDivisionName ||
-                starter.division ||
-                starter.assignedPosition;
-              const divisionCode =
-                starter.divisionCode ||
-                starter.assignedDivisionCode ||
-                (starter.positionCode && starter.positionCode !== 'CHEER'
-                  ? starter.positionCode
-                  : null);
-              const divisionDisplay = divisionName || divisionCode || null;
-
-              const location = starter.location || starter.country || null;
-              const subtitle = [displayOrgName, divisionDisplay, location]
-                .filter(Boolean)
-                .join(' • ');
-
-              return (
-                <View
-                  key={`${starter.seasonAthleteId || 'starter'}-${idx}`}
-                  className="flex-row items-center justify-between border-b border-[#222] py-2.5 last:border-b-0 px-1"
-                >
-                  <View className="flex-row items-center flex-1">
-                    <Image
-                      source={{
-                        uri:
-                          starter.photoUrl ||
-                          'https://i.pravatar.cc/150?img=11',
-                      }}
-                      className="w-10 h-10 rounded-2xl bg-[#222] mr-3"
-                    />
-                    <View className="flex-1">
-                      <Text
-                        className="text-white text-[13px] font-bold"
-                        numberOfLines={1}
-                      >
-                        {displayTeamName}
-                      </Text>
-                      <Text
-                        className="text-gray-400 text-[11px] mt-0.5"
-                        numberOfLines={1}
-                      >
-                        {subtitle || 'Cheer Team'}
-                      </Text>
-                    </View>
-                  </View>
-                  <View className="items-end ml-2">
-                    <Text className="text-[#E0B566] text-[13px] font-bold">
-                      {formatFantasyPoints(starter.fantasyPoints)}
-                    </Text>
-                    <Text className="text-gray-500 text-[9px] uppercase">
-                      {formatGameStatus(starter.gameStatus)}
-                    </Text>
-                  </View>
-                </View>
-              );
-            })
-          ) : (
-            <Text className="text-gray-500 text-[12px] p-2 text-center">
-              No starting teams assigned yet.
-            </Text>
-          )}
-        </View>
-      </View>
-
-      {/* OPPONENT STARTERS SECTION */}
-      <View className="mb-6">
-        <Text className="text-white text-[16px] font-bold mb-3">
-          OPPONENT STARTING TEAMS{' '}
-          <Text className="text-gray-500 text-[13px]">
-            ({opponent?.teamName})
-          </Text>
-        </Text>
-        <View className="bg-[#121212] border border-[#222] rounded-[20px] p-3">
-          {opponent?.starters?.length > 0 ? (
-            opponent.starters.map((starter: any, idx: number) => {
-              const squadName =
-                starter.name || starter.teamName || 'Cheer Team';
-              const orgName =
-                starter.organizationName || starter.realTeam || null;
-              const isOrgInName =
-                orgName &&
-                squadName.toLowerCase().includes(orgName.toLowerCase());
-              const displayTeamName = isOrgInName ? squadName : squadName;
-              const displayOrgName = isOrgInName ? null : orgName;
-
-              const divisionName =
-                starter.divisionName ||
-                starter.assignedDivisionName ||
-                starter.division ||
-                starter.assignedPosition;
-              const divisionCode =
-                starter.divisionCode ||
-                starter.assignedDivisionCode ||
-                (starter.positionCode && starter.positionCode !== 'CHEER'
-                  ? starter.positionCode
-                  : null);
-              const divisionDisplay = divisionName || divisionCode || null;
-
-              const location = starter.location || starter.country || null;
-              const subtitle = [displayOrgName, divisionDisplay, location]
-                .filter(Boolean)
-                .join(' • ');
-
-              return (
-                <View
-                  key={`${starter.seasonAthleteId || 'opp-starter'}-${idx}`}
-                  className="flex-row items-center justify-between border-b border-[#222] py-2.5 last:border-b-0 px-1"
-                >
-                  <View className="flex-row items-center flex-1">
-                    <Image
-                      source={{
-                        uri:
-                          starter.photoUrl ||
-                          'https://i.pravatar.cc/150?img=12',
-                      }}
-                      className="w-10 h-10 rounded-2xl bg-[#222] mr-3"
-                    />
-                    <View className="flex-1">
-                      <Text
-                        className="text-white text-[13px] font-bold"
-                        numberOfLines={1}
-                      >
-                        {displayTeamName}
-                      </Text>
-                      <Text
-                        className="text-gray-400 text-[11px] mt-0.5"
-                        numberOfLines={1}
-                      >
-                        {subtitle || 'Cheer Team'}
-                      </Text>
-                    </View>
-                  </View>
-                  <View className="items-end ml-2">
-                    <Text className="text-gray-300 text-[13px] font-bold">
-                      {formatFantasyPoints(starter.fantasyPoints)}
-                    </Text>
-                    <Text className="text-gray-500 text-[9px] uppercase">
-                      {formatGameStatus(starter.gameStatus)}
-                    </Text>
-                  </View>
-                </View>
-              );
-            })
-          ) : (
-            <Text className="text-gray-500 text-[12px] p-2 text-center">
-              No starting teams assigned yet.
-            </Text>
-          )}
-        </View>
-      </View>
-
-      {/* Week Selection Modal */}
-      <Modal
-        visible={isWeekModalVisible}
-        transparent={true}
-        animationType="fade"
-        onRequestClose={() => setIsWeekModalVisible(false)}
-      >
-        <TouchableOpacity
-          className="flex-1 justify-center items-center bg-black/80 px-6"
-          activeOpacity={1}
-          onPress={() => setIsWeekModalVisible(false)}
-        >
-          <TouchableOpacity
-            activeOpacity={1}
-            className="w-full bg-[#1e1e1e] rounded-[32px] border-2 border-white p-6 pt-8 items-center shadow-lg shadow-black"
-          >
-            <View className="flex-row flex-wrap justify-between w-full">
-              {weeks.map((week, index) => (
-                <TouchableOpacity
-                  key={index}
-                  className={`w-[31%] border ${
-                    activeWeekStr === week
-                      ? 'border-[#FFB84D] bg-[#FFB84D]/10'
-                      : 'border-gray-400'
-                  } rounded-[12px] py-2 mb-4 justify-center items-center`}
-                  onPress={() => {
-                    changeWeek(week);
-                  }}
-                >
-                  <Text
-                    className={`${
-                      activeWeekStr === week
-                        ? 'text-[#FFB84D] font-bold'
-                        : 'text-white'
-                    } text-[13px]`}
-                  >
-                    {fantasyMatchLabel(index + 1)}
-                  </Text>
-                  <Text className="text-gray-400 text-[9px] text-center px-1">
-                    {FANTASY_MATCH_PERIODS[index].dates}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          </TouchableOpacity>
-        </TouchableOpacity>
-      </Modal>
-
-      {/* Enlarged avatar, opened by tapping either side of the matchup. */}
-      <Modal
-        visible={previewedAvatar !== null}
-        transparent={true}
-        animationType="fade"
-        onRequestClose={() => setPreviewedAvatar(null)}
-      >
-        <TouchableOpacity
-          className="flex-1 justify-center items-center bg-black/90 px-8"
-          activeOpacity={1}
-          accessibilityRole="button"
-          accessibilityLabel="Close avatar preview"
-          onPress={() => setPreviewedAvatar(null)}
-        >
-          {previewedAvatar ? (
-            <>
-              <Image
-                source={{ uri: previewedAvatar.uri }}
-                className="w-64 h-64 rounded-full bg-[#222] border-2 border-[#E0B566]"
-                resizeMode="cover"
-              />
-              <Text
-                className="text-white text-[16px] font-bold mt-5 text-center"
-                numberOfLines={2}
-              >
-                {previewedAvatar.teamName}
-              </Text>
-              <Text className="text-gray-400 text-[12px] mt-2">
-                Tap anywhere to close
-              </Text>
-            </>
-          ) : null}
-        </TouchableOpacity>
-      </Modal>
     </View>
   );
 };
@@ -824,7 +337,7 @@ export const DraftTab = ({
         hour: '2-digit',
         minute: '2-digit',
       })}`;
-    } catch (e) {
+    } catch {
       return 'Draft scheduled';
     }
   })();
@@ -984,7 +497,7 @@ export const DraftTab = ({
                   await Share.share({
                     message: `Join my CheerBattle Fantasy League! Use private join code: ${codeToShare}`,
                   });
-                } catch (e) {}
+                } catch {}
               }}
             >
               <Text className="text-black text-[13px] font-bold">
@@ -1395,26 +908,40 @@ export const PlayersTab = ({
   );
 };
 
-export const LeagueTab = ({ leagueId, userTeamId, league }: any) => {
-  const { data: standingsData, isLoading: isStandingsLoading } =
-    useGetLeagueStandingsQuery(leagueId, {
-      skip: !leagueId || leagueId.startsWith('mock-'),
-    });
+interface LeagueTabProps {
+  leagueId: string;
+  userTeamId?: string | null;
+  league: any;
+  matchScores?: LeagueMatchScoresResponse;
+  matchScoresLoading: boolean;
+  matchScoresError: boolean;
+  onRetryScores: () => void;
+}
 
-  const { data: historyData, isLoading: isHistoryLoading } =
-    useGetMatchupHistoryQuery(leagueId, {
-      skip: !leagueId || leagueId.startsWith('mock-'),
-    });
-
+export const LeagueTab = ({
+  leagueId,
+  userTeamId,
+  league,
+  matchScores,
+  matchScoresLoading,
+  matchScoresError,
+  onRetryScores,
+}: LeagueTabProps) => {
+  const {
+    data: standingsData,
+    isLoading: standingsLoading,
+    isError: standingsError,
+    refetch: refetchStandings,
+  } = useGetLeagueStandingsQuery(leagueId, {
+    skip: !leagueId || leagueId.startsWith('mock-'),
+  });
   const standingsList = standingsData?.standings || [];
-  const historyList = historyData?.matchups || [];
-  // A legacy total-points league ranks cumulative cheer scoring without opponents;
-  // new Cheer Battle leagues use head-to-head matchups.
-  const isTotalPoints = standingsData?.format === 'total_points';
+  const publicNames = new Map(
+    (matchScores?.entries ?? []).map(entry => [entry.fantasyTeamId, entry]),
+  );
 
   return (
     <View className="mb-4 mt-2">
-      {/* Detailed Rules & Settings Card */}
       <View className="bg-[#111] border border-[#222] rounded-[24px] p-5 mb-6">
         <View className="flex-row items-center mb-4 pb-3 border-b border-[#222]">
           <Settings color="#E0B566" size={20} className="mr-3" />
@@ -1422,7 +949,6 @@ export const LeagueTab = ({ leagueId, userTeamId, league }: any) => {
             League Overview & Rules
           </Text>
         </View>
-
         <View className="space-y-3">
           <View className="flex-row items-center justify-between py-1">
             <Text className="text-gray-400 text-[13px]">League Type</Text>
@@ -1430,30 +956,24 @@ export const LeagueTab = ({ leagueId, userTeamId, league }: any) => {
               {league?.visibility || 'Public'}
             </Text>
           </View>
-
           <View className="flex-row items-center justify-between py-1">
-            <Text className="text-gray-400 text-[13px]">
-              Total Team Capacity
-            </Text>
+            <Text className="text-gray-400 text-[13px]">Total Team Capacity</Text>
             <Text className="text-white text-[13px] font-medium">
               {league?.maxTeams || 12} Teams Max
             </Text>
           </View>
-
           <View className="flex-row items-center justify-between py-1">
             <Text className="text-gray-400 text-[13px]">Draft Type</Text>
             <Text className="text-white text-[13px] font-medium capitalize">
               {`${league?.draftSettings?.type || 'Auction'} draft`}
             </Text>
           </View>
-
           <View className="flex-row items-center justify-between py-1">
             <Text className="text-gray-400 text-[13px]">Scoring Format</Text>
             <Text className="text-[#8B3DFF] text-[13px] font-semibold">
-              {isTotalPoints ? 'Season total points' : 'Head-to-head'}
+              Season total points
             </Text>
           </View>
-
           {league?.description ? (
             <View className="mt-3 pt-3 border-t border-[#222]">
               <Text className="text-gray-400 text-[12px] font-medium mb-1">
@@ -1467,60 +987,61 @@ export const LeagueTab = ({ leagueId, userTeamId, league }: any) => {
         </View>
       </View>
 
-      {/* Standings Section */}
       <View className="mb-8">
-        <View className="flex-row justify-between items-center mb-4">
-          <Text className="text-white text-[18px] font-bold">
-            League Standings
-          </Text>
-        </View>
-
+        <Text className="text-white text-[18px] font-bold mb-4">
+          League Standings
+        </Text>
         <View className="bg-[#111] border border-[#222] rounded-[20px] p-3">
-          {isStandingsLoading && standingsList.length === 0 ? (
+          {(standingsLoading && !standingsData) || (matchScoresLoading && !matchScores) ? (
             <StandingsSkeleton />
-          ) : standingsList.length > 0 ? (
-            standingsList.map((item: any, idx: number) => {
-              const isMyTeam =
+          ) : standingsError || matchScoresError ? (
+            <View className="items-center p-4">
+              <Text className="text-gray-400 text-[13px] text-center mb-3">
+                Unable to load league standings.
+              </Text>
+              <TouchableOpacity
+                accessibilityRole="button"
+                className="bg-[#8B3DFF] px-5 py-2.5 rounded-full"
+                onPress={() => {
+                  if (standingsError) refetchStandings();
+                  if (matchScoresError) onRetryScores();
+                }}
+              >
+                <Text className="text-white text-[13px] font-medium">Retry</Text>
+              </TouchableOpacity>
+            </View>
+          ) : standingsList.length > 0 && matchScores ? (
+            standingsList.map((item: any) => {
+              const publicEntry = publicNames.get(String(item.fantasyTeamId));
+              const isMyTeam = publicEntry?.isCurrentUser ||
                 String(item.fantasyTeamId) === String(userTeamId);
               return (
                 <View
-                  key={`${item.fantasyTeamId || item.rank || 'team'}-${idx}`}
+                  key={String(item.fantasyTeamId)}
+                  accessibilityState={{ selected: isMyTeam }}
                   className={`flex-row items-center justify-between p-3 rounded-[16px] mb-2 border ${
                     isMyTeam
                       ? 'bg-[#8B3DFF]/20 border-[#8B3DFF]'
                       : 'bg-[#181818] border-[#222]'
                   }`}
                 >
-                  <View className="flex-row items-center flex-1 mr-2">
-                    <View className="w-8 h-8 rounded-full bg-[#222] border border-[#444] items-center justify-center mr-3">
-                      <Text className="text-[#E0B566] text-[12px] font-bold">
-                        #{item.rank}
-                      </Text>
-                    </View>
-                    <View className="flex-1">
-                      <Text
-                        className={`text-[14px] font-bold ${
-                          isMyTeam ? 'text-[#E0B566]' : 'text-white'
-                        }`}
-                        numberOfLines={1}
-                      >
-                        {item.teamName} {isMyTeam ? '(My Team)' : ''}
-                      </Text>
-                      <Text className="text-gray-400 text-[11px]">
-                        {isTotalPoints
-                          ? `${item.pointsFor ?? 0} pts this season`
-                          : `W ${item.wins} • L ${item.losses} • T ${item.ties}`}
-                      </Text>
-                    </View>
-                  </View>
-
-                  <View className="items-end">
-                    <Text className="text-white text-[13px] font-bold">
-                      PF: {item.pointsFor}
+                  <Text className="text-[#E0B566] text-[12px] font-bold w-9">
+                    #{item.rank}
+                  </Text>
+                  <Text
+                    className={`flex-1 text-[14px] font-bold ${
+                      isMyTeam ? 'text-[#E0B566]' : 'text-white'
+                    }`}
+                    numberOfLines={1}
+                  >
+                    {publicEntry?.displayName || 'Name unavailable'}
+                  </Text>
+                  <View className="items-end ml-3">
+                    <Text className="text-gray-400 text-[10px] mb-0.5">
+                      Total Points
                     </Text>
-                    <Text className="text-gray-400 text-[10px]">
-                      PA: {item.pointsAgainst} •{' '}
-                      {(item.winPercentage * 100).toFixed(1)}%
+                    <Text className="text-white text-[14px] font-bold">
+                      {formatTotalPoints(Number(item.pointsFor ?? 0))}
                     </Text>
                   </View>
                 </View>
@@ -1529,67 +1050,6 @@ export const LeagueTab = ({ leagueId, userTeamId, league }: any) => {
           ) : (
             <Text className="text-gray-500 text-[12px] p-3 text-center">
               No standings available yet.
-            </Text>
-          )}
-        </View>
-      </View>
-
-      {/* Matchup History Section */}
-      <View className="mb-6">
-        <View className="flex-row justify-between items-center mb-4">
-          <Text className="text-white text-[18px] font-bold">
-            Matchup History
-          </Text>
-        </View>
-
-        <View className="bg-[#111] border border-[#222] rounded-[20px] p-3">
-          {isHistoryLoading && historyList.length === 0 ? (
-            <StandingsSkeleton count={3} />
-          ) : historyList.length > 0 ? (
-            historyList.map((matchup: any, idx: number) => {
-              const resultColor =
-                matchup.result === 'WIN'
-                  ? 'text-emerald-400 bg-emerald-400/10 border-emerald-400/40'
-                  : matchup.result === 'LOSS'
-                  ? 'text-rose-400 bg-rose-400/10 border-rose-400/40'
-                  : 'text-amber-400 bg-amber-400/10 border-amber-400/40';
-
-              return (
-                <View
-                  key={`${matchup.matchupId || 'matchup'}-${idx}`}
-                  className="flex-row items-center justify-between border-b border-[#222] py-3 last:border-b-0 px-1"
-                >
-                  <View className="flex-1">
-                    <Text className="text-[#E0B566] text-[11px] font-bold uppercase mb-0.5">
-                      {fantasyMatchLabel(matchup.weekNumber)}
-                    </Text>
-                    <Text className="text-white text-[14px] font-semibold">
-                      vs {matchup.opponentTeamName}
-                    </Text>
-                  </View>
-
-                  <View className="items-end mr-3">
-                    <Text className="text-white text-[14px] font-bold">
-                      {matchup.myScore} - {matchup.opponentScore}
-                    </Text>
-                    <Text className="text-gray-500 text-[9px] uppercase">
-                      {matchup.status}
-                    </Text>
-                  </View>
-
-                  <View
-                    className={`px-3 py-1 rounded-full border ${resultColor}`}
-                  >
-                    <Text className="text-[11px] font-extrabold">
-                      {matchup.result}
-                    </Text>
-                  </View>
-                </View>
-              );
-            })
-          ) : (
-            <Text className="text-gray-500 text-[12px] p-3 text-center">
-              No completed matchups yet.
             </Text>
           )}
         </View>

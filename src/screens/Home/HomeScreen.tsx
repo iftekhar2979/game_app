@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import {
   Image,
   RefreshControl,
@@ -8,7 +8,7 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Bell, PlusSquare, Zap } from 'lucide-react-native';
+import { ArrowRight, Bell, PlusSquare, Settings, Zap } from 'lucide-react-native';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useDispatch, useSelector } from 'react-redux';
@@ -18,9 +18,13 @@ import { baseApi } from '../../store/api/baseApi';
 import { useGetLeaguesQuery } from '../../store/api/leagueApi';
 import { useGetNotificationBadgeQuery } from '../../store/api/notificationApi';
 import { useGetMeQuery } from '../../store/api/usersApi';
-import Avatar from '../../components/common/Avatar';
+import { useGetMyAvatarsQuery } from '../../store/api/avatarApi';
+import CharacterCard from '../../components/Home/CharacterCard';
+import { getBaseById } from '../../avatar/registry';
+import { normaliseConfig } from '../../avatar/resolveConfig';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
+
 
 export default function HomeScreen() {
   const navigation = useNavigation<NavigationProp>();
@@ -31,9 +35,32 @@ export default function HomeScreen() {
   const { data: me, refetch: refetchMe } = useGetMeQuery();
   const { data: apiLeagues, refetch: refetchLeagues } = useGetLeaguesQuery();
   const { data: badgeData } = useGetNotificationBadgeQuery();
+  // Same args as the wardrobe screen, so both share one cache entry.
+  const { data: avatarData, refetch: refetchAvatars } = useGetMyAvatarsQuery({ page: 1, limit: 30 });
 
   const userDisplayName = me?.fullName || currentUser?.fullName || 'Player';
   const userAvatarUri = me?.avatarUrl || currentUser?.avatarUrl || null;
+
+  // Level and XP use the same formula as the profile screen.
+  const totalScore = Number(me?.totalScore ?? currentUser?.totalScore ?? 0);
+  const currentLevel = Math.max(1, Math.floor(totalScore / 100) + 1);
+  const xpPercent = Math.min(100, totalScore % 100);
+
+  /** The applied look, rendered live from its config like the wardrobe does. */
+  const currentAvatar = useMemo(() => {
+    const avatars = avatarData?.avatars ?? [];
+    const entry = avatars.find((a) => a.isCurrent);
+    // Every row's artwork, so a config from the profile can still find
+    // dashboard-uploaded parts; see AvatarHistoryScreen.
+    const artwork = avatars.reduce<Record<string, any>>(
+      (byKey, row) => Object.assign(byKey, row.artwork),
+      {},
+    );
+    // The profile's own config when the wardrobe has no applied row, so the
+    // live avatar draws instead of the flat snapshot.
+    const config = normaliseConfig(entry?.avatarConfig ?? me?.avatarConfig);
+    return { config, artwork, snapshotUri: entry?.avatarUrl ?? null };
+  }, [avatarData, me?.avatarConfig]);
   const unreadBadgeCount = badgeData?.data?.unreadCount ?? 0;
   const leagueList = (Array.isArray(apiLeagues) ? apiLeagues : apiLeagues?.data) || [];
   const leagues = leagueList.length > 0 ? leagueList : createdLeagues;
@@ -42,46 +69,51 @@ export default function HomeScreen() {
     setRefreshing(true);
     try {
       dispatch(baseApi.util.invalidateTags(['League', 'User']));
-      await Promise.all([refetchMe(), refetchLeagues()]);
+      await Promise.all([refetchMe(), refetchLeagues(), refetchAvatars()]);
     } catch {
       // The current cards remain visible if a refresh fails.
     } finally {
       setRefreshing(false);
     }
-  }, [dispatch, refetchMe, refetchLeagues]);
+  }, [dispatch, refetchMe, refetchLeagues, refetchAvatars]);
+
+  /** Opens the editor on the applied look, or the character picker if it cannot be reopened. */
+  const handleCustomize = () => {
+    const base = getBaseById(currentAvatar.config?.base);
+    if (!base) {
+      navigation.navigate('ExploreAvatar', { returnTo: 'Home' });
+      return;
+    }
+    navigation.navigate('GenerateAvatar', {
+      isFullbody: base.isFullbody,
+      target: base.target,
+      baseId: base.id,
+      returnTo: 'Home',
+      config: currentAvatar.config,
+    });
+  };
 
   return (
     <SafeAreaView className="flex-1 bg-[#0a0a0a]" edges={['top', 'bottom']}>
-      <View className="flex-row items-center justify-between px-5 pt-3 pb-6">
-        <TouchableOpacity
-          accessibilityRole="button"
-          accessibilityLabel="Open profile"
-          className="flex-row items-center flex-1 mr-4"
-          activeOpacity={0.8}
-          onPress={() => navigation.navigate('Profile')}
-        >
-          <Avatar uri={userAvatarUri} name={userDisplayName} size={64} />
-          <View className="ml-3 flex-1">
-            <Text className="text-white text-[20px] font-bold" numberOfLines={1}>
-              {userDisplayName}
-            </Text>
-            <Text className="text-gray-400 text-[13px] mt-1">Ready to play?</Text>
-          </View>
-        </TouchableOpacity>
+      <View className="flex-row items-center justify-end px-5 pt-2 pb-3">
         <TouchableOpacity
           accessibilityRole="button"
           accessibilityLabel="Notifications"
           className="p-2"
           onPress={() => navigation.navigate('Notification')}
         >
-          <Bell color={unreadBadgeCount > 0 ? '#8B3DFF' : '#999'} size={24} />
+          <Bell color="#d1d5db" size={22} />
           {unreadBadgeCount > 0 && (
-            <View className="absolute top-0 right-0 bg-red-500 min-w-4 h-4 rounded-full items-center justify-center">
-              <Text className="text-white text-[9px] font-bold">
-                {unreadBadgeCount > 99 ? '99+' : unreadBadgeCount}
-              </Text>
-            </View>
+            <View className="absolute top-1.5 right-1.5 w-2.5 h-2.5 rounded-full bg-red-500 border border-[#0a0a0a]" />
           )}
+        </TouchableOpacity>
+        <TouchableOpacity
+          accessibilityRole="button"
+          accessibilityLabel="Settings"
+          className="p-2 ml-1"
+          onPress={() => navigation.navigate('Settings')}
+        >
+          <Settings color="#d1d5db" size={22} />
         </TouchableOpacity>
       </View>
 
@@ -97,11 +129,23 @@ export default function HomeScreen() {
           />
         }
       >
-        <View className="mb-8">
-          <View className="flex-row items-center justify-between px-5 mb-4">
-            <Text className="text-white text-[22px] font-bold">Fantasy Leagues</Text>
+        <CharacterCard
+          name={userDisplayName}
+          level={currentLevel}
+          totalXp={totalScore}
+          xpPercent={xpPercent}
+          config={currentAvatar.config}
+          catalogue={currentAvatar.artwork}
+          fallbackUri={currentAvatar.snapshotUri || userAvatarUri}
+          onPressAvatar={() => navigation.navigate('Profile')}
+          onCustomize={handleCustomize}
+        />
+
+        <View className="mb-5">
+          <View className="flex-row items-center justify-between px-5 mb-3">
+            <Text className="text-white text-[18px] font-bold">Fantasy Leagues</Text>
             <TouchableOpacity onPress={() => navigation.navigate('FantasyLeague')}>
-              <Text className="text-[#E0B566] text-sm font-semibold">See all</Text>
+              <Text className="text-gray-400 text-sm font-semibold">See all</Text>
             </TouchableOpacity>
           </View>
 
@@ -120,11 +164,7 @@ export default function HomeScreen() {
               </TouchableOpacity>
             </View>
           ) : (
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={{ paddingHorizontal: 20 }}
-            >
+            <View className="px-5">
               {leagues.slice(0, 3).map((league: any) => {
                 const leagueId = league._id || league.id;
                 const logoUri = league.logoUri || league.logoUrl;
@@ -132,51 +172,48 @@ export default function HomeScreen() {
                   <TouchableOpacity
                     key={leagueId}
                     accessibilityRole="button"
-                    className="w-[260px] mr-3 bg-[#121212] border border-[#333] rounded-[20px] p-4 flex-row items-center"
+                    className="mb-3 bg-[#18161b] border border-[#2c2930] rounded-[14px] px-3 py-3 flex-row items-center"
+                    activeOpacity={0.85}
                     onPress={() => navigation.navigate('LeagueDetail', { leagueId })}
                   >
                     {logoUri ? (
-                      <Image source={{ uri: logoUri }} className="w-11 h-11 rounded-full mr-3" />
+                      <Image source={{ uri: logoUri }} className="w-10 h-10 rounded-xl mr-3" />
                     ) : (
-                      <View className="w-11 h-11 rounded-full bg-[#2a2038] mr-3" />
+                      <View className="w-10 h-10 rounded-xl bg-[#2a2038] mr-3" />
                     )}
                     <View className="flex-1">
-                      <Text className="text-white text-base font-semibold" numberOfLines={1}>
+                      <Text className="text-white text-[15px] font-semibold" numberOfLines={1}>
                         {league.name || 'Fantasy League'}
                       </Text>
-                      <Text className="text-[#E0B566] text-xs mt-1" numberOfLines={1}>
-                        Head-to-head team rosters
+                      <Text className="text-gray-500 text-[11px] mt-0.5" numberOfLines={1}>
+                        Season Long Fantasy
                       </Text>
                     </View>
+                    <Text className="text-[#F5A04A] text-[13px] font-semibold ml-2">Open</Text>
+                    <ArrowRight color="#F5A04A" size={14} style={{ marginLeft: 4 }} />
                   </TouchableOpacity>
                 );
               })}
-            </ScrollView>
+            </View>
           )}
         </View>
 
         <View className="px-5">
-          <Text className="text-white text-[22px] font-bold mb-4">Daily Contests</Text>
+          <Text className="text-white text-[18px] font-bold mb-3">Daily Contests</Text>
           <TouchableOpacity
             accessibilityRole="button"
-            accessibilityLabel="Open Daily Contests"
-            className="bg-[#17121f] border border-[#5b387e] rounded-[20px] p-5 flex-row items-center"
+            accessibilityLabel="Play daily contest"
+            className="bg-[#18161b] border border-[#2c2930] rounded-[14px] px-4 py-4 flex-row items-center"
             activeOpacity={0.85}
             onPress={() => navigation.navigate('DfsContests')}
           >
-            <View className="w-12 h-12 rounded-2xl bg-[#2a2038] items-center justify-center mr-4">
-              <Zap color="#B98AFF" size={24} />
-            </View>
-            <View className="flex-1">
-              <Text className="text-white text-[17px] font-bold">Play a daily contest</Text>
-              <Text className="text-gray-400 text-xs mt-1">
-                Build a lineup for one competition
-              </Text>
-            </View>
-            <Text className="text-[#E0B566] text-sm font-bold ml-2">Play →</Text>
+            <Zap color="#F5A04A" fill="#F5A04A" size={20} />
+            <Text className="flex-1 text-white text-[15px] font-semibold ml-3">Play Daily Contest</Text>
+            <ArrowRight color="#d1d5db" size={18} />
           </TouchableOpacity>
         </View>
       </ScrollView>
     </SafeAreaView>
   );
 }
+

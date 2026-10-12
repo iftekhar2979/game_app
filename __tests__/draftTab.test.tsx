@@ -3,10 +3,8 @@ import ReactTestRenderer from 'react-test-renderer';
 import { DraftTab } from '../src/components/LeagueDetail/LeagueDetailTabs';
 
 jest.mock('../src/store/api/leagueApi', () => ({
-  useGetCurrentMatchupQuery: jest.fn(),
-  useGetLeagueMembersQuery: jest.fn(),
+  useGetLeagueMatchScoresQuery: jest.fn(),
   useGetLeagueStandingsQuery: jest.fn(),
-  useGetMatchupHistoryQuery: jest.fn(),
 }));
 
 jest.mock('../src/components/LeagueDetail/RosterPlayerRow', () => ({
