@@ -11,8 +11,6 @@ import {
   Image,
   TouchableOpacity,
   ScrollView,
-  TextInput,
-  Modal,
   RefreshControl,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -25,11 +23,7 @@ import {
   Users,
   Globe,
   Lock,
-  Shield,
   Calendar,
-  DollarSign,
-  Layers,
-  Info,
 } from 'lucide-react-native';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -44,16 +38,16 @@ import {
   useJoinLeagueMutation,
   useGetRosterSettingsQuery,
   useGetLeagueRostersQuery,
-  useGetCurrentMatchupQuery,
+  useGetSeasonMatchesQuery,
+  useGetLeagueMatchScoresQuery,
   useGetLeagueStandingsQuery,
-  useGetMatchupHistoryQuery,
 } from '../../store/api/leagueApi';
 import {
   useGetAvailableCheerTeamsQuery,
   useGetFantasyCheerRosterQuery,
 } from '../../store/api/cheerApi';
 import {
-  MatchupTab,
+  MatchTab,
   DraftTab,
   TeamTab,
   PlayersTab,
@@ -130,7 +124,7 @@ export interface ApiLeaguePayload {
   joinedTeamCount?: number;
   membersCount?: number;
   maxTeams?: number;
-  currentWeek?: number;
+  currentFantasyPeriod?: number;
   code?: string;
   seasonId?: string;
   creatorId?: string;
@@ -158,9 +152,7 @@ export default function LeagueDetailScreen() {
   const navigation = useNavigation<NavigationProp>();
   const route = useRoute<RouteProps>();
   const { leagueId } = route.params;
-  const [selectedMatchupWeek, setSelectedMatchupWeek] = useState<string | null>(
-    null,
-  );
+  const [selectedMatchNumber, setSelectedMatchNumber] = useState<number | null>(null);
 
   // Fetch real API league data if leagueId is a valid 24-character MongoDB ObjectId
   const isRealApiId = !!leagueId && /^[0-9a-fA-F]{24}$/.test(String(leagueId));
@@ -177,11 +169,43 @@ export default function LeagueDetailScreen() {
     useGetLeagueMembersQuery(leagueId, {
       skip: isMockId,
     });
+  const rawLeague: ApiLeaguePayload | undefined =
+    (apiLeagueData as ApiLeagueDetailsResponse)?.league ||
+    (apiLeagueData as ApiLeaguePayload);
+  const targetSeasonId = rawLeague?.seasonId;
+  const {
+    data: seasonMatches = [],
+    isLoading: isSeasonMatchesLoading,
+    isError: isSeasonMatchesError,
+    refetch: refetchSeasonMatches,
+  } = useGetSeasonMatchesQuery(targetSeasonId || '', {
+    skip: isMockId || !targetSeasonId,
+  });
+  const regularMatches = seasonMatches.filter(match => match.phase === 'regular');
+  const currentMatchNumber = Number(rawLeague?.currentFantasyPeriod);
+  const configuredCurrentMatch = regularMatches.find(
+    match => match.number === currentMatchNumber,
+  );
+  const latestPastMatch = regularMatches
+    .filter(match => match.number < currentMatchNumber)
+    .at(-1);
+  const effectiveMatchNumber = selectedMatchNumber ??
+    configuredCurrentMatch?.number ?? latestPastMatch?.number ??
+    regularMatches[0]?.number ?? null;
+  const {
+    currentData: leagueMatchScores,
+    isLoading: isMatchScoresLoading,
+    isError: isMatchScoresError,
+    refetch: refetchMatchScores,
+  } = useGetLeagueMatchScoresQuery(
+    { leagueId, matchNumber: effectiveMatchNumber ?? 0 },
+    { skip: isMockId || !effectiveMatchNumber },
+  );
   // Team-pool search is debounced to keep filtering responsive as the pool grows.
   const [playerSearch, setPlayerSearch] = useState('');
   const [debouncedPlayerSearch, setDebouncedPlayerSearch] = useState('');
   const [playerPositionId, setPlayerPositionId] = useState<string | null>(null);
-  const [playersPage, setPlayersPage] = useState(1);
+  const [_playersPage, setPlayersPage] = useState(1);
 
   useEffect(() => {
     const timer = setTimeout(
@@ -217,34 +241,10 @@ export default function LeagueDetailScreen() {
     useGetLeagueRostersQuery(leagueId, {
       skip: isMockId,
     });
-  const selectedMatchupWeekNumber = selectedMatchupWeek
-    ? parseInt(selectedMatchupWeek.replace('Week ', ''), 10)
-    : undefined;
-  const leagueCurrentWeek = Number(
-    (apiLeagueData as ApiLeagueDetailsResponse)?.league?.currentWeek ??
-      (apiLeagueData as ApiLeaguePayload)?.currentWeek ??
-      1,
-  );
-  const effectiveMatchupWeek = selectedMatchupWeekNumber || leagueCurrentWeek;
-  const { data: apiMatchupData, refetch: refetchMatchup } =
-    useGetCurrentMatchupQuery(
-      { leagueId, week: effectiveMatchupWeek },
-      { skip: isMockId },
-    );
   const { data: apiStandingsData, refetch: refetchStandings } =
     useGetLeagueStandingsQuery(leagueId, {
       skip: isMockId,
     });
-  const { data: apiHistoryData, refetch: refetchHistory } =
-    useGetMatchupHistoryQuery(leagueId, {
-      skip: isMockId,
-    });
-
-  // Resolved API league payload
-  const rawLeague: ApiLeaguePayload | undefined =
-    (apiLeagueData as ApiLeagueDetailsResponse)?.league ||
-    (apiLeagueData as ApiLeaguePayload);
-  const targetSeasonId = rawLeague?.seasonId;
 
   // Debug logger for API calls and response tracking
   useEffect(() => {
@@ -271,8 +271,8 @@ export default function LeagueDetailScreen() {
         JSON.stringify(apiRostersData, null, 2),
       );
       console.log(
-        '[LeagueDetailScreen] apiMatchupData:',
-        JSON.stringify(apiMatchupData, null, 2),
+        '[LeagueDetailScreen] leagueMatchScores:',
+        JSON.stringify(leagueMatchScores, null, 2),
       );
       console.log(
         '[LeagueDetailScreen] apiStandingsData:',
@@ -287,7 +287,7 @@ export default function LeagueDetailScreen() {
     rawLeague,
     apiMembersData,
     apiRostersData,
-    apiMatchupData,
+    leagueMatchScores,
     apiStandingsData,
   ]);
 
@@ -399,7 +399,7 @@ export default function LeagueDetailScreen() {
               rawLeague.status === 'drafting' ||
               // An auction in progress IS the draft. auction_active used to
               // fall through to the Play branch below, which sent managers to
-              // the matchup tab the moment the commissioner started it.
+              // the Match tab the moment the commissioner started it.
               isAuctionDraftPhaseStatus(rawLeague.status) ||
               rawLeague.status === 'Draft'
                 ? 'Draft'
@@ -412,9 +412,7 @@ export default function LeagueDetailScreen() {
             // `status` above is a display label; settings screens need the real value.
             rawStatus: rawLeague.status,
             joinedTeamCount: rawLeague.joinedTeamCount,
-            currentWeek: rawLeague.currentWeek || 1,
             draftSettings: (rawLeague as any).draftSettings,
-            matchupSettings: (rawLeague as any).matchupSettings,
             fantasyCheerSettings: (rawLeague as any).fantasyCheerSettings,
             currentFantasyPeriod: (rawLeague as any).currentFantasyPeriod || 1,
             championFantasyTeamId: (rawLeague as any).championFantasyTeamId,
@@ -453,17 +451,19 @@ export default function LeagueDetailScreen() {
   const [isRosterActionModalVisible, setIsRosterActionModalVisible] =
     useState(false);
 
+  const leagueStatus = league?.status;
+  const leagueRawStatus = (league as any)?.rawStatus;
   useEffect(() => {
-    if (league?.status) {
-      setCurrentLeagueStatus(league.status);
+    if (leagueStatus) {
+      setCurrentLeagueStatus(leagueStatus);
       const isPlay =
-        isPlayModeStatus(league.status) ||
-        isPlayModeStatus((league as any).rawStatus);
+        isPlayModeStatus(leagueStatus) ||
+        isPlayModeStatus(leagueRawStatus);
       if (isPlay) {
         setActiveTab(prev => (prev === 'Draft' ? 'Matchup' : prev));
       }
     }
-  }, [league?.status, (league as any)?.rawStatus]);
+  }, [leagueStatus, leagueRawStatus]);
 
   const dispatch = useDispatch();
   const reduxActiveTeamId = useSelector(
@@ -577,9 +577,9 @@ export default function LeagueDetailScreen() {
           refetchAvailableAthletes,
           refetchLeagueRosters,
           refetchMyRoster,
-          refetchMatchup,
+          ...(targetSeasonId ? [refetchSeasonMatches] : []),
+          ...(effectiveMatchNumber ? [refetchMatchScores] : []),
           refetchStandings,
-          refetchHistory,
           refetchRosterSettings,
         ]
           .filter(Boolean)
@@ -595,9 +595,11 @@ export default function LeagueDetailScreen() {
     refetchAvailableAthletes,
     refetchLeagueRosters,
     refetchMyRoster,
-    refetchMatchup,
+    refetchSeasonMatches,
+    refetchMatchScores,
+    targetSeasonId,
+    effectiveMatchNumber,
     refetchStandings,
-    refetchHistory,
     refetchRosterSettings,
   ]);
 
@@ -812,9 +814,7 @@ export default function LeagueDetailScreen() {
         }
         if (refetchAvailableAthletes) refetchAvailableAthletes();
         if (refetchLeagueRosters) refetchLeagueRosters();
-        if (refetchMatchup) refetchMatchup();
         if (refetchStandings) refetchStandings();
-        if (refetchHistory) refetchHistory();
       };
 
       socket.on('matchupUpdated', handleMatchupUpdated);
@@ -851,7 +851,16 @@ export default function LeagueDetailScreen() {
     } catch (e) {
       console.warn('Socket connection error:', e);
     }
-  }, [leagueId, refetchMembers, currentUserId, dispatch]);
+  }, [
+    leagueId,
+    refetchMembers,
+    refetchAvailableAthletes,
+    refetchLeagueDetails,
+    refetchLeagueRosters,
+    refetchStandings,
+    currentUserId,
+    dispatch,
+  ]);
 
   const [isPlayerModalVisible, setIsPlayerModalVisible] = useState(false);
   const [selectedPlayer, setSelectedPlayer] = useState<any>(null);
@@ -935,8 +944,9 @@ export default function LeagueDetailScreen() {
     }
   };
 
+  const draftStartsAtTime = resolveDraftStartsAtTime(league);
   useEffect(() => {
-    const targetTime = resolveDraftStartsAtTime(league);
+    const targetTime = draftStartsAtTime;
 
     if (targetTime === null) {
       setTimeLeft(null);
@@ -970,9 +980,7 @@ export default function LeagueDetailScreen() {
     const intervalId = setInterval(calculateTime, 1000);
 
     return () => clearInterval(intervalId);
-    // One dependency, resolved the same way the effect resolves it, so the
-    // countdown restarts whenever the scheduled time actually changes.
-  }, [resolveDraftStartsAtTime(league)]);
+  }, [draftStartsAtTime]);
 
   return (
     <SafeAreaView className="flex-1 bg-black" edges={['top', 'bottom']}>
@@ -1208,7 +1216,7 @@ export default function LeagueDetailScreen() {
             {(
               [
                 isPlayMode
-                  ? ({ key: 'Matchup', label: 'Matchup' } as const)
+                  ? ({ key: 'Matchup', label: 'Match' } as const)
                   : ({ key: 'Draft', label: 'Draft' } as const),
                 { key: 'Team', label: 'My Roster' } as const,
                 { key: 'Players', label: 'Cheer Teams' } as const,
@@ -1238,13 +1246,16 @@ export default function LeagueDetailScreen() {
             <ScoringRulesTab />
           </View>
 
-          {/* Matchup Tab Content */}
+          {/* Match Scores Tab Content */}
           <View style={{ display: activeTab === 'Matchup' ? 'flex' : 'none' }}>
-            <MatchupTab
+            <MatchTab
               leagueId={leagueId}
-              league={league}
-              selectedWeek={selectedMatchupWeek}
-              setSelectedWeek={setSelectedMatchupWeek}
+              matches={regularMatches}
+              matchesLoading={isSeasonMatchesLoading}
+              matchesError={isSeasonMatchesError}
+              selectedMatchNumber={effectiveMatchNumber}
+              onSelectMatch={setSelectedMatchNumber}
+              onRetryMatches={refetchSeasonMatches}
             />
           </View>
 
@@ -1314,6 +1325,10 @@ export default function LeagueDetailScreen() {
               leagueId={leagueId}
               userTeamId={userTeamId}
               league={league}
+              matchScores={leagueMatchScores}
+              matchScoresLoading={isMatchScoresLoading}
+              matchScoresError={isMatchScoresError}
+              onRetryScores={refetchMatchScores}
             />
           </View>
         </ScrollView>

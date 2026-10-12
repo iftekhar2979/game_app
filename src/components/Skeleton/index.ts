@@ -22,7 +22,7 @@ export {
   LeagueDetailSkeleton,
   LeagueListFooterSkeleton,
   LeagueListSkeleton,
-  MatchupTabSkeleton,
+  MatchScoresSkeleton,
   RosterSkeleton,
   StandingsSkeleton,
   TabPanelSkeleton,

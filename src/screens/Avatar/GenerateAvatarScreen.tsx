@@ -77,6 +77,8 @@ import {
   tonesForBase,
 } from '../../avatar/baseCatalogue';
 import { resolveParts } from '../../avatar/partCatalogue';
+import { useCharacterCardTheme } from '../../components/Home/characterCardThemes';
+import { NeonStage, ThemeSwatches } from '../../components/Home/NeonStage';
 
 type NavigationProp = NativeStackNavigationProp<
   RootStackParamList,
@@ -407,6 +409,23 @@ const GenerateAvatarScreen = () => {
   });
   const previewHeight = isFullbody ? FULLBODY_PREVIEW_HEIGHT : PREVIEW_HEIGHT;
 
+  // The same neon set as the home card; picking a background here changes both.
+  const [stageTheme, setStageTheme] = useCharacterCardTheme();
+  const [previewWidth, setPreviewWidth] = useState(0);
+  /**
+   * Where the feet land, from the stage's own framing: the 2400x1309 canvas
+   * fitted into a 160%-wide stage below a 16pt inset, centred, then scaled from
+   * the bottom; the shoes end ~97% down the canvas. A bust has no feet, so its
+   * floor sits along the bottom edge.
+   */
+  const floorY = useMemo(() => {
+    if (!isFullbody || !previewWidth) return previewHeight - 14;
+    const stage = previewHeight - 16;
+    const canvas = Math.min(previewWidth * 1.6 * (1309 / 2400), stage);
+    const canvasBottom = previewHeight - ((stage - canvas) / 2) * FULLBODY_STAGE_SCALE;
+    return canvasBottom - canvas * FULLBODY_STAGE_SCALE * 0.03;
+  }, [isFullbody, previewWidth, previewHeight]);
+
   /**
    * Warm every part offered for this base as soon as the catalogue lands.
    *
@@ -640,15 +659,25 @@ const GenerateAvatarScreen = () => {
             <View
               style={[
                 styles.previewContainer,
-                { height: previewHeight },
+                {
+                  height: previewHeight,
+                  backgroundColor: stageTheme.background,
+                  borderColor: stageTheme.border,
+                },
                 // Chrome is stripped for the capture frame only, so the saved
                 // PNG is the character on transparency rather than an opaque
                 // dark card that shows as corners in a circular frame.
                 isCapturing && styles.capturingContainer,
               ]}
             >
+              {/* Left out of the capture so the saved PNG stays transparent. */}
               {!isCapturing && (
-                <View className="absolute top-10 w-48 h-48 rounded-full bg-[#B366FF] opacity-20 blur-3xl" />
+                <View
+                  style={StyleSheet.absoluteFill}
+                  onLayout={(e) => setPreviewWidth(e.nativeEvent.layout.width)}
+                >
+                  <NeonStage theme={stageTheme} floorY={floorY} idPrefix="editorStage" />
+                </View>
               )}
 
               <Animated.View
@@ -833,17 +862,22 @@ const GenerateAvatarScreen = () => {
                 <View className="absolute bottom-0 w-full h-24 pointer-events-none">
                   <Svg height="100%" width="100%">
                     <Defs>
-                      <LinearGradient id="grad" x1="0" y1="0" x2="0" y2="1">
-                        <Stop offset="0" stopColor="#1A0B2E" stopOpacity="0" />
-                        <Stop offset="1" stopColor="#1A0B2E" stopOpacity="1" />
+                      <LinearGradient id={`grad_${stageTheme.key}`} x1="0" y1="0" x2="0" y2="1">
+                        <Stop offset="0" stopColor={stageTheme.background} stopOpacity="0" />
+                        <Stop offset="1" stopColor={stageTheme.background} stopOpacity="1" />
                       </LinearGradient>
                     </Defs>
-                    <Rect width="100%" height="100%" fill="url(#grad)" />
+                    <Rect width="100%" height="100%" fill={`url(#grad_${stageTheme.key})`} />
                   </Svg>
                 </View>
               )}
             </View>
           </ViewShot>
+
+          <View className="flex-row items-center justify-between mt-4">
+            <Text className="text-gray-300 text-[13px] font-semibold">Background</Text>
+            <ThemeSwatches value={stageTheme} onChange={setStageTheme} />
+          </View>
         </View>
 
         {/*

@@ -9,9 +9,8 @@ jest.mock('lucide-react-native', () => {
 });
 
 jest.mock('../src/store/api/leagueApi', () => ({
-  useGetCurrentMatchupQuery: jest.fn(),
+  useGetLeagueMatchScoresQuery: jest.fn(),
   useGetLeagueStandingsQuery: jest.fn(),
-  useGetMatchupHistoryQuery: jest.fn(),
 }));
 jest.mock('../src/components/LeagueDetail/RosterPlayerRow', () => ({ RosterSections: () => null }));
 

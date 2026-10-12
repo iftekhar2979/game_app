@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Animated, Image, StyleSheet, View } from 'react-native';
+import { Animated, Dimensions, Easing, Image, StyleSheet, View } from 'react-native';
 import Svg, { Defs, Filter, FeColorMatrix, Image as SvgImage } from 'react-native-svg';
 
 import { ArtworkCatalogue, sourceForAsset, sourceForBase } from '../../avatar/assetSource';
@@ -27,6 +27,36 @@ import Avatar from './Avatar';
 
 let filterSeq = 0;
 
+/** Where the full-body figure sits in the artwork canvas, as fractions of its height. */
+const FILL_FIGURE_TOP = 0.04;
+const FILL_FIGURE_BOTTOM = 0.97;
+
+/**
+ * Where the figure sits inside a saved snapshot, as fractions of its height.
+ *
+ * The editor photographs its whole preview box, figure and empty margins
+ * alike, so fitting the photo as-is leaves a band of nothing under the feet and
+ * the character floats. The box's framing is fixed - full width less 48pt of
+ * padding, 16pt top inset, a 160%-wide stage, the 2400x1309 canvas centred in
+ * it and then scaled from the bottom - so the figure's position follows from
+ * the photo's aspect ratio alone. Null for a bust, which has no feet to place.
+ */
+function snapshotFigureBounds(aspect: number): { top: number; bottom: number } | null {
+  // Full-body boxes are far taller than wide; the half-body one is near square.
+  if (aspect < 1.3) return null;
+  const width = Dimensions.get('window').width - 48;
+  const frame = aspect;
+  const stage = frame - 16 / width;
+  const canvas = Math.min(1.6 * (1309 / 2400), stage);
+  const scaled = canvas * FULLBODY_STAGE_SCALE;
+  const canvasBottom = frame - ((stage - canvas) / 2) * FULLBODY_STAGE_SCALE;
+  const canvasTop = canvasBottom - scaled;
+  return {
+    top: (canvasTop + scaled * FILL_FIGURE_TOP) / frame,
+    bottom: (canvasTop + scaled * FILL_FIGURE_BOTTOM) / frame,
+  };
+}
+
 interface AvatarPreviewProps {
   config?: AvatarConfig | null;
   /** Height of the framed stage. Width fills the parent. */
@@ -45,6 +75,12 @@ interface AvatarPreviewProps {
    * wardrobe passes one; a profile thumbnail has no reason to.
    */
   catalogue?: ArtworkCatalogue;
+  /**
+   * Size the figure to the frame instead of the editor's framing: hair at the
+   * top edge, shoes at the bottom. Width no longer matters, so a short card
+   * still gets a full-height figure.
+   */
+  fill?: boolean;
 }
 
 export default function AvatarPreview({
@@ -55,6 +91,7 @@ export default function AvatarPreview({
   fallbackName,
   framed = true,
   catalogue,
+  fill = false,
 }: AvatarPreviewProps) {
   const layers = useMemo(() => resolveConfig(config, catalogue), [config, catalogue]);
   const base = baseOf(config, catalogue);
@@ -65,6 +102,22 @@ export default function AvatarPreview({
   // Stable per-instance id: a grid renders several of these at once and SVG
   // filter ids are global, so a shared id would tint the wrong avatar's hair.
   const filterId = useRef(`hairTint${(filterSeq += 1)}`).current;
+
+  // The snapshot's shape, so fill mode can find the figure inside it.
+  const [snapshotAspect, setSnapshotAspect] = useState<number | null>(null);
+  const usesSnapshot = (!base || !layers.length) && !!fallbackUri;
+  useEffect(() => {
+    if (!fill || !usesSnapshot || !fallbackUri) return;
+    let live = true;
+    Image.getSize(
+      fallbackUri,
+      (w, h) => live && w > 0 && setSnapshotAspect(h / w),
+      () => live && setSnapshotAspect(null),
+    );
+    return () => {
+      live = false;
+    };
+  }, [fill, usesSnapshot, fallbackUri]);
 
   const [eyeState, setEyeState] = useState<'open' | 'half_closed' | 'closed'>('open');
   const breatheAnim = useRef(new Animated.Value(0)).current;
@@ -79,15 +132,26 @@ export default function AvatarPreview({
       pending.push(setTimeout(() => setEyeState(state), ms));
     };
 
-    const blink = setInterval(() => {
-      setEyeState('half_closed');
-      at(150, 'closed');
-      at(300, 'half_closed');
-      at(450, 'open');
-    }, 3000);
+    // Irregular gaps with the odd double blink: a metronome reads as robotic.
+    let next: ReturnType<typeof setTimeout>;
+    const blinkOnce = (startMs: number) => {
+      at(startMs, 'half_closed');
+      at(startMs + 70, 'closed');
+      at(startMs + 190, 'half_closed');
+      at(startMs + 260, 'open');
+    };
+    const schedule = () => {
+      next = setTimeout(() => {
+        pending.length = 0;
+        blinkOnce(0);
+        if (Math.random() < 0.2) blinkOnce(380);
+        schedule();
+      }, 2500 + Math.random() * 3000);
+    };
+    schedule();
 
     return () => {
-      clearInterval(blink);
+      clearTimeout(next);
       pending.forEach(clearTimeout);
     };
   }, [animated, base]);
@@ -97,8 +161,19 @@ export default function AvatarPreview({
 
     const loop = Animated.loop(
       Animated.sequence([
-        Animated.timing(breatheAnim, { toValue: 1, duration: 2000, useNativeDriver: true }),
-        Animated.timing(breatheAnim, { toValue: 0, duration: 2000, useNativeDriver: true }),
+        // Sine easing so the turn at each end is gentle rather than a bounce.
+        Animated.timing(breatheAnim, {
+          toValue: 1,
+          duration: 2200,
+          easing: Easing.inOut(Easing.sin),
+          useNativeDriver: true,
+        }),
+        Animated.timing(breatheAnim, {
+          toValue: 0,
+          duration: 2600,
+          easing: Easing.inOut(Easing.sin),
+          useNativeDriver: true,
+        }),
       ]),
     );
     loop.start();
@@ -123,6 +198,27 @@ export default function AvatarPreview({
       return <Avatar uri={null} name={fallbackName} size={height} />;
     }
 
+    const bounds = fill && snapshotAspect ? snapshotFigureBounds(snapshotAspect) : null;
+    if (bounds && snapshotAspect) {
+      // Scale the photo so the figure spans the frame, hair at the top and
+      // feet on the bottom edge, and let the frame clip the empty margins.
+      const imageHeight = (height - 6) / (bounds.bottom - bounds.top);
+      return (
+        <View style={[styles.stageFrame, framed && styles.framed, styles.fillFrame, { height }]}>
+          <Image
+            source={{ uri: fallbackUri }}
+            style={{
+              position: 'absolute',
+              height: imageHeight,
+              width: imageHeight / snapshotAspect,
+              top: height - imageHeight * bounds.bottom,
+            }}
+            resizeMode="stretch"
+          />
+        </View>
+      );
+    }
+
     return (
       <View style={[styles.stageFrame, framed && styles.framed, { height }]}>
         <Image
@@ -133,6 +229,25 @@ export default function AvatarPreview({
       </View>
     );
   }
+
+  /**
+   * Fill mode sizes the 2400x1309 canvas so the figure inside it - hair from
+   * ~4% of the canvas height, shoes to ~97% - spans the frame once
+   * FULLBODY_STAGE_SCALE is applied, then nudges it down past the canvas's
+   * empty strip under the feet. A few px are kept clear for the breath.
+   */
+  const fillCanvasHeight = (height - 6) / (FULLBODY_STAGE_SCALE * (FILL_FIGURE_BOTTOM - FILL_FIGURE_TOP));
+  // The figure bounds above are full-body art; a bust keeps the normal framing.
+  const fillsFigure = fill && base.isFullbody !== false;
+  const fillStage = fillsFigure
+    ? {
+        width: fillCanvasHeight * (2400 / 1309),
+        height: fillCanvasHeight,
+      }
+    : null;
+  const fillOffset = fillsFigure
+    ? [{ translateY: fillCanvasHeight * FULLBODY_STAGE_SCALE * (1 - FILL_FIGURE_BOTTOM) }]
+    : [];
 
   const scaleY = breatheAnim.interpolate({ inputRange: [0, 1], outputRange: [1, 1.01] });
   const scaleX = breatheAnim.interpolate({ inputRange: [0, 1], outputRange: [1, 1.008] });
@@ -154,15 +269,16 @@ export default function AvatarPreview({
     slot === 'base' ? sourceForBase(assetId) : sourceForAsset(slot as AvatarSlot, assetId);
 
   return (
-    <View style={[styles.stageFrame, framed && styles.framed, { height }]}>
+    <View style={[styles.stageFrame, framed && styles.framed, fillsFigure && styles.fillFrame, { height }]}>
       <Animated.View
         style={[
           styles.stage,
+          fillStage,
           {
             // Mirrors the editor's stage transform, including the static scale
             // it composes in. Keep these two in step or the wardrobe and the
             // editor will frame the same avatar differently.
-            transform: [{ scaleX }, { scaleY }, { scale: FULLBODY_STAGE_SCALE }],
+            transform: [...fillOffset, { scaleX }, { scaleY }, { scale: FULLBODY_STAGE_SCALE }],
             transformOrigin: 'bottom center' as any,
           },
         ]}
@@ -277,6 +393,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'flex-end',
     paddingTop: 12,
+  },
+  fillFrame: {
+    paddingTop: 0,
   },
   framed: {
     borderRadius: 18,

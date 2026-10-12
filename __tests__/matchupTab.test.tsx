@@ -1,18 +1,19 @@
-import React from 'react';
+import React, { useState } from 'react';
 import ReactTestRenderer from 'react-test-renderer';
-import { MatchupTab } from '../src/components/LeagueDetail/LeagueDetailTabs';
+import { MatchTab } from '../src/components/LeagueDetail/LeagueDetailTabs';
+import type {
+  LeagueMatchScoresResponse,
+  SeasonMatch,
+} from '../src/store/api/leagueApi';
 
-const mockRefetch = jest.fn();
-const mockUseGetCurrentMatchupQuery = jest.fn();
-const mockUseGetLeagueMembersQuery = jest.fn();
+const mockRefetchScores = jest.fn();
+const mockRetryMatches = jest.fn();
+const mockUseGetLeagueMatchScoresQuery = jest.fn();
 
 jest.mock('../src/store/api/leagueApi', () => ({
-  useGetCurrentMatchupQuery: (...args: unknown[]) =>
-    mockUseGetCurrentMatchupQuery(...args),
-  useGetLeagueMembersQuery: (...args: unknown[]) =>
-    mockUseGetLeagueMembersQuery(...args),
+  useGetLeagueMatchScoresQuery: (...args: unknown[]) =>
+    mockUseGetLeagueMatchScoresQuery(...args),
   useGetLeagueStandingsQuery: jest.fn(),
-  useGetMatchupHistoryQuery: jest.fn(),
 }));
 
 jest.mock('../src/components/LeagueDetail/RosterPlayerRow', () => ({
@@ -26,215 +27,175 @@ jest.mock('lucide-react-native', () => {
   return new Proxy({}, { get: () => Icon });
 });
 
-const league = {
-  currentWeek: 1,
-  matchupSettings: { format: 'head_to_head' },
+const matches: SeasonMatch[] = [3, 4].map(number => ({
+  _id: `match-${number}`,
+  seasonId: 'season-1',
+  number,
+  phase: 'regular',
+  dateWindows: [],
+}));
+
+const scores: LeagueMatchScoresResponse = {
+  leagueId: 'league-1',
+  seasonId: 'season-1',
+  matchNumber: 3,
+  isCurrentMatch: true,
+  // Deliberately out of rank order: the client must preserve API order.
+  entries: [
+    { fantasyTeamId: 'team-b', displayName: 'karim', points: 42.5, rank: 2, isCurrentUser: true },
+    { fantasyTeamId: 'team-a', displayName: 'hasan', points: 45.2, rank: 1, isCurrentUser: false },
+    { fantasyTeamId: 'team-c', displayName: 'mina', points: 42.5, rank: 2, isCurrentUser: false },
+    { fantasyTeamId: 'team-d', displayName: 'omar', points: 0, rank: 4, isCurrentUser: false },
+    { fantasyTeamId: 'team-e', displayName: 'lina', points: 0, rank: 4, isCurrentUser: false },
+    { fantasyTeamId: 'team-f', displayName: 'sara', points: 0, rank: 4, isCurrentUser: false },
+  ],
+  me: { fantasyTeamId: 'team-b', points: 42.5, rank: 2 },
 };
 
-function renderedText(renderer: ReactTestRenderer.ReactTestRenderer): string {
-  return JSON.stringify(renderer.toJSON());
-}
+const queryResult = (data: LeagueMatchScoresResponse | undefined = scores) => ({
+  currentData: data,
+  isLoading: false,
+  isFetching: false,
+  isError: false,
+  refetch: mockRefetchScores,
+});
 
-async function renderMatchup() {
+const text = (renderer: ReactTestRenderer.ReactTestRenderer) =>
+  JSON.stringify(renderer.toJSON());
+
+async function renderMatch(props: Partial<React.ComponentProps<typeof MatchTab>> = {}) {
   let renderer!: ReactTestRenderer.ReactTestRenderer;
   await ReactTestRenderer.act(() => {
     renderer = ReactTestRenderer.create(
-      <MatchupTab leagueId="league-1" league={league} />,
+      <MatchTab
+        leagueId="league-1"
+        matches={matches}
+        matchesLoading={false}
+        matchesError={false}
+        selectedMatchNumber={3}
+        onSelectMatch={jest.fn()}
+        onRetryMatches={mockRetryMatches}
+        {...props}
+      />,
     );
   });
   return renderer;
 }
 
-describe('MatchupTab states', () => {
+describe('Total Points Match tab', () => {
   beforeEach(() => {
-    mockRefetch.mockClear();
-    mockUseGetCurrentMatchupQuery.mockReset();
-    mockUseGetLeagueMembersQuery.mockReset();
-    mockUseGetLeagueMembersQuery.mockReturnValue({ data: undefined });
+    mockUseGetLeagueMatchScoresQuery.mockReset();
+    mockUseGetLeagueMatchScoresQuery.mockReturnValue(queryResult());
+    mockRefetchScores.mockClear();
+    mockRetryMatches.mockClear();
   });
 
-  it('shows the four championship scores and winner without a bye opponent', async () => {
-    mockUseGetCurrentMatchupQuery.mockReturnValue({
-      currentData: {
-        isChampionship: true,
-        championship: {
-          championFantasyTeamId: 'team-b',
-          finalists: [
-            { fantasyTeamId: 'team-b', teamName: 'Team B', seed: 2, score: 12.45 },
-            { fantasyTeamId: 'team-d', teamName: 'Team D', seed: 4, score: 11.32 },
-            { fantasyTeamId: 'team-a', teamName: 'Team A', seed: 1, score: 10.21 },
-            { fantasyTeamId: 'team-c', teamName: 'Team C', seed: 3, score: 9.8 },
-          ],
-        },
-      },
-      isLoading: false,
-      isFetching: false,
-      isError: false,
-      refetch: mockRefetch,
-    });
+  it('keeps API order and ranks, formats two decimals, and highlights You', async () => {
+    const renderer = await renderMatch();
+    const renderedRows = renderer.root.findAll(node =>
+      String(node.props.testID || '').startsWith('league-match-row-'),
+    );
+    const rows = renderedRows.filter((row, index) =>
+      renderedRows.findIndex(other => other.props.testID === row.props.testID) === index,
+    );
+    expect(rows.map(row => row.props.testID)).toEqual([
+      'league-match-row-team-b',
+      'league-match-row-team-a',
+      'league-match-row-team-c',
+      'league-match-row-team-d',
+      'league-match-row-team-e',
+      'league-match-row-team-f',
+    ]);
+    expect(rows[0].props.accessibilityState.selected).toBe(true);
+    expect(rows[0].props.className).toContain('border-[#8B3DFF]');
+    expect(rows[1].props.accessibilityState.selected).toBe(false);
+    const output = text(renderer);
+    expect(output).toContain('You');
+    expect(output).toContain('45.20');
+    expect(output).toContain('42.50');
+    expect(output).toContain('0.00');
+    const rankValue = renderer.root.findAllByType(require('react-native').Text)
+      .find(node => Array.isArray(node.props.children) && node.props.children.join('') === '#2 of 6');
+    expect(rankValue).toBeDefined();
+    expect(output).toContain('Current');
+    expect(rows[0].findAllByType(require('react-native').Text)[0].props.children).toBe(2);
+    expect(rows[2].findAllByType(require('react-native').Text)[0].props.children).toBe(2);
+    expect(output.toLowerCase()).not.toContain('bye');
+  });
+
+  it('hides the personal summary when me is null', async () => {
+    mockUseGetLeagueMatchScoresQuery.mockReturnValue(
+      queryResult({ ...scores, me: null, entries: scores.entries.map(entry => ({
+        ...entry, isCurrentUser: false,
+      })) }),
+    );
+    const output = text(await renderMatch());
+    expect(output).not.toContain('My Score');
+    expect(output).not.toContain('My Rank');
+    expect(output).toContain('League Match Scores');
+  });
+
+  it('shows the zero-score note alongside all rows, and a distinct empty state', async () => {
+    const zeroEntries = scores.entries.map(entry => ({ ...entry, points: 0, rank: 1 }));
+    mockUseGetLeagueMatchScoresQuery.mockReturnValue(
+      queryResult({ ...scores, entries: zeroEntries, me: { ...scores.me!, points: 0, rank: 1 } }),
+    );
+    const zero = text(await renderMatch());
+    expect(zero).toContain('Scores will appear once competition results are published.');
+    expect(zero).toContain('0.00');
+    expect(zero).toContain('hasan');
+
+    mockUseGetLeagueMatchScoresQuery.mockReturnValue(
+      queryResult({ ...scores, entries: [], me: null }),
+    );
+    const empty = text(await renderMatch());
+    expect(empty).toContain('No league Match scores are available yet.');
+    expect(empty).not.toContain('Scores will appear once competition results are published.');
+  });
+
+  it('queries the newly selected Match number', async () => {
+    const Harness = () => {
+      const [selected, setSelected] = useState(3);
+      return (
+        <MatchTab
+          leagueId="league-1"
+          matches={matches}
+          matchesLoading={false}
+          matchesError={false}
+          selectedMatchNumber={selected}
+          onSelectMatch={setSelected}
+          onRetryMatches={mockRetryMatches}
+        />
+      );
+    };
     let renderer!: ReactTestRenderer.ReactTestRenderer;
     await ReactTestRenderer.act(() => {
-      renderer = ReactTestRenderer.create(
-        <MatchupTab leagueId="league-1" league={{ ...league, currentWeek: 11 }} />,
-      );
+      renderer = ReactTestRenderer.create(<Harness />);
     });
-    const tree = renderedText(renderer);
-    expect(tree).toContain('Team B');
-    expect(tree).toContain('12.45');
-    expect(tree).toContain('Champion');
-    expect(tree).not.toContain('BYE WEEK');
-  });
-
-  it('renders loading, API error, and empty matchup states distinctly', async () => {
-    mockUseGetCurrentMatchupQuery.mockReturnValueOnce({
-      currentData: undefined,
-      isLoading: true,
-      isFetching: true,
-      isError: false,
-      refetch: mockRefetch,
+    await ReactTestRenderer.act(() => {
+      renderer.root.findByProps({ accessibilityLabel: 'Match 4' }).props.onPress();
     });
-    // The loading state is a skeleton now, so there is no sentence to match.
-    // Its accessibility label is the signal - and it is the one a reader who
-    // cannot see the placeholder boxes actually receives.
-    expect(renderedText(await renderMatchup())).toContain('"accessibilityLabel":"Loading matchup"');
-
-    mockUseGetCurrentMatchupQuery.mockReturnValueOnce({
-      currentData: undefined,
-      isLoading: false,
-      isFetching: false,
-      isError: true,
-      refetch: mockRefetch,
-    });
-    expect(renderedText(await renderMatchup())).toContain('Unable to Load Matchup');
-
-    mockUseGetCurrentMatchupQuery.mockReturnValueOnce({
-      currentData: undefined,
-      isLoading: false,
-      isFetching: false,
-      isError: false,
-      refetch: mockRefetch,
-    });
-    expect(renderedText(await renderMatchup())).toContain('No Matchup Scheduled');
-  });
-
-  it('preserves real zero and negative scores and does not invent missing values', async () => {
-    mockUseGetCurrentMatchupQuery.mockReturnValue({
-      currentData: {
-        result: { status: 'tied' },
-        myTeam: {
-          teamName: 'Comets',
-          score: 0,
-          starters: [
-            { seasonAthleteId: 'a1', name: 'A', fantasyPoints: 0 },
-            { seasonAthleteId: 'a2', name: 'B', fantasyPoints: -3 },
-          ],
-        },
-        opponent: {
-          teamName: 'Stars',
-          score: -5,
-          starters: [
-            { seasonAthleteId: 'a3', name: 'C', fantasyPoints: 7 },
-            { seasonAthleteId: 'a4', name: 'D' },
-          ],
-        },
-      },
-      isLoading: false,
-      isFetching: false,
-      isError: false,
-      refetch: mockRefetch,
-    });
-
-    const text = renderedText(await renderMatchup());
-    ['0', '-5', '0 pts', '-3 pts', '+7 pts', 'Not scored'].forEach((value) =>
-      expect(text).toContain(JSON.stringify(value)),
+    expect(mockUseGetLeagueMatchScoresQuery).toHaveBeenLastCalledWith(
+      { leagueId: 'league-1', matchNumber: 4 },
+      expect.any(Object),
     );
-    expect(text).toContain('Status unavailable');
   });
-  describe('team avatars', () => {
-    const matchup = {
-      result: { status: 'tied' },
-      myTeam: { fantasyTeamId: 'team-a', teamName: 'Comets', score: 1, starters: [] },
-      opponent: { fantasyTeamId: 'team-b', teamName: 'Stars', score: 2, starters: [] },
-    };
 
-    const withMatchup = () =>
-      mockUseGetCurrentMatchupQuery.mockReturnValue({
-        currentData: matchup,
-        isLoading: false,
-        isFetching: false,
-        isError: false,
-        refetch: mockRefetch,
-      });
-
-    // The matchup endpoint never sends avatarUri, so without the members
-    // join both sides fall back to the lettered placeholder.
-    it('draws avatars resolved from the league members list', async () => {
-      withMatchup();
-      mockUseGetLeagueMembersQuery.mockReturnValue({
-        data: {
-          data: [
-            { team: { _id: 'team-a' }, user: { avatarUrl: 'https://x/a.png' } },
-            { team: { _id: 'team-b' }, user: { avatarUrl: 'https://x/b.png' } },
-          ],
-        },
-      });
-
-      const text = renderedText(await renderMatchup());
-      expect(text).toContain('https://x/a.png');
-      expect(text).toContain('https://x/b.png');
-      expect(text).not.toContain('"MY"');
-      expect(text).not.toContain('"OPP"');
+  it('shows a loading skeleton and an error with a working retry', async () => {
+    mockUseGetLeagueMatchScoresQuery.mockReturnValue({
+      ...queryResult(), currentData: undefined, isLoading: true,
     });
+    expect(text(await renderMatch())).toContain('Loading Match scores');
 
-    it('keeps the placeholder for a side with no picture', async () => {
-      withMatchup();
-      mockUseGetLeagueMembersQuery.mockReturnValue({
-        data: [{ team: { _id: 'team-a' }, user: { avatarUrl: 'https://x/a.png' } }],
-      });
-
-      const text = renderedText(await renderMatchup());
-      expect(text).toContain('https://x/a.png');
-      expect(text).toContain('"OPP"');
+    mockUseGetLeagueMatchScoresQuery.mockReturnValue({
+      ...queryResult(), currentData: undefined, isError: true,
     });
-
-    it('opens an enlarged preview when an avatar is tapped, and closes again', async () => {
-      withMatchup();
-      mockUseGetLeagueMembersQuery.mockReturnValue({
-        data: [{ team: { _id: 'team-b' }, user: { avatarUrl: 'https://x/b.png' } }],
-      });
-      const renderer = await renderMatchup();
-
-      expect(renderedText(renderer)).not.toContain('Tap anywhere to close');
-
-      const avatar = renderer.root.findByProps({
-        accessibilityLabel: 'View Stars avatar',
-      });
-      await ReactTestRenderer.act(() => {
-        avatar.props.onPress();
-      });
-
-      const opened = renderedText(renderer);
-      expect(opened).toContain('Tap anywhere to close');
-      expect(opened).toContain('https://x/b.png');
-
-      const backdrop = renderer.root.findByProps({
-        accessibilityLabel: 'Close avatar preview',
-      });
-      await ReactTestRenderer.act(() => {
-        backdrop.props.onPress();
-      });
-
-      expect(renderedText(renderer)).not.toContain('Tap anywhere to close');
+    const error = await renderMatch();
+    expect(text(error)).toContain('Unable to load Match scores');
+    await ReactTestRenderer.act(() => {
+      error.root.findByProps({ accessibilityLabel: 'Retry loading Match scores' }).props.onPress();
     });
-
-    it('does not make a missing avatar tappable', async () => {
-      withMatchup();
-      mockUseGetLeagueMembersQuery.mockReturnValue({ data: [] });
-      const renderer = await renderMatchup();
-
-      expect(
-        renderer.root.findAllByProps({ accessibilityRole: 'imagebutton' }),
-      ).toHaveLength(0);
-    });
+    expect(mockRefetchScores).toHaveBeenCalledTimes(1);
+    expect(text(error).toLowerCase()).not.toContain('bye');
   });
 });

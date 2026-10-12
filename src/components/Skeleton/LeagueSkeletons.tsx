@@ -149,7 +149,7 @@ export function LeagueDetailSkeleton() {
 /**
  * The body of whichever tab is open.
  *
- * Deliberately generic. The five tabs hold quite different things - a matchup,
+ * Deliberately generic. The five tabs hold quite different things - a Match,
  * a roster, a team list - and guessing wrong would promise a layout that never
  * appears, so this says only "a panel and some rows are coming".
  */
@@ -165,16 +165,10 @@ export function TabPanelSkeleton({ rows = 3 }: { rows?: number }) {
   );
 }
 
-/**
- * The matchup tab.
- *
- * Two teams facing each other across a divider, which is the one thing every
- * matchup looks like whatever the week holds.
- */
-export function MatchupTabSkeleton() {
+/** Match selector, personal summary, and league score rows. */
+export function MatchScoresSkeleton() {
   return (
-    <SkeletonRegion label="Loading matchup" style={{ marginBottom: 24 }}>
-      {/* The week selector strip. */}
+    <SkeletonRegion label="Loading Match scores" style={{ marginBottom: 24 }}>
       <View className="flex-row mb-4">
         {[54, 54, 54, 54].map((width, index) => (
           <Skeleton
@@ -186,29 +180,16 @@ export function MatchupTabSkeleton() {
           />
         ))}
       </View>
-
-      <View className="bg-[#111] border border-[#222] rounded-[24px] p-5">
-        <View className="items-center mb-5">
-          <Skeleton width={92} height={22} radius={11} />
-        </View>
-
-        <View className="flex-row items-center justify-between">
-          <MatchupSideSkeleton />
-          <Skeleton width={26} height={14} radius={7} />
-          <MatchupSideSkeleton />
-        </View>
+      <Skeleton width={100} height={22} radius={11} style={{ marginBottom: 16 }} />
+      <View className="bg-[#111] border border-[#222] rounded-[24px] p-5 mb-5">
+        <Skeleton width="45%" height={14} radius={7} style={{ marginBottom: 14 }} />
+        <Skeleton width="70%" height={20} radius={10} />
       </View>
+      <Skeleton width={155} height={20} radius={10} style={{ marginBottom: 14 }} />
+      {[0, 1, 2, 3].map(index => (
+        <RowCardSkeleton key={index} leading={28} trailing={55} />
+      ))}
     </SkeletonRegion>
-  );
-}
-
-function MatchupSideSkeleton() {
-  return (
-    <View className="items-center flex-1">
-      <SkeletonCircle size={54} />
-      <Skeleton width="72%" height={12} radius={6} style={{ marginTop: 10 }} />
-      <Skeleton width="46%" height={18} radius={9} style={{ marginTop: 8 }} />
-    </View>
   );
 }
 
@@ -255,7 +236,7 @@ export function TeamListFooterSkeleton() {
   );
 }
 
-/** Standings and matchup history, which share a row shape. */
+/** Season total points standings rows. */
 export function StandingsSkeleton({ count = 5 }: { count?: number }) {
   return (
     <SkeletonRegion label="Loading standings">
