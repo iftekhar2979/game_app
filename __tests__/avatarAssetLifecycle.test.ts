@@ -310,7 +310,10 @@ describe('the editor screens draw from the registry, not their own copies', () =
             )
           : sourceOf(screen);
 
-      expect(source).toContain('blinkOpacity(eyeState)');
+      // The editor fades by state; the preview drives the same fade natively.
+      expect(source).toContain(
+        screen === 'AvatarPreview' ? 'HALF_CLOSED_OPACITY' : 'blinkOpacity(eyeState)',
+      );
       // The bundled pair is still addressed a frame at a time.
       expect(source).toContain("getEyeSource('half'");
       expect(source).toContain("getEyeSource('full'");
