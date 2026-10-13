@@ -7,7 +7,7 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>en</string>
 	<key>CFBundleDisplayName</key>
-	<string>CheerBattle</string>
+	<string>Cheer Madness</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
@@ -47,11 +47,11 @@
 		<true/>
 	</dict>
 	<key>NSCameraUsageDescription</key>
-	<string>CheerBattle uses the camera to scan a league's QR code so you can join it.</string>
+	<string>Cheer Madness uses the camera to scan a league's QR code so you can join it.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>CheerBattle uses your location to discover nearby leagues, events, and competitions.</string>
+	<string>Cheer Madness uses your location to discover nearby leagues, events, and competitions.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
-	<string>CheerBattle needs access to your photo library to let you upload profile pictures, posts, and league images.</string>
+	<string>Cheer Madness needs access to your photo library to let you upload profile pictures, posts, and league images.</string>
 	<key>RCTNewArchEnabled</key>
 	<true/>
 	<key>UIApplicationSceneManifest</key>

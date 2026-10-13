@@ -22,6 +22,7 @@ import { useGetMyAvatarsQuery } from '../../store/api/avatarApi';
 import CharacterCard from '../../components/Home/CharacterCard';
 import { getBaseById } from '../../avatar/registry';
 import { normaliseConfig } from '../../avatar/resolveConfig';
+import { defaultAvatarConfigFor } from '../../avatar/defaultAvatar';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
@@ -58,9 +59,15 @@ export default function HomeScreen() {
     );
     // The profile's own config when the wardrobe has no applied row, so the
     // live avatar draws instead of the flat snapshot.
-    const config = normaliseConfig(entry?.avatarConfig ?? me?.avatarConfig);
-    return { config, artwork, snapshotUri: entry?.avatarUrl ?? null };
-  }, [avatarData, me?.avatarConfig]);
+    const saved = normaliseConfig(entry?.avatarConfig ?? me?.avatarConfig);
+    const snapshotUri = entry?.avatarUrl ?? null;
+    // Someone who has never built an avatar still gets a character, never
+    // their initials. An old snapshot-only avatar is theirs, so it wins.
+    const hasSnapshot = Boolean(snapshotUri || me?.avatarUrl || currentUser?.avatarUrl);
+    const config =
+      saved ?? (hasSnapshot ? null : defaultAvatarConfigFor(me?.gender ?? currentUser?.gender));
+    return { config, artwork, snapshotUri };
+  }, [avatarData, me?.avatarConfig, me?.avatarUrl, me?.gender, currentUser?.avatarUrl, currentUser?.gender]);
   const unreadBadgeCount = badgeData?.data?.unreadCount ?? 0;
   const leagueList = (Array.isArray(apiLeagues) ? apiLeagues : apiLeagues?.data) || [];
   const leagues = leagueList.length > 0 ? leagueList : createdLeagues;

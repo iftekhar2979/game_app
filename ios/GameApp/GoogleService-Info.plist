@@ -2,22 +2,18 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-	<key>CLIENT_ID</key>
-	<string>58690558184-jj9sm9r3io9rruub7l4ubnumeatmni16.apps.googleusercontent.com</string>
-	<key>REVERSED_CLIENT_ID</key>
-	<string>com.googleusercontent.apps.58690558184-jj9sm9r3io9rruub7l4ubnumeatmni16</string>
 	<key>API_KEY</key>
-	<string>AIzaSyCr1nIQT7Z5acCC3Er6KLoxcKuSKP0Z9do</string>
+	<string>AIzaSyA-ywDoa4Yt1Ca-sryHr4mz2YkRTA_z5yg</string>
 	<key>GCM_SENDER_ID</key>
-	<string>58690558184</string>
+	<string>165305882948</string>
 	<key>PLIST_VERSION</key>
 	<string>1</string>
 	<key>BUNDLE_ID</key>
-	<string>com.cheerbattle.app</string>
+	<string>com.cheermadness.app</string>
 	<key>PROJECT_ID</key>
-	<string>cheerbattleapp</string>
+	<string>cheer-madness</string>
 	<key>STORAGE_BUCKET</key>
-	<string>cheerbattleapp.firebasestorage.app</string>
+	<string>cheer-madness.firebasestorage.app</string>
 	<key>IS_ADS_ENABLED</key>
 	<false></false>
 	<key>IS_ANALYTICS_ENABLED</key>
@@ -29,6 +25,6 @@
 	<key>IS_SIGNIN_ENABLED</key>
 	<true></true>
 	<key>GOOGLE_APP_ID</key>
-	<string>1:58690558184:ios:e7a8e0df73471ea3b7915d</string>
+	<string>1:165305882948:ios:8926d747c57c417783df11</string>
 </dict>
 </plist>

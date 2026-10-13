@@ -56,7 +56,7 @@ function RowCardSkeleton({
 }
 
 /**
- * Cheer Battle Leagues, before the list arrives.
+ * Cheer Madness Leagues, before the list arrives.
  *
  * Five rows: roughly a phone-height of list, and no more. Placeholders below
  * the fold cost animation frames nobody sees.

@@ -400,7 +400,7 @@ export default function FantasyLeagueScreen() {
           >
             <ChevronLeft color="#fff" size={24} />
           </TouchableOpacity>
-          <Text className="text-white text-[22px] font-bold">Cheer Battle Leagues</Text>
+          <Text className="text-white text-[22px] font-bold">Cheer Madness Leagues</Text>
         </View>
       </View>
 
@@ -765,7 +765,7 @@ export default function FantasyLeagueScreen() {
                 <QrScanner
                   onCode={handleCodeScanned}
                   onUnrecognised={() =>
-                    showToast.error('Not a league code', 'That QR code is not a CheerBattle league invite.')
+                    showToast.error('Not a league code', 'That QR code is not a Cheer Madness league invite.')
                   }
                 />
 

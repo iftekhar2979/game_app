@@ -11,9 +11,9 @@ export default function LeagueCreationCallToAction({
 }: LeagueCreationCallToActionProps) {
   return (
     <TouchableOpacity
-      testID="create-cheer-battle-league"
+      testID="create-cheer-madness-league"
       accessibilityRole="button"
-      accessibilityLabel="Create Cheer Battle League"
+      accessibilityLabel="Create Cheer Madness League"
       className="mx-5 mb-4 flex-row items-center rounded-2xl border border-[#B366FF] bg-[#8B3DFF] px-4 py-3.5"
       activeOpacity={0.85}
       onPress={onPress}
@@ -23,7 +23,7 @@ export default function LeagueCreationCallToAction({
       </View>
       <View className="flex-1">
         <Text className="text-base font-bold text-white">
-          Create Cheer Battle League
+          Create Cheer Madness League
         </Text>
         <Text className="mt-0.5 text-[11px] text-white/75">
           Draft real-world cheer teams and compete with friends.

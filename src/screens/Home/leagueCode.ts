@@ -3,7 +3,8 @@
  *
  * The league screen encodes the bare code, but a code can also arrive as a
  * link someone shared (`.../join/ABC123`), a query string (`?code=ABC123`) or
- * a prefixed payload (`CHEERBATTLE:ABC123`). All of those are accepted.
+ * a prefixed payload (`CHEERMADNESS:ABC123`, or `CHEERBATTLE:ABC123` from
+ * codes printed before the rename). All of those are accepted.
  *
  * Anything else is rejected rather than passed through. A camera pointed at a
  * menu, a Wi-Fi QR or a product label must not be treated as a league code -
@@ -14,6 +15,8 @@
  */
 
 const CODE_SHAPE = /^[A-Z0-9_-]{3,32}$/;
+/** The old name stays readable: QR codes already printed still carry it. */
+const CODE_PREFIXES = ['CHEERMADNESS:', 'CHEERBATTLE:'];
 
 export function parseLeagueCode(raw: string | null | undefined): string | null {
   if (typeof raw !== 'string') return null;
@@ -28,8 +31,9 @@ export function parseLeagueCode(raw: string | null | undefined): string | null {
     code = fromQuery[1];
   } else if (fromPath) {
     code = fromPath[1];
-  } else if (code.startsWith('CHEERBATTLE:')) {
-    code = code.slice('CHEERBATTLE:'.length).trim();
+  } else {
+    const prefix = CODE_PREFIXES.find((p) => code.startsWith(p));
+    if (prefix) code = code.slice(prefix.length).trim();
   }
 
   return CODE_SHAPE.test(code) ? code : null;

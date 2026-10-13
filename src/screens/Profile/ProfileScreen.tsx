@@ -54,7 +54,7 @@ export default function ProfileScreen() {
         month: 'short',
         year: 'numeric',
       })}`
-    : userEmail || 'CheerBattle Member';
+    : userEmail || 'Cheer Madness Member';
   const coins = me?.coins ?? me?.coinBalance ?? user?.coins ?? 0;
 
   // Real dynamic level and XP based on user total score

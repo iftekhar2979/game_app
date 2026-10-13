@@ -1,36 +1,26 @@
 {
   "project_info": {
-    "project_number": "58690558184",
-    "project_id": "cheerbattleapp",
-    "storage_bucket": "cheerbattleapp.firebasestorage.app"
+    "project_number": "165305882948",
+    "project_id": "cheer-madness",
+    "storage_bucket": "cheer-madness.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:58690558184:android:3bbab3120495a348b7915d",
+        "mobilesdk_app_id": "1:165305882948:android:e65e2bfb6843216383df11",
         "android_client_info": {
-          "package_name": "com.gameapp"
+          "package_name": "com.cheermadness.app"
         }
       },
-      "oauth_client": [
-        {
-          "client_id": "58690558184-kmcjo2buchsa2058o5ndojtrn9v3711r.apps.googleusercontent.com",
-          "client_type": 3
-        }
-      ],
+      "oauth_client": [],
       "api_key": [
         {
-          "current_key": "AIzaSyCzA09GNTYASCf6QicmJ0lyPsRZPmAYvNY"
+          "current_key": "AIzaSyDm4isXMN07qIjR74ygH1EpP50aOA8cKo4"
         }
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": [
-            {
-              "client_id": "58690558184-kmcjo2buchsa2058o5ndojtrn9v3711r.apps.googleusercontent.com",
-              "client_type": 3
-            }
-          ]
+          "other_platform_oauth_client": []
         }
       }
     }

@@ -2,6 +2,7 @@ import React from 'react';
 import {
   View,
   Text,
+  Image,
   ImageBackground,
 } from 'react-native';
 import { Skeleton, SkeletonRegion } from '../../components/Skeleton';
@@ -23,26 +24,28 @@ const OnboardingScreen = () => {
 
   return (
     <View className="flex-1 bg-background">
-      {/* Charizard introduction artwork */}
+      {/* Brand artwork */}
       <View style={{ flex: 6 }} className="justify-center items-center w-full pt-12">
         <ImageBackground
           source={require('../../assets/images/onboardbg.png')}
           className="w-full h-full justify-end items-center"
           resizeMode="cover"
         >
-          <View className="w-[220px] h-[220px] rounded-full bg-[#8B3DFF]/20 border border-[#FFB444]/60 items-center justify-center mb-10">
-            <Text className="text-[88px]">🔥</Text>
-            <Text className="text-[#FFB444] text-xl font-extrabold tracking-widest">CHARIZARD</Text>
-          </View>
+          <Image
+            source={require('../../assets/images/logo.png')}
+            className="w-[260px] h-[216px] mb-10"
+            resizeMode="contain"
+            accessibilityLabel="Cheer Madness, fantasy cheerleading"
+          />
         </ImageBackground>
       </View>
 
       {/* Text Content Section */}
       <View style={{ flex: 3 }} className="justify-center items-center px-10 pb-6">
-        <Text className="text-4xl font-bold text-textPrimary mb-4 text-center tracking-tight">Meet Pokémon Charizard</Text>
+        <Text className="text-4xl font-bold text-textPrimary mb-4 text-center tracking-tight">Welcome to Cheer Madness</Text>
         <Text className="text-sm text-textSecondary text-center leading-6">
-          Spread your wings with Charizard, the fiery Pokémon known for soaring
-          through the sky and powerful Fire-type moves.
+          Fantasy cheerleading: draft your favorite teams, style your cheer
+          avatar, and battle your friends for the top of the leaderboard.
         </Text>
       </View>
 
