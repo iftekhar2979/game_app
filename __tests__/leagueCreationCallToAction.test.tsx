@@ -8,7 +8,7 @@ const textContent = (node: any): string => {
   return node.children.map(textContent).join(' ');
 };
 
-describe('Cheer Battle League creation action', () => {
+describe('Cheer Madness League creation action', () => {
   it('is clearly labeled and opens the create flow when pressed', () => {
     const onPress = jest.fn();
     let renderer: ReactTestRenderer.ReactTestRenderer;
@@ -20,9 +20,9 @@ describe('Cheer Battle League creation action', () => {
     });
 
     const button = renderer!.root.findByProps({
-      testID: 'create-cheer-battle-league',
+      testID: 'create-cheer-madness-league',
     });
-    expect(textContent(button)).toContain('Create Cheer Battle League');
+    expect(textContent(button)).toContain('Create Cheer Madness League');
     expect(textContent(button)).toContain('Draft real-world cheer teams');
 
     act(() => button.props.onPress());

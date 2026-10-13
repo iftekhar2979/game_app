@@ -1,4 +1,4 @@
-package com.gameapp
+package com.cheermadness.app
 
 import android.app.Application
 import android.app.NotificationChannel

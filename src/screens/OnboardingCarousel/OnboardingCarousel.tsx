@@ -141,8 +141,8 @@ const OnboardingCarousel = () => {
             resizeMode="contain"
           />
           <View className="w-full px-6 z-10 mt-16">
-            <Text className="text-3xl text-textPrimary font-light">Meet Pokémon</Text>
-            <Text className="text-6xl text-textPrimary font-extrabold mt-1 tracking-tight">Charizard</Text>
+            <Text className="text-3xl text-textPrimary font-light">Welcome to</Text>
+            <Text className="text-5xl text-textPrimary font-extrabold mt-1 tracking-tight">Cheer{'\n'}Madness</Text>
           </View>
           <View
             style={{

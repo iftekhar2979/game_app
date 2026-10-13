@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">CheerBattle</string>
+    <string name="app_name">Cheer Madness</string>
 
     <!--
       Facebook Login. The native SDK reads these resources at startup - it does

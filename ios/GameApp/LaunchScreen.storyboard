@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
-  The launch screen is the CheerBattle splash artwork, full bleed.
+  The launch screen is the Cheer Madness splash artwork, full bleed.
 
   Pinned to the view's edges rather than the safe area, and scaled
   `scaleAspectFill`, so it reaches under the status bar and home indicator on

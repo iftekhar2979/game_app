@@ -127,7 +127,7 @@ export default function CoinStoreScreen() {
       await initStripe({ publishableKey: intent.publishableKey });
 
       const { error: initError } = await initPaymentSheet({
-        merchantDisplayName: 'CheerBattle',
+        merchantDisplayName: 'Cheer Madness',
         paymentIntentClientSecret: intent.clientSecret,
         appearance: SHEET_APPEARANCE as any,
         defaultBillingDetails: { name: '' },

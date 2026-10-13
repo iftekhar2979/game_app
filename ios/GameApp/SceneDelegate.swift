@@ -19,7 +19,7 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
 
     let window = UIWindow(windowScene: windowScene)
     factory.startReactNative(
-      withModuleName: "CheerBattle",
+      withModuleName: "CheerMadness",
       in: window,
       launchOptions: appDelegate.launchOptions
     )

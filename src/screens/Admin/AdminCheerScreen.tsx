@@ -278,7 +278,7 @@ export default function AdminCheerScreen() {
         </TouchableOpacity>
         <View className="ml-4 flex-1">
           <Text className="text-white text-xl font-semibold">
-            Cheer Battle Admin
+            Cheer Madness Admin
           </Text>
           <Text className="text-[#E0B566] text-xs mt-0.5">TEAM OPERATIONS</Text>
         </View>

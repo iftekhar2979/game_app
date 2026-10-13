@@ -24,6 +24,7 @@ describe('reading a league code', () => {
   });
 
   it('accepts the prefixed payload', () => {
+    expect(parseLeagueCode('CHEERMADNESS:ABC123')).toBe('ABC123');
     expect(parseLeagueCode('CHEERBATTLE:ABC123')).toBe('ABC123');
   });
 
@@ -40,7 +41,7 @@ describe('reading a league code', () => {
   });
 
   it('rejects nothing-shaped input', () => {
-    for (const raw of ['', '   ', null, undefined, 'CHEERBATTLE:']) {
+    for (const raw of ['', '   ', null, undefined, 'CHEERBATTLE:', 'CHEERMADNESS:']) {
       expect(parseLeagueCode(raw)).toBeNull();
     }
   });

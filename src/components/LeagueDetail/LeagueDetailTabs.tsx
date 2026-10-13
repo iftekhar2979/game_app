@@ -495,7 +495,7 @@ export const DraftTab = ({
                 const codeToShare = joinCode || league?.id || '';
                 try {
                   await Share.share({
-                    message: `Join my CheerBattle Fantasy League! Use private join code: ${codeToShare}`,
+                    message: `Join my Cheer Madness Fantasy League! Use private join code: ${codeToShare}`,
                   });
                 } catch {}
               }}

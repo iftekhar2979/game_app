@@ -192,7 +192,7 @@ export default function SettingsScreen() {
               Log out?
             </Text>
             <Text className="text-[#A79BB8] text-[14px] text-center leading-[21px] mb-7">
-              You'll be signed out of CheerBattle on this device. Your leagues,
+              You'll be signed out of Cheer Madness on this device. Your leagues,
               coins and progress stay safe — just sign back in to pick up where
               you left off.
             </Text>
