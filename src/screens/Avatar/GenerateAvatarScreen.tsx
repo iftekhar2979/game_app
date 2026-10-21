@@ -60,7 +60,7 @@ import {
   prefetchEditorArtwork,
   prefetchSources,
 } from '../../avatar/prefetchArtwork';
-import { framingFor, TILE_FRAME, TONE_CROP } from '../../avatar/tileCrop';
+import { framingFor, TILE_FRAME, TONE_CROP, WHOLE } from '../../avatar/tileCrop';
 import {
   type EditorPartChoices,
   previewPartsOf,
@@ -1066,10 +1066,13 @@ const GenerateAvatarScreen = () => {
                             : 'border-[#5B1F7D]'
                         } bg-[#1A0B2E] overflow-hidden items-center`}
                       >
+                        {/* The uploaded thumbnail when there is one: it is
+                            framed already and far lighter than the whole
+                            body. Otherwise crop the body to its torso. */}
                         <ArtworkImage
-                          source={variant.source}
+                          source={variant.thumbnailSource ?? variant.source}
                           fallback={variant.source}
-                          className={TONE_CROP}
+                          className={variant.thumbnailSource ? WHOLE : TONE_CROP}
                           resizeMode="contain"
                         />
                       </View>
@@ -1230,10 +1233,13 @@ const GenerateAvatarScreen = () => {
                             : 'border-[#5B1F7D]'
                         } bg-[#1A0B2E] overflow-hidden items-center`}
                       >
+                        {/* The uploaded thumbnail when there is one: it is
+                            framed already and far lighter than the whole
+                            body. Otherwise crop the body to its torso. */}
                         <ArtworkImage
-                          source={variant.source}
+                          source={variant.thumbnailSource ?? variant.source}
                           fallback={variant.source}
-                          className={TONE_CROP}
+                          className={variant.thumbnailSource ? WHOLE : TONE_CROP}
                           resizeMode="contain"
                         />
                       </View>

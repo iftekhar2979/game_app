@@ -72,7 +72,12 @@ const formatPrice = (priceAmount: number, currency: string = 'usd'): string => {
 
 export default function CoinStoreScreen() {
   const navigation = useNavigation();
-  const { data: packages = [], isLoading, isError, refetch } = useGetCoinPackagesQuery();
+  // Always refetch on open: packages are toggled from the admin panel, and a
+  // cached empty list would otherwise hide newly activated ones.
+  const { data: packages = [], isLoading, isFetching, isError, refetch } = useGetCoinPackagesQuery(
+    undefined,
+    { refetchOnMountOrArgChange: true },
+  );
   const [startTopUpIntent] = useStartTopUpIntentMutation();
   const [reconcileOrder] = useReconcileOrderMutation();
   const { initPaymentSheet, presentPaymentSheet } = useStripe();
@@ -255,9 +260,21 @@ export default function CoinStoreScreen() {
       {/* Empty State */}
       {!isLoading && !isError && packages.length === 0 && (
         <View className="flex-1 justify-center items-center py-20 px-6">
-          <Text className="text-gray-400 text-[15px] text-center">
+          <Text className="text-gray-400 text-[15px] text-center mb-4">
             No coin packages available at the moment.
           </Text>
+          <TouchableOpacity
+            className="flex-row items-center bg-[#4B1E78] px-6 py-3 rounded-full"
+            onPress={() => refetch()}
+            disabled={isFetching}
+          >
+            {isFetching ? (
+              <ActivityIndicator color="#fff" size="small" />
+            ) : (
+              <RefreshCw color="#fff" size={16} />
+            )}
+            <Text className="text-white font-semibold ml-2">Refresh</Text>
+          </TouchableOpacity>
         </View>
       )}
 
