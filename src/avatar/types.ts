@@ -83,6 +83,12 @@ export interface AvatarBase {
    */
   normalEyeSource?: AssetSource | null;
   blinkEyeSource?: AssetSource | null;
+  /**
+   * An admin-uploaded thumbnail, already framed. Null when none was uploaded -
+   * `previewUrl` alone cannot say, since the server falls it back to the full
+   * artwork. Lists draw this instead of the full-resolution body.
+   */
+  thumbnailSource?: AssetSource | null;
 }
 
 /**

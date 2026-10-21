@@ -54,6 +54,7 @@ import {
   LeagueTab,
   ScoringRulesTab,
 } from '../../components/LeagueDetail/LeagueDetailTabs';
+import SeasonHubCard from '../../components/LeagueDetail/SeasonHubCard';
 import {
   PlayerDetailModal,
   LeagueSettingsModal,
@@ -1321,6 +1322,13 @@ export default function LeagueDetailScreen() {
 
           {/* League Tab Content */}
           <View style={{ display: activeTab === 'League' ? 'flex' : 'none' }}>
+            {isRealApiId ? (
+              <SeasonHubCard
+                leagueId={leagueId}
+                leagueStatus={league?.rawStatus}
+                fantasyTeamId={userTeamId}
+              />
+            ) : null}
             <LeagueTab
               leagueId={leagueId}
               userTeamId={userTeamId}
