@@ -60,6 +60,8 @@ export function toBase(
     // overlays - which is what every body that shipped with the app uses.
     normalEyeSource: asset.normalEyeUrl ? { uri: asset.normalEyeUrl } : null,
     blinkEyeSource: asset.blinkEyeUrl ? { uri: asset.blinkEyeUrl } : null,
+    thumbnailSource:
+      asset.hasThumbnail && asset.previewUrl ? { uri: asset.previewUrl } : null,
   };
 }
 

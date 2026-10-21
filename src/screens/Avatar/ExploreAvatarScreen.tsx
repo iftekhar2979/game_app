@@ -30,7 +30,13 @@ type NavigationProp = NativeStackNavigationProp<RootStackParamList, 'ExploreAvat
 const PREVIEW_SLOT_ORDER: AvatarSlot[] = ['bodyColor', 'skirt', 'shoes', 'outfit', 'hair'];
 
 const { width } = Dimensions.get('window');
-const CARD_WIDTH = Math.floor((width - 48 - 24) / 3); // 48 for screen padding (px-6 is 24*2), 24 for gaps (12*2)
+/** Screen gutter on each side, matching the header's `px-6`. */
+const SCREEN_PADDING = 24;
+/** Space between cards, in both directions. */
+const GRID_GAP = 12;
+/** Space between the end of one section's cards and the next heading. */
+const SECTION_GAP = 24;
+const CARD_WIDTH = Math.floor((width - SCREEN_PADDING * 2 - GRID_GAP * 2) / 3);
 const HALF_BODY_CARD_HEIGHT = CARD_WIDTH * 1.3;
 const FULL_BODY_CARD_HEIGHT = CARD_WIDTH * 1.9;
 
@@ -111,8 +117,8 @@ const ExploreAvatarScreen = () => {
         style={{
           width: CARD_WIDTH,
           height: base.isFullbody ? FULL_BODY_CARD_HEIGHT : HALF_BODY_CARD_HEIGHT,
-          marginBottom: 12,
-          marginRight: index % 3 !== 2 ? 12 : 0,
+          marginBottom: GRID_GAP,
+          marginRight: index % 3 !== 2 ? GRID_GAP : 0,
         }}
         onPress={() =>
           navigation.navigate('GenerateAvatar', {
@@ -128,18 +134,31 @@ const ExploreAvatarScreen = () => {
         }
       >
         <View className="flex-1 rounded-2xl border-2 border-[#5B1F7D] overflow-hidden bg-[#1A0B2E]">
-          <ArtworkImage
-            source={bodyArt.source ?? base.source}
-            fallback={base.source}
-            className={
-              base.isFullbody
-                ? 'absolute w-full h-full scale-[2.6] mt-4'
-                : 'absolute w-full h-full'
-            }
-            resizeMode={base.isFullbody ? 'contain' : 'cover'}
-          />
+          {/* An uploaded thumbnail is one small image. Without one, the card
+              falls back to stacking the body and every preview garment at
+              full resolution - correct, but several heavy downloads per card. */}
+          {base.thumbnailSource ? (
+            <ArtworkImage
+              source={base.thumbnailSource}
+              fallback={base.source}
+              className="absolute w-full h-full"
+              resizeMode="cover"
+            />
+          ) : (
+            <ArtworkImage
+              source={bodyArt.source ?? base.source}
+              fallback={base.source}
+              className={
+                base.isFullbody
+                  ? 'absolute w-full h-full scale-[2.6] mt-4'
+                  : 'absolute w-full h-full'
+              }
+              resizeMode={base.isFullbody ? 'contain' : 'cover'}
+            />
+          )}
 
           {base.isFullbody &&
+            !base.thumbnailSource &&
             card.parts.map(({ slot, key }) => {
               const art = artworkForAsset(slot, key, catalogue);
               // A slot with no artwork anywhere is simply not layered on.
@@ -171,7 +190,7 @@ const ExploreAvatarScreen = () => {
   return (
     <View style={[styles.container, { paddingTop: Math.max(insets.top, 16) }]}>
       {/* Header */}
-      <View className="px-6 flex-row items-center mb-8">
+      <View className="px-6 flex-row items-center mb-6">
         <TouchableOpacity
           onPress={() => isAccountSetup
             ? authService.handleLogout(dispatch as any)
@@ -190,18 +209,27 @@ const ExploreAvatarScreen = () => {
           <Text className="text-white text-lg font-medium">Half body avatar</Text>
         </View> */}
 
-        {/* Grid List - Half Body */}
-        <View style={{ flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: 24 }}>
-          {halfBodyCards.map((card, index) => renderCard(card, index, previewArtwork))}
-        </View>
+        {/* Grid List - Half Body. Not rendered when empty, so the full-body
+            heading sits directly under the header instead of below a gap. */}
+        {halfBodyCards.length > 0 && (
+          <View style={styles.grid}>
+            {halfBodyCards.map((card, index) => renderCard(card, index, previewArtwork))}
+          </View>
+        )}
 
         {/* Full Body Section */}
         {fullBodyCards.length > 0 && (
           <>
-            <View className="px-6 mb-4 mt-6">
+            <View
+              style={[
+                styles.sectionTitle,
+                // The last card row already leaves GRID_GAP below it.
+                { marginTop: halfBodyCards.length > 0 ? SECTION_GAP - GRID_GAP : 0 },
+              ]}
+            >
               <Text className="text-white text-lg font-medium">Full body avatar</Text>
             </View>
-            <View style={{ flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: 24 }}>
+            <View style={styles.grid}>
               {fullBodyCards.map((card, index) => renderCard(card, index, previewArtwork))}
             </View>
           </>
@@ -223,6 +251,15 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#0F0318', // Very dark purple/black base
+  },
+  grid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    paddingHorizontal: SCREEN_PADDING,
+  },
+  sectionTitle: {
+    paddingHorizontal: SCREEN_PADDING,
+    marginBottom: GRID_GAP,
   },
 });
 

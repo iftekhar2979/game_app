@@ -28,6 +28,11 @@ import LeagueDetailScreen from './src/screens/Home/LeagueDetailScreen';
 import LeagueChatScreen from './src/screens/Home/LeagueChatScreen';
 import DraftRoomScreen from './src/screens/Home/DraftRoomScreen';
 import TeamRosterScreen from './src/screens/Home/TeamRosterScreen';
+import LeagueTradesScreen from './src/screens/Home/LeagueTradesScreen';
+import ProposeTradeScreen from './src/screens/Home/ProposeTradeScreen';
+import LeagueWaiversScreen from './src/screens/Home/LeagueWaiversScreen';
+import LeagueChampionshipScreen from './src/screens/Home/LeagueChampionshipScreen';
+import SeasonRecapScreen from './src/screens/Home/SeasonRecapScreen';
 import ProfileScreen from './src/screens/Profile/ProfileScreen';
 import { Provider, useDispatch, useSelector } from 'react-redux';
 import { store, RootState } from './src/store';
@@ -102,6 +107,16 @@ export type RootStackParamList = {
   LeagueChat: { leagueId: string; leagueName?: string };
   DraftRoom: { leagueId: string };
   TeamRoster: { leagueId: string; teamId: string; teamName?: string };
+  /** `fantasyTeamId` is the viewer's own team; absent for a non-member. */
+  LeagueTrades: { leagueId: string; fantasyTeamId?: string };
+  ProposeTrade: {
+    leagueId: string;
+    fantasyTeamId: string;
+    recipientFantasyTeamId?: string;
+  };
+  LeagueWaivers: { leagueId: string; fantasyTeamId: string };
+  LeagueChampionship: { leagueId: string; fantasyTeamId?: string };
+  SeasonRecap: { leagueId: string; fantasyTeamId?: string };
   Profile: undefined;
   CoinStore: undefined;
   Wallet: undefined;
@@ -249,6 +264,14 @@ function AppContent() {
             <Stack.Screen name="LeagueChat" component={LeagueChatScreen} />
             <Stack.Screen name="DraftRoom" component={DraftRoomScreen} />
             <Stack.Screen name="TeamRoster" component={TeamRosterScreen} />
+            <Stack.Screen name="LeagueTrades" component={LeagueTradesScreen} />
+            <Stack.Screen name="ProposeTrade" component={ProposeTradeScreen} />
+            <Stack.Screen name="LeagueWaivers" component={LeagueWaiversScreen} />
+            <Stack.Screen
+              name="LeagueChampionship"
+              component={LeagueChampionshipScreen}
+            />
+            <Stack.Screen name="SeasonRecap" component={SeasonRecapScreen} />
             <Stack.Screen name="Profile" component={ProfileScreen} />
             <Stack.Screen name="CoinStore" component={CoinStoreScreen} />
             <Stack.Screen name="Wallet" component={WalletScreen} />

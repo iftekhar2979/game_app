@@ -41,6 +41,63 @@ export interface CheerCompetition {
   divisionIds: unknown[];
 }
 
+export type CheerTradeStatus =
+  | 'proposed'
+  | 'accepted'
+  | 'rejected'
+  | 'cancelled'
+  | 'vetoed'
+  | 'completed'
+  | 'expired';
+
+/** One cheer team on either side of a trade, named by the server. */
+export interface CheerTradeAsset {
+  ownershipId: string;
+  seasonCheerTeamId: string | null;
+  name: string;
+}
+
+export interface CheerTrade {
+  _id: string;
+  leagueId: string;
+  proposerFantasyTeamId: string;
+  recipientFantasyTeamId: string;
+  status: CheerTradeStatus;
+  message?: string;
+  expiresAt: string;
+  reviewEndsAt?: string;
+  resolvedAt?: string;
+  createdAt: string;
+  proposer: { fantasyTeamId: string; name: string };
+  recipient: { fantasyTeamId: string; name: string };
+  offered: CheerTradeAsset[];
+  requested: CheerTradeAsset[];
+  approvals: number;
+  vetoes: number;
+  viewerHasVoted: boolean;
+}
+
+export type CheerWaiverClaimStatus =
+  | 'pending'
+  | 'won'
+  | 'lost'
+  | 'cancelled'
+  | 'failed';
+
+export interface CheerWaiverClaim {
+  _id: string;
+  seasonCheerTeamId: string;
+  seasonCheerTeamName: string;
+  dropOwnershipId?: string;
+  dropTeamName: string | null;
+  bidAmount: number;
+  status: CheerWaiverClaimStatus;
+  processAfter: string;
+  processedAt?: string;
+  failureReason?: string;
+  createdAt: string;
+}
+
 const unwrap = (response: any) => response?.data ?? response;
 
 export const cheerApi = baseApi.injectEndpoints({
@@ -137,7 +194,7 @@ export const cheerApi = baseApi.injectEndpoints({
       ],
     }),
     submitCheerWaiverClaim: builder.mutation<
-      any,
+      CheerWaiverClaim,
       {
         leagueId: string;
         fantasyTeamId: string;
@@ -153,19 +210,35 @@ export const cheerApi = baseApi.injectEndpoints({
         body,
       }),
       transformResponse: unwrap,
-      invalidatesTags: ['Roster'],
+      invalidatesTags: ['Waiver'],
     }),
     getCheerWaiverClaims: builder.query<
-      any[],
+      CheerWaiverClaim[],
       { leagueId: string; fantasyTeamId: string }
     >({
       query: ({ leagueId, fantasyTeamId }) =>
         `fantasy-cheer/leagues/${leagueId}/teams/${fantasyTeamId}/waiver-claims`,
       transformResponse: (response: any) => unwrap(response) ?? [],
-      providesTags: ['Roster'],
+      providesTags: ['Waiver'],
+    }),
+    /** Commissioner only: settles every claim whose clearing period is over. */
+    processCheerWaivers: builder.mutation<
+      Array<{ claimId: string; status: CheerWaiverClaimStatus; reason?: string }>,
+      string
+    >({
+      query: leagueId => ({
+        url: `fantasy-cheer/leagues/${leagueId}/waivers/process`,
+        method: 'POST',
+      }),
+      transformResponse: (response: any) => unwrap(response) ?? [],
+      invalidatesTags: (_result, _error, leagueId) => [
+        { type: 'League', id: leagueId },
+        'Waiver',
+        'Roster',
+      ],
     }),
     proposeCheerTrade: builder.mutation<
-      any,
+      CheerTrade,
       {
         leagueId: string;
         fantasyTeamId: string;
@@ -181,15 +254,15 @@ export const cheerApi = baseApi.injectEndpoints({
         body,
       }),
       transformResponse: unwrap,
-      invalidatesTags: ['Roster'],
+      invalidatesTags: ['Trade'],
     }),
-    getCheerTrades: builder.query<any[], string>({
+    getCheerTrades: builder.query<CheerTrade[], string>({
       query: leagueId => `fantasy-cheer/leagues/${leagueId}/trades`,
       transformResponse: (response: any) => unwrap(response) ?? [],
-      providesTags: ['Roster'],
+      providesTags: ['Trade'],
     }),
     respondToCheerTrade: builder.mutation<
-      any,
+      CheerTrade,
       { leagueId: string; tradeId: string; accept: boolean }
     >({
       query: ({ leagueId, tradeId, accept }) => ({
@@ -198,10 +271,35 @@ export const cheerApi = baseApi.injectEndpoints({
         body: { accept },
       }),
       transformResponse: unwrap,
-      invalidatesTags: ['Roster'],
+      // An instant-review league executes the trade on accept.
+      invalidatesTags: ['Trade', 'Roster'],
+    }),
+    cancelCheerTrade: builder.mutation<
+      CheerTrade,
+      { leagueId: string; tradeId: string }
+    >({
+      query: ({ leagueId, tradeId }) => ({
+        url: `fantasy-cheer/leagues/${leagueId}/trades/${tradeId}/cancel`,
+        method: 'POST',
+      }),
+      transformResponse: unwrap,
+      invalidatesTags: ['Trade'],
+    }),
+    /** Commissioner-veto leagues: the creator approves or vetoes an accepted trade. */
+    resolveCheerTrade: builder.mutation<
+      CheerTrade,
+      { leagueId: string; tradeId: string; approve: boolean }
+    >({
+      query: ({ leagueId, tradeId, approve }) => ({
+        url: `fantasy-cheer/leagues/${leagueId}/trades/${tradeId}/resolve`,
+        method: 'POST',
+        body: { approve },
+      }),
+      transformResponse: unwrap,
+      invalidatesTags: ['Trade', 'Roster'],
     }),
     voteOnCheerTrade: builder.mutation<
-      any,
+      CheerTrade,
       { leagueId: string; tradeId: string; approve: boolean }
     >({
       query: ({ leagueId, tradeId, approve }) => ({
@@ -210,7 +308,7 @@ export const cheerApi = baseApi.injectEndpoints({
         body: { approve },
       }),
       transformResponse: unwrap,
-      invalidatesTags: ['Roster'],
+      invalidatesTags: ['Trade', 'Roster'],
     }),
     finalizeCheerFantasyPeriod: builder.mutation<
       any,
@@ -336,9 +434,12 @@ export const {
   useReleaseFantasyCheerTeamMutation,
   useSubmitCheerWaiverClaimMutation,
   useGetCheerWaiverClaimsQuery,
+  useProcessCheerWaiversMutation,
   useProposeCheerTradeMutation,
   useGetCheerTradesQuery,
   useRespondToCheerTradeMutation,
+  useCancelCheerTradeMutation,
+  useResolveCheerTradeMutation,
   useVoteOnCheerTradeMutation,
   useFinalizeCheerFantasyPeriodMutation,
   useGetCheerCompetitionsQuery,
