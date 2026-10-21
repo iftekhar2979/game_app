@@ -120,6 +120,8 @@ export const baseApi = createApi({
     'Wallet',
     'CoinPackage',
     'Notification',
+    'Trade',
+    'Waiver',
   ],
   endpoints: () => ({}),
 });
